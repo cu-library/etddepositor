@@ -1,7 +1,10 @@
 import bagit
 import xml.etree.ElementTree as Xet
 import pandas as pd
-import sys, os, zipfile, shutil
+import sys
+import os
+import zipfile
+import shutil
 from datetime import date
 
 # Commandline input for running this file:
@@ -18,7 +21,6 @@ def get_string_format(root, type):
 
     type = root.findall("dc:" + type, namespaces)
     for t in type:
-        print(t.text)
         return t.text.rstrip()
 
 
@@ -43,7 +45,6 @@ def CSV_Converter(filename, new_directory):
         "rights_statement",
     ]
     rows = []
-    list = []
 
     xmlparse = Xet.parse(filename)
     root = xmlparse.getroot()
