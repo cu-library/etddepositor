@@ -1,0 +1,575 @@
+abbrev:
+  Doctor of Philosophy: Ph.D.
+  Master of Applied Science: M.App.Sc.
+  Master of Architectural Stud: M.A.S.
+  Master of Architecture: M.Arch.
+  Master of Arts: M.A.
+  Master of Business Administration: M.B.A.
+  Master of Cognitive Science: M.Cog.Sc
+  Master of Computer Science: M.C.S.
+  Master of Design: M.Des.
+  Master of Engineering: M.Eng.
+  Master of Information Tech: M.I.T.
+  Master of Journalism: M.J.
+  Master of Management Studies: M.M.S.
+  Master of Public Policy: M.P.P.
+  Master of Science: M.Sc.
+  Master of Science in Information and System Science: M.Sc.
+  Master of Social Work: M.S.W.
+  Masters of Engineering: M.Eng.
+  Masters of Social Work: M.S.W.
+degree_discipline:
+  MA-07: Communication
+  MA-08A: Applied Linguistics and Discourse Studies
+  MA-08AAS: Applied Linguistics and Discourse Studies
+  MA-08ADH: Applied Linguistics and Discourse Studies
+  MA-10: Art History
+  MA-10DH: Art History
+  MA-11: Canadian Studies
+  MA-11DH: Canadian Studies
+  MA-15: English
+  MA-15AS: English
+  MA-15DH: English
+  MA-16B: French and Francophone Studies
+  MA-16BAS: French and Francophone Studies
+  MA-16BDH: French and Francophone Studies
+  MA-19: History
+  MA-19AS: History
+  MA-19DH: History
+  MA-19P: History
+  MA-19PDH: Public History
+  MA-231: Music and Culture
+  MA-231DH: Music and Culture
+  MA-24: Philosophy
+  MA-24DH: Philosophy
+  MA-251: Religion and Public Life
+  MA-28: Film Studies
+  MA-28A: Film Studies
+  MA-28AS: Film Studies
+  MA-28DH: Film Studies
+  MA-33: Political Economy
+  MA-33AS: Political Economy
+  MA-39: Legal Studies
+  MA-39AS: Legal Studies
+  MA-3M: Sociology
+  MA-3MC: Social Work
+  MA-40: Anthropology
+  MA-40AS: Anthropology
+  MA-40DH: Anthropology
+  MA-41: Economics
+  MA-41AS: Economics
+  MA-41F: Economics
+  MA-42: Geography
+  MA-43: International Affairs
+  MA-43/JD: International Affairs / Juris Doctor
+  MA-43AC: International Affairs
+  MA-43AC/JD: International Affairs / Juris Doctor
+  MA-43AR: International Affairs
+  MA-43AR/JD: International Affairs / Juris Doctor
+  MA-43AS: International Affairs / Juris Doctor
+  MA-43C: International Affairs
+  MA-43C/JD: International Affairs / Juris Doctor
+  MA-43CAS: International Affairs
+  MA-43DC: International Affairs
+  MA-43DC/JD: International Affairs / Juris Doctor
+  MA-43DP: International Affairs
+  MA-43DP/JD: International Affairs / Juris Doctor
+  MA-43EC: International Affairs
+  MA-43EC/JD: International Affairs / Juris Doctor
+  MA-43EP: International Affairs
+  MA-43EP/JD: International Affairs / Juris Doctor
+  MA-43GC: International Affairs
+  MA-43GC/JD: International Affairs / Juris Doctor
+  MA-43GP: International Affairs
+  MA-43GP/JD: International Affairs / Juris Doctor
+  MA-43IC: International Affairs
+  MA-43IC/JD: International Affairs / Juris Doctor
+  MA-43ID: International Affairs
+  MA-43ID/JD: International Affairs / Juris Doctor
+  MA-43IN: International Affairs
+  MA-43IN/JD: International Affairs / Juris Doctor
+  MA-43PC: International Affairs
+  MA-43PC/JD: International Affairs / Juris Doctor
+  MA-44A: Women's and Gender Studies
+  MA-44AAS: Women's and Gender Studies
+  MA-46: Political Science
+  MA-46AS: Political Science
+  MA-46C: Political Science
+  MA-46CAS: Political Science
+  MA-47: Psychology
+  MA-48: Public Administration
+  MA-48C: Public Administration
+  MA-50: Sociology
+  MA-50AS: Sociology
+  MA-50DH: Sociology
+  MA-531: European, Russian and Eurasian Studies
+  MA-531C: European, Russian and Eurasian Studies
+  MA-69A: Human-Computer Interaction
+  MA-SEC: Sustainable Energy
+  MA-SEP: Sustainable Energy
+  MARCH-31A: Architecture
+  MARCH-79: Architecture
+  MAS-31: Architectural Studies
+  MASC-69E: Engineering, Human-Computer Interaction
+  MASC-78: Engineering, Aerospace
+  MASC-81: Engineering, Civil
+  MASC-82E: Engineering, Electrical and Computer
+  MASC-82S: Engineering, Electrical and Computer
+  MASC-82SDS: Engineering, Electrical and Computer
+  MASC-83: Engineering, Materials
+  MASC-84: Engineering, Mechanical
+  MASC-95: Engineering, Environmental
+  MASC-BIOMED: Engineering, Biomedical
+  MASC-SE: Engineering, Sustainable Energy
+  MASC-TIM: Engineering , Technology Innovation Management
+  MBA-71: MBA (Business Administration)
+  MBA-71A: MBA (Business Administration)
+  MBA-71B: MBA (Business Administration)
+  MBA-71C: MBA (Business Administration)
+  MBA-71FM: MBA (Business Administration)
+  MBA-71FMA: MBA (Business Administration)
+  MBA-71I: MBA (Business Administration)
+  MBA-71IB: MBA (Business Administration)
+  MBA-71IBA: MBA (Business Administration)
+  MBA-71ID: MBA (Business Administration)
+  MBA-71IDA: MBA (Business Administration)
+  MBA-71MA: MBA (Business Administration)
+  MBA-71MC: MBA (Business Administration)
+  MBA-71MCA: MBA (Business Administration)
+  MBA-71TM: MBA (Business Administration)
+  MCOGSC-98: Cognitive Science
+  MCS-5M: Engineering, Electrical and Computer
+  MCS-69S: Human-Computer Interaction
+  MCS-77: Computer Science
+  MCS-77A: Computer Science
+  MCS-77B: Computer Science
+  MCS-77C: Computer Science
+  MDES-IDES: Industrial Design
+  MENG-5K: Engineering, Electrical and Computer
+  MENG-5L: Engineering, Electrical and Computer
+  MENG-77: Engineering, Telecommunications Technology Management
+  MENG-78: Engineering, Aerospace
+  MENG-81: Engineering, Civil
+  MENG-82E: Engineering, Electrical and Computer
+  MENG-82S: Engineering, Electrical and Computer
+  MENG-83: Engineering, Materials
+  MENG-84: Engineering, Mechanical
+  MENG-95: Engineering, Environmental
+  MENG-SE: Sustainable Energy
+  MENG-TIM: Engineering , Technology Innovation Management
+  MIPIS-43: Infrastructure Protection and International Security
+  MIPIS-43C: Infrastructure Protection and International Security
+  MIPIS-81: Infrastructure Protection and International Security
+  MIPIS-81C: Infrastructure Protection and International Security
+  MJ-4L-PR1: Journalism
+  MJ-4L-PR2: Journalism
+  MJ-4N-JS1: Journalism
+  MJ-4N-JS2: Journalism
+  MJ-4P-BJ1: Journalism
+  MJ-4P-BJ2: Journalism
+  MPM-PM: Political Management
+  MPNL-48P: Philanthropy and Nonprofit Leadership
+  MSC-42: Geography
+  MSC-5C: Pure Mathematics
+  MSC-5D: Mathematics
+  MSC-5E: Probability and Statistics
+  MSC-5EB: Mathematics
+  MSC-5F: Mathematics
+  MSC-5Y: Physics
+  MSC-60: Biology
+  MSC-60B: Biology
+  MSC-60H: 'Health: Science, Technology and Policy'
+  MSC-60HL: 'Health: Science, Technology and Policy'
+  MSC-62: Chemistry
+  MSC-6E: Neuroscience
+  MSC-6EG: Neuroscience
+  MSC-7A: FLAG
+  MSC-7B: FLAG
+  MSC-7C: FLAG
+  MSC-7D: Chemical and Environmental Toxicology
+  MSC-7E: Chemical and Environmental Toxicology
+  MSC-7G: FLAG
+  MSC-7GT: Chemical and Environmental Toxicology
+  MSC-96: Earth Sciences
+  MSC-9J: Physics
+  MSC-9K: Physics
+  MSC-9L: Mathematics
+  MSW-1YR-5CR: Social Work
+  MSW-1YR-6CR: Social Work
+  MSW-2YR-11CR: Social Work
+  MSW-49: Social Work
+  Mar-79: Architecture
+  PHD-07: Communication
+  PHD-08A: Applied Linguistics and Discourse Studies
+  PHD-11: Canadian Studies
+  PHD-11PE: FLAG
+  PHD-15: English
+  PHD-19: History
+  PHD-19PE: FLAG
+  PHD-31: Architecture
+  PHD-34: Public Policy
+  PHD-34PE: FLAG
+  PHD-39: Legal Studies
+  PHD-39PE: FLAG
+  PHD-40: Anthropology
+  PHD-40PE: FLAG
+  PHD-41: Economics
+  PHD-42: Geography
+  PHD-42PE: FLAG
+  PHD-43: International Affairs
+  PHD-46: Political Science
+  PHD-46PE: FLAG
+  PHD-47: Psychology
+  PHD-49A: Social Work
+  PHD-49PE: FLAG
+  PHD-50: Sociology
+  PHD-50PE: Sociology
+  PHD-5C: Mathematics
+  PHD-5D: Mathematics
+  PHD-5E: Probability and Statistics
+  PHD-60: Biology
+  PHD-62: Chemistry
+  PHD-6E: Neuroscience
+  PHD-6EG: Neuroscience
+  PHD-78: Engineering, Aerospace
+  PHD-7D: FLAG
+  PHD-7E: FLAG
+  PHD-7G: FLAG
+  PHD-7GT: FLAG
+  PHD-7M: Computer Science
+  PHD-7N: Management
+  PHD-81: Engineering, Civil
+  PHD-82E: Engineering, Electrical and Computer
+  PHD-82S: Engineering, Electrical and Computer
+  PHD-84: Engineering, Mechanical
+  PHD-95: Engineering, Environmental
+  PHD-96: Earth Sciences
+  PHD-97: FLAG
+  PHD-98: Cognitive Science
+  PHD-9J: Physics
+  PHD-9K: Physics
+  PHD-BA: Cultural Mediations
+  PHD-BB: Cultural Mediations
+  PHD-BC: Cultural Mediations
+  PHD-BD: Cultural Mediations
+html_escape_table:
+  '"': '&quot;'
+  $: '&#36;'
+  '&': '&amp;'
+  '''': '&apos;'
+  <: '&lt;'
+  '>': '&gt;'
+level:
+  0: Bachelor's
+  1: Master's
+  2: Doctoral
+  3: Post-Doctorial
+proquest_subject:
+  B001: Agriculture
+  B002: Agronomy
+  B003: Animal Culture and Nutrition
+  B004: Animal Pathology
+  B005: Fisheries and Aquaculture
+  B006: Food Science and Technology
+  B007: Forestry and Wildlife
+  B008: Horticulture
+  B009: Plant Culture
+  B010: Plant Pathology
+  B011: Range Management
+  B012: Soil Science
+  B013: Wood Technology
+  B014: Biology
+  B015: Anatomy
+  B016: Animal Physiology
+  B017: Bioinformatics
+  B018: Biostatistics
+  B019: Botany
+  B020: Cell biology
+  B021: Ecology
+  B022: Entomology
+  B023: Genetics
+  B024: Limnology
+  B025: Microbiology
+  B026: Biology - Molecular
+  B027: Neuroscience
+  B028: Oceanography
+  B029: Parasitology
+  B030: Physiology
+  B031: Plant Physiology
+  B032: Veterinary Science
+  B033: Virology
+  B034: Zoology
+  B035: Biophysics
+  B036: Biophysics - Medical
+  C001: Architecture
+  C002: Art History
+  C003: Cinema
+  C004: Dance
+  C005: Design and Decorative Arts
+  C006: Fine Arts
+  C007: Information Science
+  C008: Journalism
+  C009: Landscape Architecture
+  C010: Library Science
+  C011: Mass Communications
+  C012: Music
+  C013: Speech Communication
+  C014: Theater
+  E001: Education
+  E002: Administration
+  E003: Education - Adult and Continuing
+  E004: Education - Agricultural
+  E005: Education - Art
+  E006: Education - Bilingual and Multicultural
+  E007: Education - Business
+  E008: Community College
+  E009: Education - Curriculum and Instruction
+  E010: Education - Early Childhood
+  E011: Educational Psychology
+  E012: Education - Elementary
+  E013: Education - Finance
+  E014: Education - Guidance and Counseling
+  E015: Education - Health
+  E016: Education - Higher
+  E017: Education - History of
+  E018: Home Economics
+  E019: Education - Industrial
+  E020: Education - Language and Literature
+  E021: Education - Mathematics
+  E022: Education - Music
+  E023: Education - Philosophy of
+  E024: Education - Physical
+  E025: Reading
+  E026: Education - Religious
+  E027: Education - Sciences
+  E028: Education - Secondary
+  E029: Education - Social Sciences
+  E030: Sociology of Education
+  E031: Education - Special
+  E032: Teacher Training
+  E033: Education - Technology
+  E034: Education - Tests and Measurements
+  E035: Education - Vocational
+  H001: Environmental Sciences
+  H002: Health Sciences
+  H003: Audiology
+  H004: Dentistry
+  H005: Health Sciences - Education
+  H006: Epidemiology
+  H007: Health Care Management
+  H008: Human Development
+  H009: Immunology
+  H010: Engineering - Medicine and Surgery
+  H011: Mental Health
+  H012: Nursing
+  H013: Nutrition
+  H014: Obstetrics and Gynaecology
+  H015: Occupational Health and Safety
+  H016: Oncology
+  H017: Ophthalmology
+  H018: Pathology
+  H019: Pharmacology
+  H020: Pharmacy
+  H021: Public Health
+  H022: Radiology
+  H023: Recreation
+  H024: Rehabilitation and Therapy
+  H025: Speech Pathology
+  H026: Toxicology
+  H027: Home Economics
+  L001: Language
+  L002: Languages - Ancient
+  L003: Linguistics
+  L004: Languages - Modern
+  L005: Rhetoric and Composition
+  L006: Literature
+  L007: Literature - Classical
+  L008: Literature - Comparative
+  L009: Literature - Medieval
+  L010: Literature - Modern
+  L011: Literature - African
+  L012: History - American
+  L013: Literature - Asian
+  L014: Literature - Australia, New Zealand, and Oceania
+  L015: Literature - Canadian (English)
+  L016: Literature - Canadian (French)
+  L017: Literature - Caribbean
+  L018: Literature - English
+  L019: Literature - Germanic
+  L020: Literature - Latin American
+  L021: Literature - Middle Eastern
+  L022: Literature - Romance
+  L023: Literature - Scandinavian and Icelandic
+  L024: Literature - Slavic and East European
+  M001: Chemistry
+  M002: Chemistry - Agricultural
+  M003: Analytical Chemistry
+  M004: Biochemistry
+  M005: Inorganic Chemistry
+  M006: Chemistry - Nuclear
+  M007: Organic Chemistry
+  M008: Pharmaceutical Chemistry
+  M009: Physical Chemistry
+  M010: Polymer Chemistry
+  M011: Chemistry - Radiation
+  M012: Mathematics
+  M013: Physics
+  M014: Physics - Acoustics
+  M015: Astronomy and Astrophysics
+  M016: Atmospheric Science
+  M017: Physics - Atomic
+  M018: Condensed Matter
+  M019: Electricity and Magnetism
+  M020: Elementary Particles and High Energy
+  M021: Physics - Fluid and Plasma
+  M022: Physics - Molecular
+  M023: Physics - Nuclear
+  M024: Optics
+  M025: Physics - Radiation
+  M026: Physics - Theory
+  M027: Statistics
+  M028: Applied Mechanics
+  M029: Artificial Intelligence
+  M030: Computer Science
+  M031: Energy
+  M032: Engineering
+  M033: Engineering - Aerospace
+  M034: Engineering - Agricultural
+  M035: Engineering - Automotive
+  M036: Engineering - Biomedical
+  M037: Engineering - Chemical
+  M038: Engineering - Civil
+  M039: Engineering - Electronics and Electrical
+  M040: Engineering - Environmental
+  M041: Industrial
+  M042: Engineering - Marine and Ocean
+  M043: Materials Science
+  M044: Engineering - Mechanical
+  M045: Metallurgy
+  M046: Engineering - Mining
+  M047: Engineering - Nuclear
+  M048: Engineering - Packaging
+  M049: Engineering - Petroleum
+  M050: Robotics
+  M051: Engineering - Sanitary and Municipal
+  M052: System Science
+  M053: Engineering - Geotechnology
+  M054: Operations Research
+  M055: Plastics Technology
+  M056: Textile Technology
+  P001: Philosophy
+  P002: Religion
+  P003: Biblical Studies
+  P004: Religion - Clergy
+  P005: History of Religion
+  P006: Philosophy of Religion
+  P007: Theology
+  R001: Atmospheric Sciences
+  R002: Biogeochemistry
+  R003: Geochemistry
+  R004: Geodesy
+  R005: Geology
+  R006: Geophysics
+  R007: Hydrology
+  R008: Mineralogy
+  R009: Paleobotany
+  R010: Paleoecology
+  R011: Paleontology
+  R012: Paleozoology
+  R013: Palynology
+  R014: Physical Geography
+  R015: Physical Oceanography
+  R016: Remote Sensing
+  S001: American Studies
+  S002: Archaeology
+  S003: Cultural Anthropology
+  S004: Medical and Forensic Anthropology
+  S005: Physical Anthropology
+  S006: Biography
+  S007: Black Studies
+  S008: Business Administration
+  S009: Business Administration - Accounting
+  S010: Business administration - Banking
+  S011: Business Administration - Management
+  S012: Marketing
+  S013: Canadian Studies
+  S014: Economics
+  S015: Economics - Agricultural
+  S016: Commerce-Business
+  S017: Finance
+  S018: Economics - History
+  S019: Economics - Labor
+  S020: Economics - Theory
+  S021: Folklore
+  S022: Geography
+  S023: Gerontology
+  S024: Gender Studies
+  S025: Hispanic American Studies
+  S026: History
+  S027: History - Ancient
+  S028: History - Medieval
+  S029: History - Modern
+  S030: African History
+  S031: History - Asia, Australia, and Oceania
+  S032: Black History
+  S033: Canadian History
+  S034: Church History
+  S035: European History
+  S036: 'Latin American History '
+  S037: Middle Eastern History
+  S038: Military
+  S039: History - Russian and Soviet
+  S040: United States History
+  S041: History of Science
+  S042: Jewish Studies
+  S043: Law
+  S044: Military Studies
+  S045: Museology
+  S046: Native American Studies
+  S047: Political Science
+  S048: International Law and Relations
+  S049: Public Administration
+  S050: Recreation
+  S051: Social Work
+  S052: Sociology
+  S053: Criminology and Penology
+  S054: Demography
+  S055: Ethnic and Racial Studies
+  S056: Individual and Family Studies
+  S057: Industrial and Labor Relations
+  S058: Sociology - Organizational
+  S059: Public and Social Welfare
+  S060: Social Structure and Development
+  S061: Sociology - Theory and Methods
+  S062: Transportation
+  S063: Urban and Regional Planning
+  S064: Women's Studies
+  Y001: Psychology
+  Y002: Psychology - Behavioral
+  Y003: Psychology - Clinical
+  Y004: Psychology - Cognitive
+  Y005: Psychology - Developmental
+  Y006: Psychology - Experimental
+  Y007: Psychology - Industrial
+  Y008: Psychology - Personality
+  Y009: Psychology - Physiological
+  Y010: Psychobiology
+  Y011: Psychology - Psychometrics
+  Y012: 'Psychology - Social '
+thesis_map:
+  abstract: ''
+  alternative_title: ''
+  contributor: []
+  creator: ''
+  date: ''
+  language: []
+  lc_subject: []
+  proquest_subject: []
+  publisher: ''
+  release: ''
+  thesis_discipline: ''
+  thesis_grantor: ''
+  thesis_level: ''
+  thesis_name_abbrev: ''
+  thesis_name_full: ''
+  title: ''
