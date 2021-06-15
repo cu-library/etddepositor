@@ -1,6 +1,6 @@
 import bagit
+import csv
 import xml.etree.ElementTree as Xet
-import pandas as pd
 import sys
 import os
 import zipfile
@@ -63,8 +63,11 @@ def CSV_Converter(filename, new_directory):
         }
     )
 
-    df = pd.DataFrame(rows, columns=columns)
-    df.to_csv(new_directory + "/metadata.csv", encoding="utf-8", index=False)
+        with open(path + "/metadata.csv", "w", newline="") as csvfile:
+            metadatawriter = csv.writer(csvfile, delimiter=",", quoting=csv.QUOTE_MINIMAL)
+            metadatawriter.writerow(columns)
+            metadatawriter.writerow(rows)
+        click.echo(f"Created csv metadata for {os.path.basename(path)}")
 
 
 # Unzip directory
