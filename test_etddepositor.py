@@ -7,18 +7,39 @@ import json
 
 NAMESPACES = {"dc": "http://purl.org/dc/elements/1.1/"}
 
-
-def test_validate_permissions_document():
-    good = """Carleton University Thesis License Agreement||1||Y||24-DEC-20
+valid_document = """Carleton University Thesis License Agreement||1||Y||24-DEC-20
 FIPPA||1||Y||24-DEC-20
 Academic Integrity Statement||1||Y||24-DEC-20
 LAC Non-Exclusive License||2||Y||20-JAN-21
-    """
-    etddepositor.validate_permissions_document(good)
-    bad_input = """BLAHBLAH"""
-    with pytest.raises(etddepositor.UnexpectedLine):
-        etddepositor.validate_permissions_document(bad_input)
-    # TODO: Test all exceptions
+"""
+
+valid_document_two = """Embargo Expiry: 19-APR-21
+Carleton University Thesis License Agreement||1||Y||24-DEC-20
+FIPPA||1||Y||24-DEC-20
+Academic Integrity Statement||1||Y||24-DEC-20
+LAC Non-Exclusive License||2||Y||20-JAN-21
+"""
+
+bad = """BLAHBLAH"""
+
+not_signed = """Carleton University Thesis License Agreement||1||Y||24-DEC-20
+FIPPA||1||Y||24-DEC-20
+Academic Integrity Statement||1||N||24-DEC-20
+LAC Non-Exclusive License||2||Y||20-JAN-21
+"""
+
+embargo_date = """Embargo Expiry: 19-DEC-21
+Carleton University Thesis License Agreement||1||Y||24-DEC-20
+FIPPA||1||Y||24-DEC-20
+Academic Integrity Statement||1||Y||24-DEC-20
+LAC Non-Exclusive License||2||Y||20-JAN-21
+"""
+
+# @pytest.mark.parametrize("documents", [(valid_document), (valid_document_two), (bad), (not_signed), (embargo_date)])
+@pytest.mark.parametrize("documents", [(valid_document), (valid_document_two)])
+def test_validate_permissions_document_one(documents):
+
+    etddepositor.validate_permissions_document(documents)
 
 
 def test_extract_metadata_from_xml_tree():
