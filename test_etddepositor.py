@@ -7,6 +7,7 @@ import json
 
 NAMESPACES = {"dc": "http://purl.org/dc/elements/1.1/"}
 
+
 def test_validate_permissions_document():
     good = """Carleton University Thesis License Agreement||1||Y||24-DEC-20
 FIPPA||1||Y||24-DEC-20
@@ -18,6 +19,7 @@ LAC Non-Exclusive License||2||Y||20-JAN-21
     with pytest.raises(etddepositor.UnexpectedLine):
         etddepositor.validate_permissions_document(bad_input)
     # TODO: Test all exceptions
+
 
 def test_extract_metadata_from_xml_tree():
     title_test = """<thesis xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -48,9 +50,13 @@ def test_extract_metadata_from_xml_tree():
     root = ET.fromstring(title_test)
 
     data = etddepositor.extract_metadata(root)
-    assert data.title == "Error Floor Analysis of Quasi-Cyclic LDPC and Spatially Coupled-LDPC Codes and Construction of Codes with Low Error Floor"
+    assert (
+        data.title
+        == "Error Floor Analysis of Quasi-Cyclic LDPC and Spatially Coupled-LDPC Codes and Construction of Codes with Low Error Floor"
+    )
 
-'''
+
+"""
 def test_extract_metadata_json():
     with open('sample_output/100983183_4099_output/drupal_import/import.json') as json_output:
         out_data = json.load(json_output)
@@ -69,4 +75,4 @@ def test_extract_metadata_json():
     #assert test_data.description == out_data["dcterms_abstract"]["und"][0]["value"]
     #assert test_data.contributor == out_data["dcterms_contributor"]["und"][0]["second"]
     assert test_data.date == out_data["dcterms_date"]["und"][0]["value"]["date"]
-'''
+"""
