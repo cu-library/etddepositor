@@ -4,8 +4,10 @@ import collections
 import csv
 import datetime
 import glob
+import grp
 import os
 import os.path
+import pwd
 import shutil
 import subprocess
 import warnings
@@ -241,6 +243,9 @@ def process(ctx, importer, invalid_ok=False):
     shutil.rmtree(os.path.join(new_bagit_directory, "meta"))
     shutil.rmtree(os.path.join(new_bagit_directory, "LAC"))
 
+    if os.path.isdir("contributor"):
+        shutil.rmtree(os.path.join(new_bagit_directory, "contributor"))
+
     bagit.make_bag(new_bagit_directory, {"Contact-Name": package_data.creator})
     shutil.copyfile(
         in_progress_package_path + "/metadata.csv",
@@ -260,6 +265,29 @@ def process(ctx, importer, invalid_ok=False):
 
     # import_bagit(importer, complete_path_bagit)
     click.echo(f"Package process complete!")
+
+    click.echo(f"Importing bagit...")
+    subprocess.run(
+        [
+            importer,
+            "--name",
+            os.path.basename(complete_path_bagit),
+            "--parser_klass",
+            "Bulkrax::BagitParser",
+            "--metadata_file_name",
+            "metadata.csv",
+            "--metadata_format",
+            "Bulkrax::CsvEntry",
+            "--commit",
+            "Create and Import",
+            "--import_file_path",
+            complete_path_bagit,
+            "--user_id",
+            "1",
+            "--auth_token",
+            "12345",
+        ]
+    )
 
 
 def validate_permissions_document(content):
@@ -454,41 +482,17 @@ def csv_exporter(data, path):
 
 
 @etddepositor.command()
-@click.option(
-    "--importer",
-    type=click.Path(exists=True, dir_okay=False, file_okay=True),
-    required=True,
-)
-@click.option(
-    "--path",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False),
-    required=True,
-)
-def bagit_upload(importer, path):
-
-    subprocess.run(
-        [
-            importer,
-            "--name",
-            os.path.basename(path),
-            "--parser_klass",
-            "Bulkrax::BagitParser",
-            "--metadata_file_name",
-            "metadata.csv",
-            "--metadata_format",
-            "Bulkrax::CsvEntry" "--commit",
-            "'Create and Import'",
-            "--import_file_path",
-            path,
-            "auth_token",
-            "12345",
-        ]
-    )
+@click.pass_context
+# @click.option("--invalid-ok/--invalid-not-ok", default=False)
+def change(path):
+    uid = os.getuid()
+    gid = os.getgid()
+    print(f"{uid} and {gid}")
+    print(f"{path}")
 
 
 def import_bagit(importer, bagit_path):
 
-    print(datetime.date.today())
     subprocess.run(
         [
             importer,
@@ -499,10 +503,13 @@ def import_bagit(importer, bagit_path):
             "--metadata_file_name",
             "metadata.csv",
             "--metadata_format",
-            "Bulkrax::CsvEntry" "--commit",
-            "'Create and Import'",
+            "Bulkrax::CsvEntry",
+            "--commit",
+            "Create and Import",
             "--import_file_path",
             bagit_path,
+            "--user_id",
+            "1",
             "--auth_token",
             "12345",
         ]

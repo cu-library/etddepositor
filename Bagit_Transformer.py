@@ -63,11 +63,11 @@ def CSV_Converter(filename, new_directory):
         }
     )
 
-        with open(path + "/metadata.csv", "w", newline="") as csvfile:
-            metadatawriter = csv.writer(csvfile, delimiter=",", quoting=csv.QUOTE_MINIMAL)
-            metadatawriter.writerow(columns)
-            metadatawriter.writerow(rows)
-        click.echo(f"Created csv metadata for {os.path.basename(path)}")
+    with open(path + "/metadata.csv", "w", newline="") as csvfile:
+        metadatawriter = csv.writer(csvfile, delimiter=",", quoting=csv.QUOTE_MINIMAL)
+        metadatawriter.writerow(columns)
+        metadatawriter.writerow(rows)
+    click.echo(f"Created csv metadata for {os.path.basename(path)}")
 
 
 # Unzip directory
