@@ -267,6 +267,7 @@ def process(ctx, importer, invalid_ok=False):
     click.echo(f"Package process complete!")
 
     click.echo(f"Importing bagit...")
+
     subprocess.run(
         [
             importer,
@@ -275,7 +276,7 @@ def process(ctx, importer, invalid_ok=False):
             "--parser_klass",
             "Bulkrax::BagitParser",
             "--metadata_file_name",
-            "metadata.csv",
+            "meta.csv",
             "--metadata_format",
             "Bulkrax::CsvEntry",
             "--commit",
@@ -479,41 +480,6 @@ def csv_exporter(data, path):
     click.echo(f"Created csv metadata for {os.path.basename(path)}")
 
     return path + "metadata.csv"
-
-
-@etddepositor.command()
-@click.pass_context
-# @click.option("--invalid-ok/--invalid-not-ok", default=False)
-def change(path):
-    uid = os.getuid()
-    gid = os.getgid()
-    print(f"{uid} and {gid}")
-    print(f"{path}")
-
-
-def import_bagit(importer, bagit_path):
-
-    subprocess.run(
-        [
-            importer,
-            "--name",
-            os.path.basename(bagit_path),
-            "--parser_klass",
-            "Bulkrax::BagitParser",
-            "--metadata_file_name",
-            "metadata.csv",
-            "--metadata_format",
-            "Bulkrax::CsvEntry",
-            "--commit",
-            "Create and Import",
-            "--import_file_path",
-            bagit_path,
-            "--user_id",
-            "1",
-            "--auth_token",
-            "12345",
-        ]
-    )
 
 
 if __name__ == "__main__":
