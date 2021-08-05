@@ -88,8 +88,12 @@ DOI_PREFIX = "10.22215"
 log_success_array = []
 log_failed_array = []
 
+class InvalidBag(Exception):
+    pass
 
 class PermissionsInvalid(Exception):
+    def __init__(self, var):
+        self.var = var
     pass
 
 
@@ -110,6 +114,12 @@ class MetadataInvalid(Exception):
 
 
 class MissingElementTag(MetadataInvalid):
+    def __init__(self, tag):
+        self.tag = tag
+    pass
+
+
+class MissingFile(Exception):
     pass
 
 
@@ -183,7 +193,7 @@ def copy(ctx, inbox, filetype):
         except zipfile.BadZipFile as e:
             click.echo(f"{filepath} is a bad zip: {e}")
         except Exception as e:
-            print(f"Unable to extract {filepath}: {e}")
+            click.echo(f"Unable to extract {filepath}: {e}")
         click.echo(f"Done")
 
     # TODO: Cleanup file permissions after extract.
@@ -235,47 +245,68 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
     # Get a list of the package directories that are in the awaiting work directory.
     packages_awaiting_work = glob.glob(os.path.join(awaiting_work_path, "*"))
 
-    # Use the old 'less than inf' trick to find the oldest package.
-    oldest_etd_package_path = None
-    oldest_etd_package_mtime = float("inf")
-
     packages = []
+
+    # Checks if the awaiting work directory has packages to process
+    if not os.listdir(awaiting_work_path):
+        click.echo("No valid packages found to process.")
+        raise click.Abort
+
     for package_path in packages_awaiting_work:
-        modified_time = os.path.getmtime(package_path)
-        if modified_time < oldest_etd_package_mtime:
-            oldest_etd_package_mtime = modified_time
-            oldest_etd_package_path = package_path
+        click.echo("--------------------------------------------------------------------------------")
 
         if (
-            oldest_etd_package_path
+            package_path
             and not invalid_ok
-            and not bagit.Bag(oldest_etd_package_path).is_valid()
+            and not bagit.Bag(package_path).is_valid()
         ):
             click.echo(
-                f"Unable to process {os.path.basename(oldest_etd_package_path)}, BagIt file is not valid."
+                f"Unable to process {os.path.basename(package_path)}, BagIt file is not valid."
             )
-            oldest_etd_package_path = None
+            log_failed_array.append(f"{os.path.basename(package_path)} | BagIt file is not valid")
+            continue
 
-        if oldest_etd_package_path is None:
+        if package_path is None:
             click.echo("No valid packages found to process.")
             raise click.Abort
 
         click.echo(
-            f"Moving {os.path.basename(oldest_etd_package_path)} to 'in progress' directory."
+            f"Moving {os.path.basename(package_path)} to 'in progress' directory."
         )
 
-        shutil.move(oldest_etd_package_path, in_progress_path)
+        shutil.move(package_path, in_progress_path)
 
-        packages.append(
-            process_data(
-                oldest_etd_package_path,
-                processing_directory,
-                in_progress_path,
-                files_path,
+        try:
+            packages.append(
+                process_data(
+                    package_path,
+                    processing_directory,
+                    in_progress_path,
+                    files_path,
+                )
             )
-        )
-        oldest_etd_package_path = None
-        oldest_etd_package_mtime = float("inf")
+
+        except StillInEmbargo as e:
+            click.echo(f"The embargo date of {e.var} has not passed.")
+            log_failed_array.append(f"{os.path.basename(package_path)} | The embargo date of {e.var} has not passed")
+
+        except RequiredAgreementNotSigned as e:
+            click.echo(f"Package: {os.path.basename(package_path)} | {e.var} is invalid")
+            log_failed_array.append(f"{os.path.basename(package_path)} | {e.var} is invalid")
+
+        except UnexpectedLine as e:
+            click.echo(f"Package: {os.path.basename(package_path)} | {e.var} was not expected in the permissions document content.")
+            log_failed_array.append(f"{os.path.basename(package_path)} | {e.var} was not expected in the permissions document content")
+
+        except MissingElementTag as e:
+            click.echo(f"Package: {os.path.basename(package_path)} | The tag {e.tag} was missing")
+            log_failed_array.append(f"{os.path.basename(package_path)} | The tag {e.tag} was missing")
+
+        except MissingFile:
+            click.echo(f"Package: {os.path.basename(package_path)} | Missing PDF files")
+            log_failed_array.append(f"{os.path.basename(package_path)} | Missing PDF files")
+
+        package_path = None
 
     metadata_path = in_progress_path + "/metadata.csv"
 
@@ -330,16 +361,14 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
 
             # If work id was not found, then assume import failed
             if work_id == "":
-                print(
-                    f"Couldn't find work id for {package.source_identifier}, import for this work failed"
-                )
+                click.echo(f"Couldn't find work id for {package.source_identifier}, import for this work failed")
                 log_message = f"{package.source_identifier} | Error retrieving work id\nProcessed on: {str(datetime.date.today())}"
                 log_failed_array.append(log_message)
                 # Add the identifier of the package that failed to list for processing
                 remove_packages.append(package.source_identifier)
 
         else:
-            print(
+            click.echo(
                 "Error occurred when attempting to retrieve work id of package. Logging as failed package..."
             )
             log_message = f"{package.source_identifier} | Error retrieving work id\nProcessed on: {str(datetime.date.today())}"
@@ -356,12 +385,12 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
             if package_name == package.source_identifier:
                 packages.remove(package)
 
-    click.echo(f"Creating MARC record for packages...")
+    click.echo(f"\nCreating MARC record for packages...")
     doi_link = {}
 
     # Loop through successful works, create marc record and add the crossref entry for the work
     for package in packages:
-
+        click.echo("--------------------------------------------------------------------------------")
         create_marc_record(
             package.source_identifier,
             marc_path,
@@ -374,7 +403,6 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
         mononymous = False
         split_name = package.creator.split(",")
         if len(split_name) < 2:
-            print("Mononymous Name")
             mononymous = True
 
         surname = split_name[0]
@@ -406,6 +434,7 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
         crossref_file = str(datetime.date.today()) + "-crossref.xml"
         crossref_file_path = os.path.join(crossref_path, crossref_file)
 
+        #Create crossref entry, return doi link for created entry
         doi_link[package.source_identifier] = create_crossref(
             crossref_data, crossref_file_path, running_file
         )
@@ -459,7 +488,7 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
             importer_id = importer_data[i]["id"]
 
     # Import the bagit package to hyrax
-    print("----------------")
+    click.echo("--------------------------------------------------------------------------------")
 
     click.echo(f"Re-Importing metadata...")
 
@@ -527,6 +556,7 @@ def process_data(
 
 
 def validate_permissions_document(content):
+
     for line in content.strip().split("\n"):
         if line.startswith("Student ID"):
             continue
@@ -537,9 +567,7 @@ def validate_permissions_document(content):
             expiry_date = line.split(" ")[2]
             embargo_date = embargo_string_to_datetime(expiry_date)
             if current_date < embargo_date:
-                raise StillInEmbargo(
-                    f"The embargo date of {expiry_date} has not passed."
-                )
+                raise StillInEmbargo(expiry_date)
         elif line.startswith("LAC Non-Exclusive License"):
             continue
         elif line.startswith(
@@ -550,7 +578,7 @@ def validate_permissions_document(content):
             )
         ):
             if line.split("||")[2] != "Y":
-                raise RequiredAgreementNotSigned(f"{line} is invalid.")
+                raise RequiredAgreementNotSigned(line)
         else:
             raise UnexpectedLine(
                 f"{line} was not expected in the permissions document content."
@@ -558,6 +586,7 @@ def validate_permissions_document(content):
 
 
 def embargo_string_to_datetime(embargo):
+
     month_to_int = {
         "JAN": "1",
         "FEB": "2",
@@ -584,15 +613,15 @@ def extract_metadata(root, package_basename):
     creator = root.findall("dc:creator", namespaces=NAMESPACES)
 
     if not title:
-        raise MissingElementTag(f"title element tag was not found")
+        raise MissingElementTag("title")
     else:
         if title[0].text.strip() == "":
-            raise MissingElementTag(f"title element tag was found but was empty")
+            raise MissingElementTag("title")
     if not creator:
-        raise MissingElementTag(f"creator element tag was not found")
+        raise MissingElementTag("creator")
     else:
         if creator[0].text.strip() == "":
-            raise MissingElementTag(f"creator element tag was found but was empty")
+            raise MissingElementTag("creator")
 
     title = title[0].text.strip()
     creator = creator[0].text.strip()
@@ -624,6 +653,13 @@ def extract_metadata(root, package_basename):
         ".//{http://www.ndltd.org/standards/metadata/etdms/1.1/}discipline"
     )
     level = root.findall(".//{http://www.ndltd.org/standards/metadata/etdms/1.1/}level")
+
+    if not name:
+        raise MissingElementTag("name")
+    if not discipline:
+        raise MissingElementTag("discipline")
+    if not level:
+        raise MissingElementTag("level")
 
     name = check_metadata(name, "name")
     discipline = check_metadata(discipline, "discipline")
@@ -780,6 +816,8 @@ def csv_exporter(data, path, new_bagit_directory, files_path):
         if i < (len(files) - 1):
             file_string += " | "
 
+    if not files:
+        raise MissingFile(f"Missing PDF files")
     rows = []
 
     rows.append(data.source_identifier)
@@ -958,18 +996,8 @@ def create_crossref(crossref_data, crossref_path, running_file):
         os.remove(crossref_path)
 
     if os.path.isfile(running_file):
-        print(
-            "Number of entries in crossref xml: "
-            + str(
-                int(
-                    len(
-                        body.findall(
-                            "{http://www.crossref.org/schema/4.4.1}dissertation"
-                        )
-                    )
-                    / 2
-                )
-            )
+        click.echo(
+            f"Number of entries in crossref xml: {str(int(len(body.findall('{http://www.crossref.org/schema/4.4.1}dissertation'))/2))}"
         )
 
     crossref_xml = minidom.parseString(
@@ -981,31 +1009,6 @@ def create_crossref(crossref_data, crossref_path, running_file):
         file.write(crossref_xml)
 
     return doi.text
-
-
-def import_bagit(importer, bagit_path):
-
-    subprocess.run(
-        [
-            importer,
-            "--name",
-            os.path.basename(bagit_path),
-            "--parser_klass",
-            "Bulkrax::BagitParser",
-            "--metadata_file_name",
-            "metadata.csv",
-            "--metadata_format",
-            "Bulkrax::CsvEntry",
-            "--commit",
-            "Create and Import",
-            "--import_file_path",
-            bagit_path,
-            "--user_id",
-            "1",
-            "--auth_token",
-            "12345",
-        ]
-    )
 
 
 def create_marc_record(package_name, marc_path, work_link, xml_data):
@@ -1253,9 +1256,6 @@ def email_report(marc_path):
     """Prepares email message to be sent"""
 
     subject = f"ETD Depositor Report - {len(log_success_array)} processed, {len(log_failed_array)} failed"
-
-    message = ""
-
     message = f"Number of MARC Records: {len(os.listdir(marc_path))} \n"
 
     message += f"{len(log_success_array)} successful packages:\n---------------------------------------------------\n\n"
