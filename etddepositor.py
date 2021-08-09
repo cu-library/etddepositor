@@ -4,11 +4,8 @@ import collections
 import csv
 import datetime
 import glob
-import grp
-import hashlib
 import os
 import os.path
-import pwd
 import pymarc
 import requests
 import shutil
@@ -88,12 +85,15 @@ DOI_PREFIX = "10.22215"
 log_success_array = []
 log_failed_array = []
 
+
 class InvalidBag(Exception):
     pass
+
 
 class PermissionsInvalid(Exception):
     def __init__(self, var):
         self.var = var
+
     pass
 
 
@@ -116,6 +116,7 @@ class MetadataInvalid(Exception):
 class MissingElementTag(MetadataInvalid):
     def __init__(self, tag):
         self.tag = tag
+
     pass
 
 
@@ -124,6 +125,13 @@ class MissingFile(Exception):
 
 
 class FailedGetResponse(Exception):
+    pass
+
+
+class ProcessDataError(Exception):
+    def __init__(self, message):
+        self.var = message
+
     pass
 
 
@@ -194,9 +202,7 @@ def copy(ctx, inbox, filetype):
             click.echo(f"{filepath} is a bad zip: {e}")
         except Exception as e:
             click.echo(f"Unable to extract {filepath}: {e}")
-        click.echo(f"Done")
-
-    # TODO: Cleanup file permissions after extract.
+        click.echo("Done")
 
 
 @etddepositor.command()
@@ -218,6 +224,7 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
     processing_directory = ctx.obj["processing_directory"]
 
     # Build the three processing location subdirectory paths.
+    paths = []
     awaiting_work_path = os.path.join(processing_directory, AWAITING_WORK_SUBDIR)
     in_progress_path = os.path.join(processing_directory, IN_PROGRESS_SUBDIR)
     complete_path = os.path.join(processing_directory, COMPLETE_SUBDIR)
@@ -225,10 +232,18 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
     marc_path = os.path.join(processing_directory, MARC_SUBDIR)
     crossref_path = os.path.join(processing_directory, CROSSREF_SUBDIR)
 
+    paths.append(awaiting_work_path)
+    paths.append(in_progress_path)
+    paths.append(complete_path)
+    paths.append(files_path)
+    paths.append(crossref_path)
+
     # Do the 'in progress' and 'complete' directories exist?
-    if not os.path.isdir(in_progress_path):
-        click.echo(f"{in_progress_path} does not exist yet. Creating now...")
-        os.mkdir(in_progress_path, mode=0o770)
+    for path in paths:
+        if not os.path.isdir(path):
+            click.echo(f"{path} does not exist yet. Creating now...")
+            os.mkdir(path, mode=0o770)
+    """
     if not os.path.isdir(complete_path):
         click.echo(f"{complete_path} does not exist yet. Creating now...")
         os.mkdir(complete_path, mode=0o770)
@@ -241,6 +256,9 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
     if not os.path.isdir(crossref_path):
         click.echo(f"{crossref_path} does not exist yet. Creating now...")
         os.mkdir(crossref_path, mode=0o770)
+    """
+    with open("degree_config.yaml") as config_file:
+        config_yaml = yaml.load(config_file, Loader=yaml.FullLoader)
 
     # Get a list of the package directories that are in the awaiting work directory.
     packages_awaiting_work = glob.glob(os.path.join(awaiting_work_path, "*"))
@@ -248,27 +266,23 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
     packages = []
 
     # Checks if the awaiting work directory has packages to process
-    if not os.listdir(awaiting_work_path):
+    if not os.listdir(awaiting_work_path):  # flake8: noqa: C901
         click.echo("No valid packages found to process.")
         raise click.Abort
 
     for package_path in packages_awaiting_work:
-        click.echo("--------------------------------------------------------------------------------")
+        click.echo(
+            "--------------------------------------------------------------------------------"
+        )
 
-        if (
-            package_path
-            and not invalid_ok
-            and not bagit.Bag(package_path).is_valid()
-        ):
+        if package_path and not invalid_ok and not bagit.Bag(package_path).is_valid():
             click.echo(
                 f"Unable to process {os.path.basename(package_path)}, BagIt file is not valid."
             )
-            log_failed_array.append(f"{os.path.basename(package_path)} | BagIt file is not valid")
+            log_failed_array.append(
+                f"{os.path.basename(package_path)} | BagIt file is not valid"
+            )
             continue
-
-        if package_path is None:
-            click.echo("No valid packages found to process.")
-            raise click.Abort
 
         click.echo(
             f"Moving {os.path.basename(package_path)} to 'in progress' directory."
@@ -283,29 +297,44 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
                     processing_directory,
                     in_progress_path,
                     files_path,
+                    config_yaml,
                 )
             )
 
-        except StillInEmbargo as e:
-            click.echo(f"The embargo date of {e.var} has not passed.")
-            log_failed_array.append(f"{os.path.basename(package_path)} | The embargo date of {e.var} has not passed")
-
+        except ProcessDataError as e:
+            click.echo(f"Failed to process data for {os.path.basename(package_path)}")
+            log_failed_array.append(os.path.basename(package_path) + " | " + e.message)
+        """
         except RequiredAgreementNotSigned as e:
-            click.echo(f"Package: {os.path.basename(package_path)} | {e.var} is invalid")
-            log_failed_array.append(f"{os.path.basename(package_path)} | {e.var} is invalid")
+            click.echo(
+                f"Package: {os.path.basename(package_path)} | {e.var} is invalid"
+            )
+            log_failed_array.append(
+                f"{os.path.basename(package_path)} | {e.var} is invalid"
+            )
 
         except UnexpectedLine as e:
-            click.echo(f"Package: {os.path.basename(package_path)} | {e.var} was not expected in the permissions document content.")
-            log_failed_array.append(f"{os.path.basename(package_path)} | {e.var} was not expected in the permissions document content")
+            click.echo(
+                f"Package: {os.path.basename(package_path)} | {e.var} was not expected in the permissions document content."
+            )
+            log_failed_array.append(
+                f"{os.path.basename(package_path)} | {e.var} was not expected in the permissions document content"
+            )
 
         except MissingElementTag as e:
-            click.echo(f"Package: {os.path.basename(package_path)} | The tag {e.tag} was missing")
-            log_failed_array.append(f"{os.path.basename(package_path)} | The tag {e.tag} was missing")
+            click.echo(
+                f"Package: {os.path.basename(package_path)} | The tag {e.tag} was missing"
+            )
+            log_failed_array.append(
+                f"{os.path.basename(package_path)} | The tag {e.tag} was missing"
+            )
 
         except MissingFile:
             click.echo(f"Package: {os.path.basename(package_path)} | Missing PDF files")
-            log_failed_array.append(f"{os.path.basename(package_path)} | Missing PDF files")
-
+            log_failed_array.append(
+                f"{os.path.basename(package_path)} | Missing PDF files"
+            )
+        """
         package_path = None
 
     metadata_path = in_progress_path + "/metadata.csv"
@@ -329,103 +358,48 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
     )
 
     # Wait for imports to process
-    click.echo(f"Getting work id...")
+    click.echo("Getting work id...")
     time.sleep(20 * len(packages))
-
-    num_entries = 0
-    headers = {"Content-type": "application/json", "Token": "12345"}
 
     work_link_dict = {}
     remove_packages = []
 
     # Loop and find the work id for each work that was imported
     for package in packages:
-        get_response = requests.get(
-            "http://"
-            + target
-            + "/catalog.json?”sourcetesim”="
-            + package.source_identifier,
-            headers=headers,
-        )
-
-        # Check if the get response received information
-        if get_response.status_code == 200:
-            work_json_data = get_response.json()
-            work_id = ""
-            for i in range(len(work_json_data["response"]["docs"])):
-                if (
-                    work_json_data["response"]["docs"][i]["source_tesim"][0]
-                    == package.source_identifier
-                ):
-                    work_id = work_json_data["response"]["docs"][i]["id"]
-
-            # If work id was not found, then assume import failed
-            if work_id == "":
-                click.echo(f"Couldn't find work id for {package.source_identifier}, import for this work failed")
-                log_message = f"{package.source_identifier} | Error retrieving work id\nProcessed on: {str(datetime.date.today())}"
-                log_failed_array.append(log_message)
-                # Add the identifier of the package that failed to list for processing
-                remove_packages.append(package.source_identifier)
-
-        else:
-            click.echo(
-                "Error occurred when attempting to retrieve work id of package. Logging as failed package..."
-            )
-            log_message = f"{package.source_identifier} | Error retrieving work id\nProcessed on: {str(datetime.date.today())}"
-            log_failed_array.append(log_message)
-
+        work_id, remove_packages = get_work_id(target, package, remove_packages)
         if work_id != "":
             work_link_dict[package.source_identifier] = (
                 target + "/concern/works/" + work_id
             )
 
     # Loop through the list of packages that failed and delete the package data
+    """
     for package_name in remove_packages:
         for package in packages:
             if package_name == package.source_identifier:
                 packages.remove(package)
+    """
+    # Pythonic way of removing packages that were not successfully imported
+    packages = [pack for pack in packages if pack not in remove_packages]
 
-    click.echo(f"\nCreating MARC record for packages...")
+    click.echo("\nCreating MARC record for packages...")
     doi_link = {}
 
     # Loop through successful works, create marc record and add the crossref entry for the work
+
     for package in packages:
-        click.echo("--------------------------------------------------------------------------------")
+        click.echo(
+            "--------------------------------------------------------------------------------"
+        )
         create_marc_record(
             package.source_identifier,
             marc_path,
             work_link_dict[package.source_identifier],
             package,
         )
-        click.echo(f"MARC record successfully created")
+        click.echo("MARC record successfully created")
 
-        # Check for mononymous names
-        mononymous = False
-        split_name = package.creator.split(",")
-        if len(split_name) < 2:
-            mononymous = True
-
-        surname = split_name[0]
-
-        if not mononymous:
-            given_name = split_name[1].strip()
-
-        with open("degree_config.yaml") as config_file:
-            config_yaml = yaml.load(config_file, Loader=yaml.FullLoader)
-
-        # Get the full degree name from the abbreviated one
-        degree_name = package.name
-
-        # Create the tuple for crossref data
-        crossref_data = CrossRefData(
-            given_name=given_name,
-            surname=surname,
-            title=package.title,
-            approval_date=package.year,
-            degree=degree_name,
-            identifier=identifier,
-            resource=work_link_dict[package.source_identifier],
-        )
+        crossref_data = create_crossref_data(package, identifier, work_link_dict)
 
         # Naming of XML files for DOIs
         running_file = os.path.join(
@@ -434,7 +408,7 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
         crossref_file = str(datetime.date.today()) + "-crossref.xml"
         crossref_file_path = os.path.join(crossref_path, crossref_file)
 
-        #Create crossref entry, return doi link for created entry
+        # Create crossref entry, return doi link for created entry
         doi_link[package.source_identifier] = create_crossref(
             crossref_data, crossref_file_path, running_file
         )
@@ -442,7 +416,15 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
         click.echo(f"crossref xml entry for {package.source_identifier} created!")
 
         # Log successful bagits
-        log_message = f"{package.source_identifier} | {work_link_dict[package.source_identifier]} | {doi_link[package.source_identifier]} \nProcessed on: {str(datetime.date.today())}"
+        log_message = (
+            package.source_identifier
+            + " | "
+            + work_link_dict[package.source_identifier]
+            + " | "
+            + doi_link[package.source_identifier]
+            + "\nProcessed on: "
+            + str(datetime.date.today())
+        )
         log_success_array.append(log_message)
 
         # Move bagit to completed directory
@@ -450,47 +432,18 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
             f"Moving new bagit {package.source_identifier} to 'complete' directory."
         )
 
-        complete_path_bagit = shutil.move(
-            in_progress_path + "/" + package.source_identifier, complete_path
-        )
+        shutil.move(in_progress_path + "/" + package.source_identifier, complete_path)
 
-    # Update the metadata csv with DOI Link
-    new_column = ["identifier", doi_link]
-    new_rows = []
-
-    # Remove the file column from metadata file
-    with open(metadata_path, "r", newline="") as readfile:
-        csv_reader = csv.reader(readfile, delimiter=",")
-        for row in csv_reader:
-            row.pop()
-            if row[0] == "source_identifier":
-                row.append("identifier")
-            else:
-                row.append(doi_link.get(row[0]))
-            new_rows.append(row)
-
-    updated_metadata = in_progress_path + "/updated_metadata.csv"
-
-    # Add the doi link column to the metadata file
-    with open(updated_metadata, "w", newline="") as csvfile:
-        metadatawriter = csv.writer(csvfile, delimiter=",", quoting=csv.QUOTE_MINIMAL)
-        for rows in new_rows:
-            metadatawriter.writerow(rows)
-    click.echo(f"Updated csv metadata")
-
-    # Find the importer id required for updating the metadata of the thesis
-    importer_response = requests.get("http://" + target + "/importers", headers=headers)
-
-    importer_data = importer_response.json()
-
-    for i in range(0, len(importer_data)):
-        if importer_data[i]["name"] == "CSV_Import":
-            importer_id = importer_data[i]["id"]
+    updated_metadata, importer_id = update_metadata(
+        metadata_path, doi_link, in_progress_path, target
+    )
 
     # Import the bagit package to hyrax
-    click.echo("--------------------------------------------------------------------------------")
+    click.echo(
+        "--------------------------------------------------------------------------------"
+    )
 
-    click.echo(f"Re-Importing metadata...")
+    click.echo("Re-Importing metadata...")
 
     subprocess.run(
         [
@@ -515,7 +468,11 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
 
 
 def process_data(
-    oldest_etd_package_path, processing_directory, in_progress_path, files_path
+    oldest_etd_package_path,
+    processing_directory,
+    in_progress_path,
+    files_path,
+    config_yaml,
 ):
     """
     Process the individual package, extracting metadata for upload
@@ -541,7 +498,7 @@ def process_data(
 
     # Obtain a tuple of data corresponding to the metadata XML
     tree = ET.parse(package_metadata_xml_path)
-    package_data = extract_metadata(tree.getroot(), package_basename)
+    package_data = extract_metadata(tree.getroot(), package_basename, config_yaml)
 
     # Remove uneeded files and directories from the data directory
     shutil.rmtree(os.path.join(in_progress_package_path + "/data", "meta"))
@@ -550,7 +507,7 @@ def process_data(
         shutil.rmtree(os.path.join(in_progress_package_path + "/data", "contributor"))
 
     csv_exporter(package_data, in_progress_path, in_progress_package_path, files_path)
-    click.echo(f"Package process complete!")
+    click.echo("Package process complete!")
 
     return package_data
 
@@ -567,7 +524,9 @@ def validate_permissions_document(content):
             expiry_date = line.split(" ")[2]
             embargo_date = embargo_string_to_datetime(expiry_date)
             if current_date < embargo_date:
-                raise StillInEmbargo(expiry_date)
+                raise ProcessDataError(
+                    f"The embargo date of {embargo_date} has not passed"
+                )
         elif line.startswith("LAC Non-Exclusive License"):
             continue
         elif line.startswith(
@@ -578,10 +537,10 @@ def validate_permissions_document(content):
             )
         ):
             if line.split("||")[2] != "Y":
-                raise RequiredAgreementNotSigned(line)
+                raise ProcessDataError(f"{line} is invalid")
         else:
-            raise UnexpectedLine(
-                f"{line} was not expected in the permissions document content."
+            raise ProcessDataError(
+                f"{line} was not expected in the permissions document content"
             )
 
 
@@ -607,21 +566,21 @@ def embargo_string_to_datetime(embargo):
     return datetime.datetime.strptime(formatted_date, "%d/%m/%y").date()
 
 
-def extract_metadata(root, package_basename):
+def extract_metadata(root, package_basename, config_yaml):
 
     title = root.findall("dc:title", namespaces=NAMESPACES)
     creator = root.findall("dc:creator", namespaces=NAMESPACES)
 
     if not title:
-        raise MissingElementTag("title")
+        raise ProcessDataError("title tag is missing")
     else:
         if title[0].text.strip() == "":
-            raise MissingElementTag("title")
+            raise ProcessDataError("title tag is missing")
     if not creator:
-        raise MissingElementTag("creator")
+        raise ProcessDataError("creator tag is missing")
     else:
         if creator[0].text.strip() == "":
-            raise MissingElementTag("creator")
+            raise ProcessDataError("creator tag is missing")
 
     title = title[0].text.strip()
     creator = creator[0].text.strip()
@@ -633,20 +592,19 @@ def extract_metadata(root, package_basename):
     date = root.findall("dc:date", namespaces=NAMESPACES)
     language = root.findall("dc:language", namespaces=NAMESPACES)
 
-    pro_subject = check_metadata(subject, "pro_subject")
-    lc_subject = check_metadata(subject, "lc_subject")
-    description = check_metadata(description, "description")
-    publisher = check_metadata(publisher, "publisher")
+    pro_subject = check_pro_subject(subject, config_yaml)
+    lc_subject = check_lc_subject(subject, config_yaml)
+    description = check_description(description, config_yaml)
+    publisher = publisher[0].text.strip()
 
     if contributor:
-        contributor = check_metadata(contributor, "contributor")
+        contributor = check_contributor(contributor)
     else:
         contributor = ""
 
-    date = check_metadata(date, "date")
-    language = check_metadata(language, "language")
-
+    date = check_date(date)
     year = date[:4]
+    language = check_language(language)
 
     name = root.findall(".//{http://www.ndltd.org/standards/metadata/etdms/1.1/}name")
     discipline = root.findall(
@@ -655,15 +613,15 @@ def extract_metadata(root, package_basename):
     level = root.findall(".//{http://www.ndltd.org/standards/metadata/etdms/1.1/}level")
 
     if not name:
-        raise MissingElementTag("name")
+        raise ProcessDataError("name tag is missing")
     if not discipline:
-        raise MissingElementTag("discipline")
+        raise ProcessDataError("discipline tag is missing")
     if not level:
-        raise MissingElementTag("level")
+        raise ProcessDataError("level tag is missing")
 
-    name = check_metadata(name, "name")
-    discipline = check_metadata(discipline, "discipline")
-    level = check_metadata(level, "level")
+    name = check_name(name)
+    discipline = check_discipline(discipline, config_yaml)
+    level = check_level(level)
 
     data = ETDPackageData(
         source_identifier=package_basename,
@@ -685,86 +643,85 @@ def extract_metadata(root, package_basename):
     return data
 
 
-def check_metadata(data, xml_tag):
+def check_pro_subject(data, config_yaml):
+    pro_subject = ""
+    for i in range(len(data)):
+        pro_subject = pro_subject + config_yaml["proquest_subject"].get(
+            data[i].text, ""
+        )
+        if i < (len(data) - 1):
+            pro_subject = pro_subject + " | "
+    return pro_subject
 
-    with open("degree_config.yaml") as config_file:
-        config_yaml = yaml.load(config_file, Loader=yaml.FullLoader)
 
-    if xml_tag == "description":
-        data = data[0].text.strip()
-        data = data.replace("\n", " ")
-        data = data.replace("\r", "")
-        data = data.replace("\u2018", "'")
-        data = data.replace("\u2019", "'")
-        data = data.replace("\u201c", '"')
-        data = data.replace("\u201d", '"')
-        data = data.replace("\u2013", "-")
-        for symbol in config_yaml["html_escape_table"].keys():
-            data = data.replace(config_yaml["html_escape_table"][symbol], symbol)
-        return data
+def check_lc_subject(data, config_yaml):
+    lc_subject = []
+    for i in range(len(data)):
+        lc_subject.append(config_yaml["lc_subject"].get(data[i].text, [["a", ""]]))
+    return lc_subject
 
-    elif xml_tag == "contributor":
-        contributor_string = ""
-        for i in range(len(data)):
-            contributor_string = contributor_string + data[i].text
-            if i < (len(data) - 1):
-                contributor_string = contributor_string + " | "
-        return contributor_string
 
-    elif xml_tag == "pro_subject":
-        pro_subject = ""
-        for i in range(len(data)):
-            pro_subject = pro_subject + config_yaml["proquest_subject"].get(
-                data[i].text, ""
-            )
-            if i < (len(data) - 1):
-                pro_subject = pro_subject + " | "
-        return pro_subject
-
-    elif xml_tag == "lc_subject":
-        lc_subject = []
-        for i in range(len(data)):
-            lc_subject.append(config_yaml["lc_subject"].get(data[i].text, [["a", ""]]))
-        return lc_subject
-
-    elif xml_tag == "language":
-        if data[0].text.strip() != "eng" and "fre":
-            warnings.warn(f"language tag was not an expected eng or fre tag")
-        if data[0].text.strip() == "eng":
-            return "English"
-        elif data[0].text.strip() == "fre":
-            return "French"
-
-    elif xml_tag == "date":
-        try:
-            date_obj = datetime.datetime.strptime(data[0].text.strip(), "%Y-%M-%d")
-        except:
-            warnings.warn(f"date tag is not in expected YYYY-MM-DD format")
-
-    if data:
-        if xml_tag == "name":
-            if data[0].text.strip() == "Master of Architectural Stud":
-                return "Master of Architectural Studies"
-            elif data[0].text.strip() == "Master of Information Tech":
-                return "Master of Information Technology"
-            elif data[0].text.strip() == "":
-                return "FLAG"
-            return data[0].text.strip()
-
-        elif xml_tag == "discipline":
-            return config_yaml["degree_discipline"].get(data[0].text.strip(), "FLAG")
-
-        elif xml_tag == "level":
-            if int(data[0].text.strip()) not in range(0, 3):
-                warnings.warn(f"code does not map to an expected value")
-                return "FLAG"
-            else:
-                return data[0].text.strip()
-    else:
-        raise MissingElementTag(f"{xml_tag} element tag was not found")
-
+def check_description(data, config_yaml):
     data = data[0].text.strip()
+    data = data.replace("\n", " ")
+    data = data.replace("\r", "")
+    data = data.replace("\u2018", "'")
+    data = data.replace("\u2019", "'")
+    data = data.replace("\u201c", '"')
+    data = data.replace("\u201d", '"')
+    data = data.replace("\u2013", "-")
+    for symbol in config_yaml["html_escape_table"].keys():
+        data = data.replace(config_yaml["html_escape_table"][symbol], symbol)
     return data
+
+
+def check_contributor(data):
+    contributor_string = ""
+    for i in range(len(data)):
+        contributor_string = contributor_string + data[i].text
+        if i < (len(data) - 1):
+            contributor_string = contributor_string + " | "
+    return contributor_string
+
+
+def check_language(data):
+    if data[0].text.strip() != "eng" and "fre":
+        warnings.warn("language tag was not an expected eng or fre tag")
+    if data[0].text.strip() == "eng":
+        return "English"
+    elif data[0].text.strip() == "fre":
+        return "French"
+
+
+def check_date(data):
+    try:
+        datetime.datetime.strptime(data[0].text.strip(), "%Y-%M-%d")
+    except Exception as e:
+        print(e)
+        pass
+    return data[0].text.strip()
+
+
+def check_name(data):
+    if data[0].text.strip() == "Master of Architectural Stud":
+        return "Master of Architectural Studies"
+    elif data[0].text.strip() == "Master of Information Tech":
+        return "Master of Information Technology"
+    elif data[0].text.strip() == "":
+        return "FLAG"
+    return data[0].text.strip()
+
+
+def check_discipline(data, config_yaml):
+    return config_yaml["degree_discipline"].get(data[0].text.strip(), "FLAG")
+
+
+def check_level(data):
+    if int(data[0].text.strip()) not in range(0, 3):
+        warnings.warn("Code does not map to an expected value")
+        return "FLAG"
+    else:
+        return data[0].text.strip()
 
 
 def csv_exporter(data, path, new_bagit_directory, files_path):
@@ -817,7 +774,7 @@ def csv_exporter(data, path, new_bagit_directory, files_path):
             file_string += " | "
 
     if not files:
-        raise MissingFile(f"Missing PDF files")
+        raise MissingFile("Missing PDF files")
     rows = []
 
     rows.append(data.source_identifier)
@@ -853,39 +810,70 @@ def csv_exporter(data, path, new_bagit_directory, files_path):
             click.echo(f"Created csv metadata for {os.path.basename(path)}")
 
 
-@etddepositor.command()
-@click.pass_context
-# @click.option("--invalid-ok/--invalid-not-ok", default=False)
-def signal(path):
-    # os.system("ping http://localhost:3000/catalog.json?”sourcetesim”=“101117229_3805")
+def get_work_id(target, package, remove_packages):
     headers = {"Content-type": "application/json", "Token": "12345"}
-    response = requests.get(
-        "http://localhost:3000/catalog.json?”sourcetesim”='100983183_4099'",
+    get_response = requests.get(
+        "http://" + target + "/catalog.json?”sourcetesim”=" + package.source_identifier,
         headers=headers,
     )
-    # print(response.json())
-    data = response.json()
 
-    """
-    response = requests.get("http://localhost:3000/importers", headers=headers)
-    print(response)
-    json_data = response.json()
+    # Check if the get response received information
+    if get_response.status_code == 200:
+        work_json_data = get_response.json()
+        work_id = ""
+        for i in range(len(work_json_data["response"]["docs"])):
+            if (
+                work_json_data["response"]["docs"][i]["source_tesim"][0]
+                == package.source_identifier
+            ):
+                work_id = work_json_data["response"]["docs"][i]["id"]
 
-    print(type(json_data))
-    for i in range(0, len(json_data)):
-        if json_data[i]["name"] == "2021-07-19-101060031_3686":
-            print(json_data[0]["id"])
-            """
+        # If work id was not found, then assume import failed
+        if work_id == "":
+            click.echo(
+                f"Couldn't find work id for {package.source_identifier}, import for this work failed"
+            )
+            log_message = f"{package.source_identifier} | Error retrieving work id\nProcessed on: {str(datetime.date.today())}"
+            log_failed_array.append(log_message)
+            # Add the identifier of the package that failed to list for processing
+            remove_packages.append(package.source_identifier)
+        return work_id, remove_packages
 
-    # print(type(data["response"]["docs"][0]))
-    print(data["response"]["docs"][1]["source_tesim"][0])
-    # for i in range(len(data["response"]["docs"][i])):
-    #    print()
-    if "id" in data["response"]["docs"][0]:
-        print(data["response"]["docs"][0]["id"])
     else:
-        print("no key")
-        raise FailedImport(f"Uploading ETD package has failed")
+        click.echo(
+            "Error occurred when attempting to retrieve work id of package. Logging as failed package..."
+        )
+        log_message = f"{package.source_identifier} | Error retrieving work id\nProcessed on: {str(datetime.date.today())}"
+        log_failed_array.append(log_message)
+        raise click.Abort
+
+
+def create_crossref_data(package, identifier, work_link_dict):
+    # Check for mononymous names
+    mononymous = False
+    split_name = package.creator.split(",")
+    if len(split_name) < 2:
+        mononymous = True
+
+    surname = split_name[0]
+
+    if not mononymous:
+        given_name = split_name[1].strip()
+
+    # Get the full degree name from the abbreviated one
+    degree_name = package.name
+
+    # Create the tuple for crossref data
+    crossref_data = CrossRefData(
+        given_name=given_name,
+        surname=surname,
+        title=package.title,
+        approval_date=package.year,
+        degree=degree_name,
+        identifier=identifier,
+        resource=work_link_dict[package.source_identifier],
+    )
+    return crossref_data
 
 
 def create_crossref(crossref_data, crossref_path, running_file):
@@ -997,7 +985,7 @@ def create_crossref(crossref_data, crossref_path, running_file):
 
     if os.path.isfile(running_file):
         click.echo(
-            f"Number of entries in crossref xml: {str(int(len(body.findall('{http://www.crossref.org/schema/4.4.1}dissertation'))/2))}"
+            f"Crossref entries: {str(int(len(body.findall('{http://www.crossref.org/schema/4.4.1}dissertation'))/2))}"
         )
 
     crossref_xml = minidom.parseString(
@@ -1015,9 +1003,6 @@ def create_marc_record(package_name, marc_path, work_link, xml_data):
     """
     Create a MARC encoded record for an ETD package
     """
-    with open("degree_config.yaml") as config_file:
-        config_yaml = yaml.load(config_file, Loader=yaml.FullLoader)
-
     processed_title = ""
     subtitle = ""
 
@@ -1252,17 +1237,54 @@ def create_marc_record(package_name, marc_path, work_link, xml_data):
         print(f"Unable to create marc file for {os.path.basename(package_name)}: {e}")
 
 
+def update_metadata(metadata_path, doi_link, in_progress_path, target):
+    # Update the metadata csv with DOI Link
+    headers = {"Content-type": "application/json", "Token": "12345"}
+    new_rows = []
+
+    # Remove the file column from metadata file
+    with open(metadata_path, "r", newline="") as readfile:
+        csv_reader = csv.reader(readfile, delimiter=",")
+        for row in csv_reader:
+            row.pop()
+            if row[0] == "source_identifier":
+                row.append("identifier")
+            else:
+                row.append(doi_link.get(row[0]))
+            new_rows.append(row)
+
+    updated_metadata = in_progress_path + "/updated_metadata.csv"
+
+    # Add the doi link column to the metadata file
+    with open(updated_metadata, "w", newline="") as csvfile:
+        metadatawriter = csv.writer(csvfile, delimiter=",", quoting=csv.QUOTE_MINIMAL)
+        for rows in new_rows:
+            metadatawriter.writerow(rows)
+    click.echo("Updated csv metadata")
+
+    # Find the importer id required for updating the metadata of the thesis
+    importer_response = requests.get("http://" + target + "/importers", headers=headers)
+
+    importer_data = importer_response.json()
+
+    for i in range(0, len(importer_data)):
+        if importer_data[i]["name"] == "CSV_Import":
+            importer_id = importer_data[i]["id"]
+
+    return updated_metadata, importer_id
+
+
 def email_report(marc_path):
     """Prepares email message to be sent"""
 
     subject = f"ETD Depositor Report - {len(log_success_array)} processed, {len(log_failed_array)} failed"
     message = f"Number of MARC Records: {len(os.listdir(marc_path))} \n"
 
-    message += f"{len(log_success_array)} successful packages:\n---------------------------------------------------\n\n"
+    message += f"{len(log_success_array)} successful packages:\n--------------\n\n"
     for log in log_success_array:
         message += f"Package: {log} \n\n"
 
-    message += f"{len(log_failed_array)} failed packages:\n---------------------------------------------------\n\n"
+    message += f"{len(log_failed_array)} failed packages:\n--------------\n\n"
     for log in log_failed_array:
         message += f"Package: {log} \n\n"
 
