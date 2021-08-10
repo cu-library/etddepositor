@@ -2,6 +2,7 @@ import etddepositor
 import pytest
 import os
 import os.path
+import yaml
 import xml.etree.ElementTree as ET
 import json
 
@@ -35,28 +36,46 @@ Academic Integrity Statement||1||Y||24-DEC-20
 LAC Non-Exclusive License||2||Y||20-JAN-21
 """
 
-# @pytest.mark.parametrize("documents", [(valid_document), (valid_document_two), (bad), (not_signed), (embargo_date)])
+#@pytest.mark.parametrize("documents", [(valid_document), (valid_document_two), (bad), (not_signed), (embargo_date)])
 @pytest.mark.parametrize("documents", [(valid_document), (valid_document_two)])
 def test_validate_permissions_document_one(documents):
 
     etddepositor.validate_permissions_document(documents)
 
 
+
 def test_extract_metadata_from_xml_tree():
-    title_test = """<thesis xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:title xml:lang="en">Error Floor Analysis of Quasi-Cyclic LDPC and Spatially Coupled-LDPC Codes and Construction of Codes with Low Error Floor                                                                                                                                </dc:title>
-    <dc:creator>Naseri, Sima </dc:creator>
-    <dc:subject>M039</dc:subject>
-    <dc:description role="abstract" xml:lang="en">Forward error-correcting (FEC) codes play an important role in transmitting data with extremely high reliability through modern communication systems. In this thesis, we study the design and analysis of low-density parity-check (LDPC) codes in general and spatially coupled (SC) LDPC codes, in particular. At first, we analyze the error floor performance of finite-length protograph-based spatially coupled LDPC codes in terms of their design parameters. We conduct a comprehensive analysis to show that the parameter syndrome former memory plays the main role in the average number of cycles and
-    trapping sets in the Tanner graph of finite-length SC-LDPC codes. This, in fact, gives an insight into the error floor performance of protograph-based SC-LDPC codes, and demonstrates the superiority of these codes in the error floor region, compared to their block code counterparts.
-    To complement the theoretical analysis conducted in the first stage of this research, we develop corresponding design techniques to construct high-performance quasi-cyclic (QC)-LDPC and SC-LDPC codes. Our design approach is aimed at improving the performance of finite-length (SC) LDPC codes while maintaining the
-    decoder complexity and latency small. The improvement in error floor is achieved by minimizing (elimination of) the most harmful trapping set (TS)s. We present two design approaches: 1) imposing simple conditions on the small cycles to eliminate specific classes of trapping sets, 2) developing a search-based design technique such that specific trapping sets are targeted for minimization/elimination. Our constructed QC-LDPC and time-invariant SC-LDPC codes are superior to the state-of-the-art both in terms of their error floor performance and their low decoding latency and
-    complexity.
-    Finally, we look into the design of finite-length time-invariant QC SC-LDPC codes with a small constraint length and a specific girth. In this respect, different scenarios for the construction process are proposed such that the final QC SC-LDPC code has a specific girth of 6 or 8 with a small constraint length. Bounds on memory and lifting degree are derived accordingly to fulfill the girth constraint associated with the specific scenario. Numerical results are provided to compare with the proposed theoretical bounds.
+    title_test = """<thesis xmlns="http://www.ndltd.org/standards/metadata/etdms/1.1/"
+                                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                                        xmlns:dc="http://purl.org/dc/elements/1.1/"
+                                        xmlns:dcterms="http://purl.org/dc/terms/"
+                                        xsi:schemaLocation="http://www.ndltd.org/standards/metadata/etdms/1.1/
+                                        http://www.ndltd.org/standards/metadata/etdms/1.1/etdms11.xsd
+                                        http://purl.org/dc/elements/1.1/
+                                        http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdc.xsd
+                                        http://purl.org/dc/terms/
+                                        http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
+                                        >
+    <dc:title xml:lang="en">Permafrost and Thermokarst Lake Dynamics in the Old Crow Flats, Northern Yukon, Canada</dc:title>
+    <dc:creator>Roy-Leveillee, Pascale </dc:creator>
+    <dc:subject>R014</dc:subject>
+    <dc:subject>H001</dc:subject>
+    <dc:subject>S022</dc:subject>
+    <dc:description role="abstract" xml:lang="en">
+    Aspects of the thaw lake cycle were investigated in Old Crow Flats (OCF), a 5600 km2 peatland with thousands of thermokarst lakes in the continuous permafrost of northern Yukon. It is located in the traditional territory of the Vuntut Gwitch&apos;n, who expressed concern that climatic change may be affecting the permafrost and lakes of OCF.
+
+    Field data collected in 2008-2011 provided the first assessment of spatial variability in permafrost temperatures across the treeline ecotone in OCF. Lake-bottom temperatures were recorded near the shores of four thermokarst lakes and talik
+    configuration was defined beneath the lakes by jet-drilling to determine conditions controlling permafrost degradation in the area. Analytical and thermal models were used to relate field observations to current theory. Surface and subsurface conditions were examined in three drained lake basins and four expanding lakes to investigate how shore recession, talik development, and sediment deposition during lake expansion control the topography in lake basins after drainage.
+
+    Permafrost temperature at the depth of zero annual amplitude varied between -5.1ºC and -2.6ºC on the Flats.
+    Within the forest-tundra transition, spatial variability in permafrost temperatures appeared to be controlled by the snow-holding capacity of vegetation and the configuration of land covers in the surrounding landscape, which controlled snow supply. Annual mean lake-bottom temperatures close to shorelines were unaffected by spatial variations in on-ice snow depth, but accumulation of freezing degree-days at the lake bottom varied sufficiently to affect rates of permafrost degradation beneath the lake. Where ice reached the lake bottom, talik development rates were controlled by the ratio of
+    freezing degree days to thawing degree days and the thermal offset in the lake sediment. After lake drainage and permafrost aggradation, thermokarst lake basins in OCF commonly develop depressed margins and raised centres. An elevation difference of up to 2 m was recorded between the margins and centres of drained basins, but this elevation difference was not associated with increased ice-wedge density or increased segregated ice content.  A conceptual model based on sediment deposition patterns during lake expansion was proposed to explain the topography of drained lake basins in OCF.
 
     </dc:description>
     <dc:publisher country="Canada">Carleton University</dc:publisher>
-    <dc:date>2021-01-20</dc:date>
+    <dc:contributor role="Supervisor">Christopher R. Burn</dc:contributor>
+    <dc:contributor role="Northern Research Partner">Ian D. McDonald</dc:contributor>
+    <dc:date>2014-12-22</dc:date>
     <dc:type>Electronic Thesis or Dissertation</dc:type>
     <dc:identifier>N/A</dc:identifier>
     <dc:language>eng</dc:language>
@@ -64,16 +83,18 @@ def test_extract_metadata_from_xml_tree():
     <degree>
     <name>Doctor of Philosophy</name>
     <level>2</level>
-    <discipline xml:lang="en-us">PHD-82S</discipline>
+    <discipline xml:lang="en-us">PHD-42</discipline>
     <grantor>Carleton University</grantor>
     </degree>
     </thesis>"""
-    root = ET.fromstring(title_test)
 
-    data = etddepositor.extract_metadata(root)
+    with open("degree_config.yaml") as config_file:
+        config_yaml = yaml.load(config_file, Loader=yaml.FullLoader)
+    root = ET.fromstring(title_test)
+    data = etddepositor.extract_metadata(root, "101070601", config_yaml)
     assert (
         data.title
-        == "Error Floor Analysis of Quasi-Cyclic LDPC and Spatially Coupled-LDPC Codes and Construction of Codes with Low Error Floor"
+        == "Permafrost and Thermokarst Lake Dynamics in the Old Crow Flats, Northern Yukon, Canada"
     )
 
 
