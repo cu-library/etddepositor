@@ -338,7 +338,9 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
         package_path = None
 
     metadata_path = in_progress_path + "/metadata.csv"
-
+    click.echo(
+        "--------------------------------------------------------------------------------"
+    )
     subprocess.run(
         [
             importer,
@@ -379,8 +381,11 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
             if package_name == package.source_identifier:
                 packages.remove(package)
     """
+
     # Pythonic way of removing packages that were not successfully imported
-    packages = [pack for pack in packages if pack not in remove_packages]
+    packages = [
+        pack for pack in packages if pack.source_identifier not in remove_packages
+    ]
 
     click.echo("\nCreating MARC record for packages...")
     doi_link = {}
@@ -619,9 +624,9 @@ def extract_metadata(root, package_basename, config_yaml):
     if not level:
         raise ProcessDataError("level tag is missing")
 
-    name = check_name(name)
-    discipline = check_discipline(discipline, config_yaml)
-    level = check_level(level)
+    name = check_degree_name(name)
+    discipline = check_degree_discipline(discipline, config_yaml)
+    level = check_degree_level(level)
 
     data = ETDPackageData(
         source_identifier=package_basename,
@@ -702,7 +707,7 @@ def check_date(data):
     return data[0].text.strip()
 
 
-def check_name(data):
+def check_degree_name(data):
     if data[0].text.strip() == "Master of Architectural Stud":
         return "Master of Architectural Studies"
     elif data[0].text.strip() == "Master of Information Tech":
@@ -712,16 +717,21 @@ def check_name(data):
     return data[0].text.strip()
 
 
-def check_discipline(data, config_yaml):
+def check_degree_discipline(data, config_yaml):
     return config_yaml["degree_discipline"].get(data[0].text.strip(), "FLAG")
 
 
-def check_level(data):
+def check_degree_level(data):
     if int(data[0].text.strip()) not in range(0, 3):
         warnings.warn("Code does not map to an expected value")
         return "FLAG"
     else:
-        return data[0].text.strip()
+        if int(data[0].text.strip()) == 0:
+            return "Undergraduate"
+        elif int(data[0].text.strip()) == 1:
+            return "Masters"
+        elif int(data[0].text.strip()) == 2:
+            return "Doctoral"
 
 
 def csv_exporter(data, path, new_bagit_directory, files_path):
@@ -739,9 +749,9 @@ def csv_exporter(data, path, new_bagit_directory, files_path):
         "date",
         "year",
         "language",
-        "name",
-        "discipline",
-        "level",
+        "degree",
+        "degree_discipline",
+        "degree_level",
         "file",
     ]
 

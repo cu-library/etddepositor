@@ -36,12 +36,11 @@ Academic Integrity Statement||1||Y||24-DEC-20
 LAC Non-Exclusive License||2||Y||20-JAN-21
 """
 
-#@pytest.mark.parametrize("documents", [(valid_document), (valid_document_two), (bad), (not_signed), (embargo_date)])
+# @pytest.mark.parametrize("documents", [(valid_document), (valid_document_two), (bad), (not_signed), (embargo_date)])
 @pytest.mark.parametrize("documents", [(valid_document), (valid_document_two)])
 def test_validate_permissions_document_one(documents):
 
     etddepositor.validate_permissions_document(documents)
-
 
 
 def test_extract_metadata_from_xml_tree():
