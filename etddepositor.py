@@ -64,6 +64,7 @@ ETDPackageData = collections.namedtuple(
         "name",
         "discipline",
         "level",
+        "resource_type",
     ],
 )
 
@@ -130,7 +131,7 @@ class FailedGetResponse(Exception):
 
 class ProcessDataError(Exception):
     def __init__(self, message):
-        self.var = message
+        self.message = message
 
     pass
 
@@ -243,20 +244,7 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
         if not os.path.isdir(path):
             click.echo(f"{path} does not exist yet. Creating now...")
             os.mkdir(path, mode=0o770)
-    """
-    if not os.path.isdir(complete_path):
-        click.echo(f"{complete_path} does not exist yet. Creating now...")
-        os.mkdir(complete_path, mode=0o770)
-    if not os.path.isdir(files_path):
-        click.echo(f"{files_path} does not exist yet. Creating now...")
-        os.mkdir(files_path, mode=0o770)
-    if not os.path.isdir(marc_path):
-        click.echo(f"{marc_path} does not exist yet. Creating now...")
-        os.mkdir(marc_path, mode=0o770)
-    if not os.path.isdir(crossref_path):
-        click.echo(f"{crossref_path} does not exist yet. Creating now...")
-        os.mkdir(crossref_path, mode=0o770)
-    """
+
     with open("degree_config.yaml") as config_file:
         config_yaml = yaml.load(config_file, Loader=yaml.FullLoader)
 
@@ -283,7 +271,6 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
                 f"{os.path.basename(package_path)} | BagIt file is not valid"
             )
             continue
-
         click.echo(
             f"Moving {os.path.basename(package_path)} to 'in progress' directory."
         )
@@ -303,6 +290,7 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
 
         except ProcessDataError as e:
             click.echo(f"Failed to process data for {os.path.basename(package_path)}")
+            click.echo(e.message)
             log_failed_array.append(os.path.basename(package_path) + " | " + e.message)
         """
         except RequiredAgreementNotSigned as e:
@@ -374,14 +362,6 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
                 target + "/concern/works/" + work_id
             )
 
-    # Loop through the list of packages that failed and delete the package data
-    """
-    for package_name in remove_packages:
-        for package in packages:
-            if package_name == package.source_identifier:
-                packages.remove(package)
-    """
-
     # Pythonic way of removing packages that were not successfully imported
     packages = [
         pack for pack in packages if pack.source_identifier not in remove_packages
@@ -391,7 +371,6 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
     doi_link = {}
 
     # Loop through successful works, create marc record and add the crossref entry for the work
-
     for package in packages:
         click.echo(
             "--------------------------------------------------------------------------------"
@@ -506,11 +485,12 @@ def process_data(
     package_data = extract_metadata(tree.getroot(), package_basename, config_yaml)
 
     # Remove uneeded files and directories from the data directory
+    """
     shutil.rmtree(os.path.join(in_progress_package_path + "/data", "meta"))
     shutil.rmtree(os.path.join(in_progress_package_path + "/data", "LAC"))
     if os.path.isdir(os.path.join(in_progress_package_path + "/data", "contributor")):
         shutil.rmtree(os.path.join(in_progress_package_path + "/data", "contributor"))
-
+    """
     csv_exporter(package_data, in_progress_path, in_progress_package_path, files_path)
     click.echo("Package process complete!")
 
@@ -626,7 +606,7 @@ def extract_metadata(root, package_basename, config_yaml):
 
     name = check_degree_name(name)
     discipline = check_degree_discipline(discipline, config_yaml)
-    level = check_degree_level(level)
+    level, resource_type = check_degree_level(level)
 
     data = ETDPackageData(
         source_identifier=package_basename,
@@ -643,6 +623,7 @@ def extract_metadata(root, package_basename, config_yaml):
         name=name,
         discipline=discipline,
         level=level,
+        resource_type=resource_type,
     )
 
     return data
@@ -724,14 +705,15 @@ def check_degree_discipline(data, config_yaml):
 def check_degree_level(data):
     if int(data[0].text.strip()) not in range(0, 3):
         warnings.warn("Code does not map to an expected value")
-        return "FLAG"
+        return "FLAG", "FLAG"
     else:
         if int(data[0].text.strip()) == 0:
-            return "Undergraduate"
+            print("we are here")
+            raise ProcessDataError("Received undergraduate work, degree level is 0")
         elif int(data[0].text.strip()) == 1:
-            return "Masters"
+            return "Masters", "Masters Thesis"
         elif int(data[0].text.strip()) == 2:
-            return "Doctoral"
+            return "Doctoral", "Dissertation"
 
 
 def csv_exporter(data, path, new_bagit_directory, files_path):
@@ -752,6 +734,7 @@ def csv_exporter(data, path, new_bagit_directory, files_path):
         "degree",
         "degree_discipline",
         "degree_level",
+        "resource_type",
         "file",
     ]
 
@@ -760,23 +743,28 @@ def csv_exporter(data, path, new_bagit_directory, files_path):
     file_string = ""
 
     for file in os.listdir(data_path):
-        if os.path.isdir(os.path.join(data_path, file)):
-            subdirectory = os.path.join(data_path, file)
-            for subfile in os.listdir(subdirectory):
-                print(os.path.join(subdirectory, subfile))
-                # files.append(os.path.join(subdirectory, subfile))
-                files.append(subfile)
+        if (
+            os.path.join(file) != "meta"
+            and os.path.join(file) != "LAC"
+            and os.path.join(file) != "contributor"
+        ):
+            if os.path.isdir(os.path.join(data_path, file)):
+                subdirectory = os.path.join(data_path, file)
+                for subfile in os.listdir(subdirectory):
+                    print(os.path.join(subdirectory, subfile))
+                    # files.append(os.path.join(subdirectory, subfile))
+                    files.append(subfile)
+                    shutil.copyfile(
+                        os.path.join(subdirectory, subfile),
+                        os.path.join(files_path, subfile),
+                    )
+            else:
+                print(os.path.join(data_path, file))
+                # files.append(os.path.join(data_path, file))
+                files.append(file)
                 shutil.copyfile(
-                    os.path.join(subdirectory, subfile),
-                    os.path.join(files_path, subfile),
+                    os.path.join(data_path, file), os.path.join(files_path, file)
                 )
-        else:
-            print(os.path.join(data_path, file))
-            # files.append(os.path.join(data_path, file))
-            files.append(file)
-            shutil.copyfile(
-                os.path.join(data_path, file), os.path.join(files_path, file)
-            )
 
     for i in range(len(files)):
         file_string += files[i]
@@ -801,6 +789,7 @@ def csv_exporter(data, path, new_bagit_directory, files_path):
     rows.append(data.name)
     rows.append(data.discipline)
     rows.append(data.level)
+    rows.append(data.resource_type)
     rows.append(file_string)
 
     if os.path.isfile(path + "/metadata.csv"):
