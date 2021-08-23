@@ -292,37 +292,6 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
             click.echo(f"Failed to process data for {os.path.basename(package_path)}")
             click.echo(e.message)
             log_failed_array.append(os.path.basename(package_path) + " | " + e.message)
-        """
-        except RequiredAgreementNotSigned as e:
-            click.echo(
-                f"Package: {os.path.basename(package_path)} | {e.var} is invalid"
-            )
-            log_failed_array.append(
-                f"{os.path.basename(package_path)} | {e.var} is invalid"
-            )
-
-        except UnexpectedLine as e:
-            click.echo(
-                f"Package: {os.path.basename(package_path)} | {e.var} was not expected in the permissions document content."
-            )
-            log_failed_array.append(
-                f"{os.path.basename(package_path)} | {e.var} was not expected in the permissions document content"
-            )
-
-        except MissingElementTag as e:
-            click.echo(
-                f"Package: {os.path.basename(package_path)} | The tag {e.tag} was missing"
-            )
-            log_failed_array.append(
-                f"{os.path.basename(package_path)} | The tag {e.tag} was missing"
-            )
-
-        except MissingFile:
-            click.echo(f"Package: {os.path.basename(package_path)} | Missing PDF files")
-            log_failed_array.append(
-                f"{os.path.basename(package_path)} | Missing PDF files"
-            )
-        """
         package_path = None
 
     metadata_path = in_progress_path + "/metadata.csv"
@@ -340,6 +309,10 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
             "Create and Import",
             "--import_file_path",
             metadata_path,
+            "--override_rights_statement",
+            "1",
+            "--rights_statement",
+            "http://rightsstatements.org/vocab/InC/1.0/",
             "--user_id",
             "1",
             "--auth_token",
@@ -440,6 +413,10 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
             "Update and Re-Import (update metadata only)",
             "--import_file_path",
             updated_metadata,
+            "--override_rights_statement",
+            "1",
+            "--rights_statement",
+            "http://rightsstatements.org/vocab/InC/1.0/",
             "--user_id",
             "1",
             "--auth_token",
@@ -447,7 +424,6 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
         ]
     )
 
-    # shutil.make_archive(processing_directory + "/marc_package", "zip", marc_path)
     email_report(marc_path)
 
 
@@ -491,6 +467,7 @@ def process_data(
     if os.path.isdir(os.path.join(in_progress_package_path + "/data", "contributor")):
         shutil.rmtree(os.path.join(in_progress_package_path + "/data", "contributor"))
     """
+    click.echo("Validation and metadata processing complete")
     csv_exporter(package_data, in_progress_path, in_progress_package_path, files_path)
     click.echo("Package process complete!")
 
@@ -707,7 +684,6 @@ def check_degree_level(data):
         return "FLAG", "FLAG"
     else:
         if int(data[0].text.strip()) == 0:
-            print("we are here")
             raise ProcessDataError("Received undergraduate work, degree level is 0")
         elif int(data[0].text.strip()) == 1:
             return "Masters", "Masters Thesis"
@@ -740,6 +716,7 @@ def csv_exporter(data, path, new_bagit_directory, files_path):
     files = []
     file_string = ""
 
+    # Find pdf files required for upload to hyrax while ignoring other directories
     for file in os.listdir(data_path):
         if (
             os.path.join(file) != "meta"
@@ -749,16 +726,12 @@ def csv_exporter(data, path, new_bagit_directory, files_path):
             if os.path.isdir(os.path.join(data_path, file)):
                 subdirectory = os.path.join(data_path, file)
                 for subfile in os.listdir(subdirectory):
-                    print(os.path.join(subdirectory, subfile))
-                    # files.append(os.path.join(subdirectory, subfile))
                     files.append(subfile)
                     shutil.copyfile(
                         os.path.join(subdirectory, subfile),
                         os.path.join(files_path, subfile),
                     )
             else:
-                print(os.path.join(data_path, file))
-                # files.append(os.path.join(data_path, file))
                 files.append(file)
                 shutil.copyfile(
                     os.path.join(data_path, file), os.path.join(files_path, file)
@@ -1226,9 +1199,9 @@ def create_marc_record(package_name, marc_path, work_link, xml_data):
                     ],
                 )
             )
-            # import pdb; pdb.set_trace()
             marc_file.write(record.as_marc())
             return marc_path
+
     except Exception as e:
         print(f"Unable to create marc file for {os.path.basename(package_name)}: {e}")
 
@@ -1291,7 +1264,7 @@ def send_email(subject, body):
     host = "localhost"
     port = 1025
     source = "my@pc.com"
-    destination = "danieltruong@cmail.carleton.ca"
+    destination = "example@example.ca"
 
     message = f"From: {source}\nTo: {destination}\nSubject: {subject}\n{body}"
 
