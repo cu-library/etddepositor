@@ -58,8 +58,7 @@ ETDPackageData = collections.namedtuple(
         "description",
         "publisher",
         "contributor",
-        "date",
-        "year",
+        "date_created",
         "language",
         "name",
         "discipline",
@@ -237,6 +236,7 @@ def process(ctx, importer, identifier, target, invalid_ok=False):
     paths.append(in_progress_path)
     paths.append(complete_path)
     paths.append(files_path)
+    paths.append(marc_path)
     paths.append(crossref_path)
 
     # Do the 'in progress' and 'complete' directories exist?
@@ -588,7 +588,7 @@ def extract_metadata(root, package_basename, config_yaml):
         contributor = ""
 
     date = check_date(date)
-    year = date[:4]
+    date_created = date[:4]
     language = check_language(language)
 
     name = root.findall(".//{http://www.ndltd.org/standards/metadata/etdms/1.1/}name")
@@ -617,8 +617,7 @@ def extract_metadata(root, package_basename, config_yaml):
         description=description,
         publisher=publisher,
         contributor=contributor,
-        date=date,
-        year=year,
+        date_created=date_created,
         language=language,
         name=name,
         discipline=discipline,
@@ -728,8 +727,7 @@ def csv_exporter(data, path, new_bagit_directory, files_path):
         "description",
         "publisher",
         "contributor",
-        "date",
-        "year",
+        "date_created",
         "language",
         "degree",
         "degree_discipline",
@@ -783,8 +781,7 @@ def csv_exporter(data, path, new_bagit_directory, files_path):
     rows.append(data.description)
     rows.append(data.publisher)
     rows.append(data.contributor)
-    rows.append(data.date)
-    rows.append(data.year)
+    rows.append(data.date_created)
     rows.append(data.language)
     rows.append(data.name)
     rows.append(data.discipline)
@@ -867,7 +864,7 @@ def create_crossref_data(package, identifier, work_link_dict):
         given_name=given_name,
         surname=surname,
         title=package.title,
-        approval_date=package.year,
+        approval_date=package.date_created,
         degree=degree_name,
         identifier=identifier,
         resource=work_link_dict[package.source_identifier],
@@ -1056,7 +1053,7 @@ def create_marc_record(package_name, marc_path, work_link, xml_data):
                 pymarc.Field(
                     tag="008",
                     data="{}s{}    onca||||omb|| 000|0 eng d".format(
-                        today.strftime("%y%m%d"), xml_data.year
+                        today.strftime("%y%m%d"), xml_data.date_created
                     ),
                 )
             )
@@ -1093,14 +1090,14 @@ def create_marc_record(package_name, marc_path, work_link, xml_data):
                 pymarc.Field(
                     tag="264",
                     indicators=[" ", "1"],
-                    subfields=["a", "Ottawa,", "c", xml_data.year],
+                    subfields=["a", "Ottawa,", "c", xml_data.date_created],
                 )
             )
             record.add_field(
                 pymarc.Field(
                     tag="264",
                     indicators=[" ", "4"],
-                    subfields=["c", "\u00A9" + xml_data.year],
+                    subfields=["c", "\u00A9" + xml_data.date_created],
                 )
             )
             record.add_field(
@@ -1161,7 +1158,7 @@ def create_marc_record(package_name, marc_path, work_link, xml_data):
                         "Thesis ("
                         + xml_data.name
                         + ") - Carleton University, "
-                        + xml_data.year
+                        + xml_data.date_created
                         + ".",
                     ],
                 )

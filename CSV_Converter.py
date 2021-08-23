@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as Xet
 import pandas as pd
-import sys, os
+import sys
+import os
 
 namespaces = {"dc": "http://purl.org/dc/elements/1.1/"}
 
