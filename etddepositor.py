@@ -109,29 +109,14 @@ class UnexpectedLine(PermissionsInvalid):
     pass
 
 
-class MetadataInvalid(Exception):
-    pass
-
-
-class MissingElementTag(MetadataInvalid):
-    def __init__(self, tag):
-        self.tag = tag
-
-    pass
-
-
-class MissingFile(Exception):
-    pass
-
-
-class FailedGetResponse(Exception):
-    pass
-
-
 class ProcessDataError(Exception):
     def __init__(self, message):
         self.message = message
 
+    pass
+
+
+class MarcError(Exception):
     pass
 
 
@@ -216,7 +201,23 @@ def copy(ctx, inbox):
 @click.option("--auth_token", type=str, required=True)
 @click.option("--identifier", type=int, default=-1, required=True)
 @click.option("--target", type=str, required=True)
-def process(ctx, importer, user_id, auth_token, identifier, target, invalid_ok=False):
+@click.option("--host", type=str, required=True)
+@click.option("--port", type=int, required=True)
+@click.option("--source", type=str, required=True)
+@click.option("--destination", type=str, required=True)
+def process(
+    ctx,
+    importer,
+    user_id,
+    auth_token,
+    identifier,
+    target,
+    host,
+    port,
+    source,
+    destination,
+    invalid_ok=False,
+):
     """
     Find the oldest unprocessed ETD package and process it.
     """
@@ -318,6 +319,8 @@ def process(ctx, importer, user_id, auth_token, identifier, target, invalid_ok=F
             user_id,
             "--auth_token",
             auth_token,
+            "--url",
+            target,
         ]
     )
 
@@ -423,10 +426,12 @@ def process(ctx, importer, user_id, auth_token, identifier, target, invalid_ok=F
             user_id,
             "--auth_token",
             auth_token,
+            "--url",
+            target,
         ]
     )
 
-    email_report(marc_path)
+    email_report(marc_path, host, port, source, destination)
 
 
 def process_data(
@@ -784,7 +789,7 @@ def csv_exporter(data, path, new_bagit_directory, files_path):
 def get_work_id(target, package, remove_packages):
     headers = {"Content-type": "application/json", "Token": "12345"}
     get_response = requests.get(
-        "http://" + target + "/catalog.json?”sourcetesim”=" + package.source_identifier,
+        target + "/catalog.json?”sourcetesim”=" + package.source_identifier,
         headers=headers,
     )
 
@@ -1004,204 +1009,211 @@ def create_marc_record(package_name, marc_path, work_link, xml_data):
     if processed_author[-1] != "-":
         processed_author = processed_author + ","
 
-    # try:
-    with open(os.path.join(marc_path, package_name + "_marc.mrc"), "wb") as marc_file:
+    try:
+        with open(
+            os.path.join(marc_path, package_name + "_marc.mrc"), "wb"
+        ) as marc_file:
 
-        today = datetime.date.today()
+            today = datetime.date.today()
 
-        record = pymarc.Record(force_utf8=True, leader="     nam a22     4i 4500")
-        record.add_field(
-            pymarc.Field(
-                tag="006",
-                data="m     o  d        ",
-            )
-        )
-        record.add_field(
-            pymarc.Field(
-                tag="007",
-                data="cr || ||||||||",
-            )
-        )
-        record.add_field(
-            pymarc.Field(
-                tag="008",
-                data="{}s{}    onca||||omb|| 000|0 eng d".format(
-                    today.strftime("%y%m%d"), xml_data.date_created
-                ),
-            )
-        )
-        record.add_field(
-            pymarc.Field(
-                tag="040",
-                indicators=[" ", " "],
-                subfields=[
-                    "a",
-                    "CaOOCC",
-                    "b",
-                    "eng",
-                    "e",
-                    "rda",
-                    "c",
-                    "CaOOCC",
-                ],
-            )
-        )
-        record.add_field(
-            pymarc.Field(
-                tag="100",
-                indicators=["1", " "],
-                subfields=[
-                    "a",
-                    processed_author,
-                    "e",
-                    "author",
-                ],
-            )
-        )
-        record.add_field(title_field)
-        record.add_field(
-            pymarc.Field(
-                tag="264",
-                indicators=[" ", "1"],
-                subfields=["a", "Ottawa,", "c", xml_data.date_created],
-            )
-        )
-        record.add_field(
-            pymarc.Field(
-                tag="264",
-                indicators=[" ", "4"],
-                subfields=["c", "\u00A9" + xml_data.date_created],
-            )
-        )
-        record.add_field(
-            pymarc.Field(
-                tag="300",
-                indicators=[" ", " "],
-                subfields=["a", "1 online resource :", "b", "illustrations"],
-            )
-        )
-        record.add_field(
-            pymarc.Field(
-                tag="336",
-                indicators=[" ", " "],
-                subfields=[
-                    "a",
-                    "text",
-                    "b",
-                    "txt",
-                    "2",
-                    "rdacontent",
-                ],
-            )
-        )
-        record.add_field(
-            pymarc.Field(
-                tag="337",
-                indicators=[" ", " "],
-                subfields=[
-                    "a",
-                    "computer",
-                    "b",
-                    "c",
-                    "2",
-                    "rdamedia",
-                ],
-            )
-        )
-        record.add_field(
-            pymarc.Field(
-                tag="338",
-                indicators=[" ", " "],
-                subfields=[
-                    "a",
-                    "online resource",
-                    "b",
-                    "cr",
-                    "2",
-                    "rdacarrier",
-                ],
-            )
-        )
-        record.add_field(
-            pymarc.Field(
-                tag="502",
-                indicators=[" ", " "],
-                subfields=[
-                    "a",
-                    "Thesis ("
-                    + xml_data.name
-                    + ") - Carleton University, "
-                    + xml_data.date_created
-                    + ".",
-                ],
-            )
-        )
-        record.add_field(
-            pymarc.Field(
-                tag="504",
-                indicators=[" ", " "],
-                subfields=["a", "Includes bibliographical references."],
-            )
-        )
-        record.add_field(
-            pymarc.Field(
-                tag="540",
-                indicators=[" ", " "],
-                subfields=[
-                    "a",
-                    "Licensed through author open access agreement. Commercial use prohibited without author's consent.",
-                ],
-            )
-        )
-        record.add_field(
-            pymarc.Field(
-                tag="591",
-                indicators=[" ", " "],
-                subfields=["a", "e-thesis deposit", "9", "LOCAL"],
-            )
-        )
-        for subject in xml_data.lc_subject:
+            record = pymarc.Record(force_utf8=True, leader="     nam a22     4i 4500")
             record.add_field(
-                pymarc.Field(tag="650", indicators=[" ", "0"], subfields=subject[0])
+                pymarc.Field(
+                    tag="006",
+                    data="m     o  d        ",
+                )
             )
-        record.add_field(
-            pymarc.Field(
-                tag="710",
-                indicators=["2", " "],
-                subfields=[
-                    "a",
-                    "Carleton University.",
-                    "k",
-                    "Theses and Dissertations.",
-                    "g",
-                    xml_data.discipline + ".",
-                ],
+            record.add_field(
+                pymarc.Field(
+                    tag="007",
+                    data="cr || ||||||||",
+                )
             )
-        )
-        record.add_field(
-            pymarc.Field(
-                tag="856",
-                indicators=["4", "0"],
-                subfields=["u", work_link, "z", "Free Access (CURVE Full Text)"],
+            record.add_field(
+                pymarc.Field(
+                    tag="008",
+                    data="{}s{}    onca||||omb|| 000|0 eng d".format(
+                        today.strftime("%y%m%d"), xml_data.date_created
+                    ),
+                )
             )
-        )
-        record.add_field(
-            pymarc.Field(
-                tag="979",
-                indicators=[" ", " "],
-                subfields=[
-                    "a",
-                    "MARC file generated {} on ETD Processor".format(today.isoformat()),
-                    "9",
-                    "LOCAL",
-                ],
+            record.add_field(
+                pymarc.Field(
+                    tag="040",
+                    indicators=[" ", " "],
+                    subfields=[
+                        "a",
+                        "CaOOCC",
+                        "b",
+                        "eng",
+                        "e",
+                        "rda",
+                        "c",
+                        "CaOOCC",
+                    ],
+                )
             )
-        )
-        marc_file.write(record.as_marc())
-        return marc_path
+            record.add_field(
+                pymarc.Field(
+                    tag="100",
+                    indicators=["1", " "],
+                    subfields=[
+                        "a",
+                        processed_author,
+                        "e",
+                        "author",
+                    ],
+                )
+            )
+            record.add_field(title_field)
+            record.add_field(
+                pymarc.Field(
+                    tag="264",
+                    indicators=[" ", "1"],
+                    subfields=["a", "Ottawa,", "c", xml_data.date_created],
+                )
+            )
+            record.add_field(
+                pymarc.Field(
+                    tag="264",
+                    indicators=[" ", "4"],
+                    subfields=["c", "\u00A9" + xml_data.date_created],
+                )
+            )
+            record.add_field(
+                pymarc.Field(
+                    tag="300",
+                    indicators=[" ", " "],
+                    subfields=["a", "1 online resource :", "b", "illustrations"],
+                )
+            )
+            record.add_field(
+                pymarc.Field(
+                    tag="336",
+                    indicators=[" ", " "],
+                    subfields=[
+                        "a",
+                        "text",
+                        "b",
+                        "txt",
+                        "2",
+                        "rdacontent",
+                    ],
+                )
+            )
+            record.add_field(
+                pymarc.Field(
+                    tag="337",
+                    indicators=[" ", " "],
+                    subfields=[
+                        "a",
+                        "computer",
+                        "b",
+                        "c",
+                        "2",
+                        "rdamedia",
+                    ],
+                )
+            )
+            record.add_field(
+                pymarc.Field(
+                    tag="338",
+                    indicators=[" ", " "],
+                    subfields=[
+                        "a",
+                        "online resource",
+                        "b",
+                        "cr",
+                        "2",
+                        "rdacarrier",
+                    ],
+                )
+            )
+            record.add_field(
+                pymarc.Field(
+                    tag="502",
+                    indicators=[" ", " "],
+                    subfields=[
+                        "a",
+                        "Thesis ("
+                        + xml_data.name
+                        + ") - Carleton University, "
+                        + xml_data.date_created
+                        + ".",
+                    ],
+                )
+            )
+            record.add_field(
+                pymarc.Field(
+                    tag="504",
+                    indicators=[" ", " "],
+                    subfields=["a", "Includes bibliographical references."],
+                )
+            )
+            record.add_field(
+                pymarc.Field(
+                    tag="540",
+                    indicators=[" ", " "],
+                    subfields=[
+                        "a",
+                        "Licensed through author open access agreement. Commercial use prohibited without author's consent.",
+                    ],
+                )
+            )
+            record.add_field(
+                pymarc.Field(
+                    tag="591",
+                    indicators=[" ", " "],
+                    subfields=["a", "e-thesis deposit", "9", "LOCAL"],
+                )
+            )
+            for subject in xml_data.lc_subject:
+                record.add_field(
+                    pymarc.Field(tag="650", indicators=[" ", "0"], subfields=subject[0])
+                )
+            record.add_field(
+                pymarc.Field(
+                    tag="710",
+                    indicators=["2", " "],
+                    subfields=[
+                        "a",
+                        "Carleton University.",
+                        "k",
+                        "Theses and Dissertations.",
+                        "g",
+                        xml_data.discipline + ".",
+                    ],
+                )
+            )
+            record.add_field(
+                pymarc.Field(
+                    tag="856",
+                    indicators=["4", "0"],
+                    subfields=["u", work_link, "z", "Free Access (CURVE Full Text)"],
+                )
+            )
+            record.add_field(
+                pymarc.Field(
+                    tag="979",
+                    indicators=[" ", " "],
+                    subfields=[
+                        "a",
+                        "MARC file generated {} on ETD Processor".format(
+                            today.isoformat()
+                        ),
+                        "9",
+                        "LOCAL",
+                    ],
+                )
+            )
+            marc_file.write(record.as_marc())
+            return marc_path
 
-    # except Exception as e:
-    #    print(f"Unable to create marc file for {package_name}: {e}")
+    except MarcError as e:
+        message = f"Unable to create marc file for {package_name}: {e}"
+        click.echo(message)
+        log_failed_array.append(package_name + " | Marc Error")
+    # except MarcError as e:
 
 
 def update_metadata(metadata_path, doi_link, in_progress_path, target):
@@ -1229,7 +1241,7 @@ def update_metadata(metadata_path, doi_link, in_progress_path, target):
             metadatawriter.writerow(rows)
 
     # Find the importer id required for updating the metadata of the thesis
-    importer_response = requests.get("http://" + target + "/importers", headers=headers)
+    importer_response = requests.get(target + "/importers", headers=headers)
 
     importer_data = importer_response.json()
 
@@ -1241,7 +1253,7 @@ def update_metadata(metadata_path, doi_link, in_progress_path, target):
     return updated_metadata, importer_id
 
 
-def email_report(marc_path):
+def email_report(marc_path, host, port, source, destination):
     """Prepares email message to be sent"""
 
     subject = f"ETD Depositor Report - {len(log_success_array)} processed, {len(log_failed_array)} failed"
@@ -1255,14 +1267,10 @@ def email_report(marc_path):
     for log in log_failed_array:
         message += f"Package: {log} \n\n"
 
-    send_email(subject, message)
+    send_email(subject, message, host, port, source, destination)
 
 
-def send_email(subject, body):
-    host = "localhost"
-    port = 1025
-    source = "my@pc.com"
-    destination = "example@example.ca"
+def send_email(subject, body, host, port, source, destination):
 
     message = f"From: {source}\nTo: {destination}\nSubject: {subject}\n{body}"
 
