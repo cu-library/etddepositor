@@ -97,15 +97,7 @@ class PermissionsInvalid(Exception):
     pass
 
 
-class StillInEmbargo(PermissionsInvalid):
-    pass
-
-
-class RequiredAgreementNotSigned(PermissionsInvalid):
-    pass
-
-
-class UnexpectedLine(PermissionsInvalid):
+class MissingFile(Exception):
     pass
 
 
@@ -170,7 +162,7 @@ def copy(ctx, inbox):
     # Find the list of bags in the ITS directory which aren't already processed.
     new_package_paths = [
         filepath
-        for filepath in glob.glob(os.path.join(inbox, f"*.zip"))
+        for filepath in glob.glob(os.path.join(inbox, "*.zip"))
         if os.path.splitext(os.path.basename(filepath))[0] not in existing_packages
     ]
 
