@@ -1,10 +1,11 @@
 import etddepositor
+from etddepositor import ETDPackageData
 import pytest
 import os
-import os.path
+import subprocess
 import yaml
 import xml.etree.ElementTree as ET
-import json
+
 
 NAMESPACES = {"dc": "http://purl.org/dc/elements/1.1/"}
 
@@ -21,8 +22,6 @@ Academic Integrity Statement||1||Y||24-DEC-20
 LAC Non-Exclusive License||2||Y||20-JAN-21
 """
 
-bad = """BLAHBLAH"""
-
 not_signed = """Carleton University Thesis License Agreement||1||Y||24-DEC-20
 FIPPA||1||Y||24-DEC-20
 Academic Integrity Statement||1||N||24-DEC-20
@@ -36,7 +35,30 @@ Academic Integrity Statement||1||Y||24-DEC-20
 LAC Non-Exclusive License||2||Y||20-JAN-21
 """
 
-# @pytest.mark.parametrize("documents", [(valid_document), (valid_document_two), (bad), (not_signed), (embargo_date)])
+PACKAGE_DATA = ETDPackageData(
+    source_identifier="100692623_894",
+    title="Permafrost and Thermokarst Lake Dynamics in the Old Crow Flats, Northern Yukon, Canada",
+    creator="Roy-Leveillee, Pascale",
+    pro_subject="Physical Geography | Environmental Sciences | Geography",
+    lc_subject=[
+        [["a", "Physical geography."]],
+        [["a", "Environmental sciences."]],
+        [["a", "Geography."]],
+    ],
+    description="Aspects of the thaw lake cycle were investigated in Old Crow Flats (OCF), a 5600 km2 peatland with thousands of thermokarst lakes in the continuous permafrost of northern Yukon. It is located in the traditional territory of the Vuntut Gwitch'n, who expressed concern that climatic change may be affecting the permafrost and lakes of OCF.      Field data collected in 2008-2011 provided the first assessment of spatial variability in permafrost temperatures across the treeline ecotone in OCF. Lake-bottom temperatures were recorded near the shores of four thermokarst lakes and talik     configuration was defined beneath the lakes by jet-drilling to determine conditions controlling permafrost degradation in the area. Analytical and thermal models were used to relate field observations to current theory. Surface and subsurface conditions were examined in three drained lake basins and four expanding lakes to investigate how shore recession, talik development, and sediment deposition during lake expansion control the topography in lake basins after drainage.      Permafrost temperature at the depth of zero annual amplitude varied between -5.1ºC and -2.6ºC on the Flats.     Within the forest-tundra transition, spatial variability in permafrost temperatures appeared to be controlled by the snow-holding capacity of vegetation and the configuration of land covers in the surrounding landscape, which controlled snow supply. Annual mean lake-bottom temperatures close to shorelines were unaffected by spatial variations in on-ice snow depth, but accumulation of freezing degree-days at the lake bottom varied sufficiently to affect rates of permafrost degradation beneath the lake. Where ice reached the lake bottom, talik development rates were controlled by the ratio of     freezing degree days to thawing degree days and the thermal offset in the lake sediment. After lake drainage and permafrost aggradation, thermokarst lake basins in OCF commonly develop depressed margins and raised centres. An elevation difference of up to 2 m was recorded between the margins and centres of drained basins, but this elevation difference was not associated with increased ice-wedge density or increased segregated ice content.  A conceptual model based on sediment deposition patterns during lake expansion was proposed to explain the topography of drained lake basins in OCF.",
+    publisher="Carleton University",
+    contributor="Christopher R. Burn | Ian D. McDonald",
+    date_created="2014",
+    language="English",
+    name="Doctor of Philosophy",
+    discipline="Geography",
+    level="Doctoral",
+    resource_type="Dissertation",
+)
+
+log_success_array = []
+
+# @pytest.mark.parametrize("documents", [(valid_document), (valid_document_two), (not_signed), (embargo_date)])
 @pytest.mark.parametrize("documents", [(valid_document), (valid_document_two)])
 def test_validate_permissions_document_one(documents):
 
@@ -90,30 +112,83 @@ def test_extract_metadata_from_xml_tree():
     with open("degree_config.yaml") as config_file:
         config_yaml = yaml.load(config_file, Loader=yaml.FullLoader)
     root = ET.fromstring(title_test)
-    data = etddepositor.extract_metadata(root, "101070601", config_yaml)
+    data = etddepositor.extract_metadata(root, "100692623_894", config_yaml)
+
     assert (
         data.title
         == "Permafrost and Thermokarst Lake Dynamics in the Old Crow Flats, Northern Yukon, Canada"
     )
 
 
+def test_crossref(tmp_path):
+    crossref_dir = tmp_path / "crossref"
+    crossref_dir.mkdir()
+
+    # Naming of XML files for DOIs
+    running_file = crossref_dir / "running.xml"
+    crossref_file = crossref_dir / "crossref.xml"
+
+    work_link = {}
+    work_link["100692623_894"] = "localhost:3000/concern/works/example"
+    identifier = 10000
+
+    crossref_data = etddepositor.create_crossref_data(
+        PACKAGE_DATA, identifier, work_link
+    )
+
+    assert crossref_data.given_name == "Pascale"
+    assert crossref_data.surname == "Roy-Leveillee"
+
+    # Create crossref entry, return doi link for created entry
+    doi_link = etddepositor.create_crossref(crossref_data, crossref_file, running_file)
+
+    assert doi_link == "10.22215/etd/2014-10000"
+
+
+def test_marc_record(tmp_path):
+
+    marc_dir = tmp_path / "marc"
+    marc_dir.mkdir()
+    work_link = "localhost:3000/concern/works/example"
+
+    etddepositor.create_marc_record(
+        "100692623_894",
+        marc_dir,
+        work_link,
+        PACKAGE_DATA,
+    )
+
+
 """
-def test_extract_metadata_json():
-    with open('sample_output/100983183_4099_output/drupal_import/import.json') as json_output:
-        out_data = json.load(json_output)
+def test_email(tmp_path):
+    marc_dir = tmp_path / "marc"
+    marc_dir.mkdir()
+    test_marc = marc_dir / "marc.mrc"
 
-    with open('sample_input/100983183_4099/data/meta/100983183_4099_etdms_meta.xml') as xml_input:
-        in_data = ET.parse(xml_input)
-        root = in_data.getroot()
+    log_message = (
+        "100692623_894"
+        + " | "
+        + "localhost:3000/concern/works/example"
+        + " | "
+        + "10.22215/etd/2014-10000"
+        + "\nProcessed on: "
+        + "DATE"
+    )
 
-    test_data = etddepositor.extract_metadata(root)
-    info = etddepositor.csv_exporter(test_data, "sample_input/100983183_4099/")
+    log_success_array.append(log_message)
 
-    print(test_data.title)
+    subprocess.run(
+        [
+            "python3",
+            "-m",
+            "smtpd",
+            "-c",
+            "DebuggingServer",
+            "-n",
+            "localhost:1025",
+            "&",
+        ]
+    )
 
-    assert test_data.title == out_data["title"]
-    assert test_data.creator == out_data["dcterms_creator"]["und"][0]["value"].strip()
-    #assert test_data.description == out_data["dcterms_abstract"]["und"][0]["value"]
-    #assert test_data.contributor == out_data["dcterms_contributor"]["und"][0]["second"]
-    assert test_data.date == out_data["dcterms_date"]["und"][0]["value"]["date"]
+    etddepositor.email_report(marc_dir)
 """
