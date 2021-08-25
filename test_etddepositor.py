@@ -1,11 +1,8 @@
 import etddepositor
 from etddepositor import ETDPackageData
 import pytest
-import os
-import subprocess
 import yaml
 import xml.etree.ElementTree as ET
-
 
 NAMESPACES = {"dc": "http://purl.org/dc/elements/1.1/"}
 
@@ -57,6 +54,7 @@ PACKAGE_DATA = ETDPackageData(
 )
 
 log_success_array = []
+
 
 # @pytest.mark.parametrize("documents", [(valid_document), (valid_document_two), (not_signed), (embargo_date)])
 @pytest.mark.parametrize("documents", [(valid_document), (valid_document_two)])
@@ -157,38 +155,3 @@ def test_marc_record(tmp_path):
         work_link,
         PACKAGE_DATA,
     )
-
-
-"""
-def test_email(tmp_path):
-    marc_dir = tmp_path / "marc"
-    marc_dir.mkdir()
-    test_marc = marc_dir / "marc.mrc"
-
-    log_message = (
-        "100692623_894"
-        + " | "
-        + "localhost:3000/concern/works/example"
-        + " | "
-        + "10.22215/etd/2014-10000"
-        + "\nProcessed on: "
-        + "DATE"
-    )
-
-    log_success_array.append(log_message)
-
-    subprocess.run(
-        [
-            "python3",
-            "-m",
-            "smtpd",
-            "-c",
-            "DebuggingServer",
-            "-n",
-            "localhost:1025",
-            "&",
-        ]
-    )
-
-    etddepositor.email_report(marc_dir)
-"""
