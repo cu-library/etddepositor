@@ -34,6 +34,8 @@ COMPLETE_SUBDIR = "complete"
 # where the metadata csvs are stored used for import
 METADATA_SUBDIR = "metadata"
 
+HYRAX_SUBDIR = "hyrax"
+
 # Lives in the metadata subdirectory
 # Stores the pdf file copies of packages
 FILES_SUBDIR = "files"
@@ -221,15 +223,19 @@ def process(
     awaiting_work_path = os.path.join(processing_directory, AWAITING_WORK_SUBDIR)
     in_progress_path = os.path.join(processing_directory, IN_PROGRESS_SUBDIR)
     complete_path = os.path.join(processing_directory, COMPLETE_SUBDIR)
-    metadata_path = os.path.join(processing_directory, METADATA_SUBDIR)
-    files_path = os.path.join(metadata_path, FILES_SUBDIR)
+    hyrax_path = os.path.join(processing_directory, HYRAX_SUBDIR)
     marc_path = os.path.join(processing_directory, MARC_SUBDIR)
     crossref_path = os.path.join(processing_directory, CROSSREF_SUBDIR)
+
+    timestamp = f"{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}"
+    timestamp_dir = os.path.join(hyrax_path, timestamp)
+    files_path = os.path.join(timestamp_dir, FILES_SUBDIR)
 
     paths.append(awaiting_work_path)
     paths.append(in_progress_path)
     paths.append(complete_path)
-    paths.append(metadata_path)
+    paths.append(hyrax_path)
+    paths.append(timestamp_dir)
     paths.append(files_path)
     paths.append(marc_path)
     paths.append(crossref_path)
@@ -278,7 +284,7 @@ def process(
                     package_path,
                     processing_directory,
                     in_progress_path,
-                    metadata_path,
+                    timestamp_dir,
                     files_path,
                     config_yaml,
                 )
@@ -290,7 +296,7 @@ def process(
             log_failed_array.append(os.path.basename(package_path) + " | " + e.message)
         package_path = None
 
-    metadata_csv = metadata_path + "/metadata.csv"
+    metadata_csv = timestamp_dir + "/metadata.csv"
     click.echo(
         "--------------------------------------------------------------------------------"
     )
@@ -298,13 +304,13 @@ def process(
         [
             importer,
             "--name",
-            "CSV_Import",
+            os.path.basename(timestamp_dir),
             "--parser_klass",
             "Bulkrax::CsvParser",
             "--commit",
             "Create and Import",
             "--import_file_path",
-            metadata_path,
+            metadata_csv,
             "--override_rights_statement",
             "1",
             "--rights_statement",
@@ -357,10 +363,8 @@ def process(
         crossref_data = create_crossref_data(package, identifier, work_link_dict)
 
         # Naming of XML files for DOIs
-        running_file = os.path.join(
-            crossref_path, str(datetime.date.today()) + "-running.xml"
-        )
-        crossref_file = str(datetime.date.today()) + "-crossref.xml"
+        running_file = os.path.join(crossref_path, timestamp + "-running.xml")
+        crossref_file = timestamp + "-crossref.xml"
         crossref_file_path = os.path.join(crossref_path, crossref_file)
 
         # Create crossref entry, return doi link for created entry
@@ -390,7 +394,7 @@ def process(
         shutil.move(in_progress_path + "/" + package.source_identifier, complete_path)
 
     updated_metadata, importer_id = update_metadata(
-        metadata_csv, doi_link, metadata_path, target
+        metadata_csv, timestamp_dir, doi_link, target
     )
 
     click.echo("Updated csv metadata")
@@ -432,7 +436,7 @@ def process_data(
     package_path,
     processing_directory,
     in_progress_path,
-    metadata_path,
+    timestamp_dir,
     files_path,
     config_yaml,
 ):
@@ -470,7 +474,7 @@ def process_data(
         shutil.rmtree(os.path.join(in_progress_package_path + "/data", "contributor"))
     """
     click.echo("Validation and metadata processing complete")
-    csv_exporter(package_data, metadata_path, in_progress_package_path, files_path)
+    csv_exporter(package_data, timestamp_dir, in_progress_package_path, files_path)
     click.echo("Package process complete!")
 
     return package_data
@@ -693,7 +697,7 @@ def check_degree_level(data):
             return "Doctoral", "Dissertation"
 
 
-def csv_exporter(data, path, new_bagit_directory, files_path):
+def csv_exporter(data, timestamp_dir, bagit_directory, files_path):
     """Creates csv with metadata information"""
 
     columns = [
@@ -714,7 +718,7 @@ def csv_exporter(data, path, new_bagit_directory, files_path):
         "file",
     ]
 
-    data_path = new_bagit_directory + "/data"
+    data_path = bagit_directory + "/data"
     files = []
     file_string = ""
 
@@ -764,21 +768,23 @@ def csv_exporter(data, path, new_bagit_directory, files_path):
     rows.append(data.resource_type)
     rows.append(file_string)
 
-    if os.path.isfile(path + "/metadata.csv"):
-        with open(path + "/metadata.csv", "a", newline="") as csvfile:
+    if os.path.isfile(timestamp_dir + "/metadata.csv"):
+        with open(timestamp_dir + "/metadata.csv", "a", newline="") as csvfile:
             metadatawriter = csv.writer(
                 csvfile, delimiter=",", quoting=csv.QUOTE_MINIMAL
             )
             metadatawriter.writerow(rows)
-            click.echo(f"Updated csv metadata with {os.path.basename(path)} data")
+            click.echo(
+                f"Updated csv metadata with {os.path.basename(bagit_directory)} data"
+            )
     else:
-        with open(path + "/metadata.csv", "w", newline="") as csvfile:
+        with open(timestamp_dir + "/metadata.csv", "w", newline="") as csvfile:
             metadatawriter = csv.writer(
                 csvfile, delimiter=",", quoting=csv.QUOTE_MINIMAL
             )
             metadatawriter.writerow(columns)
             metadatawriter.writerow(rows)
-            click.echo(f"Created csv metadata for {os.path.basename(path)}")
+            click.echo(f"Created csv metadata for {os.path.basename(bagit_directory)}")
 
 
 def get_work_id(target, package, remove_packages):
@@ -1211,7 +1217,7 @@ def create_marc_record(package_name, marc_path, work_link, xml_data):
     # except MarcError as e:
 
 
-def update_metadata(metadata_csv, doi_link, metadata_path, target):
+def update_metadata(metadata_csv, timestamp_dir, doi_link, target):
     # Update the metadata csv with DOI Link
     headers = {"Content-type": "application/json", "Token": "12345"}
     new_rows = []
@@ -1227,7 +1233,7 @@ def update_metadata(metadata_csv, doi_link, metadata_path, target):
                 row.append(doi_link.get(row[0]))
             new_rows.append(row)
 
-    updated_metadata = metadata_path + "/updated_metadata.csv"
+    updated_metadata = timestamp_dir + "/updated_metadata.csv"
 
     # Add the doi link column to the metadata file
     with open(updated_metadata, "w", newline="") as csvfile:
@@ -1242,7 +1248,7 @@ def update_metadata(metadata_csv, doi_link, metadata_path, target):
 
     for i in range(0, len(importer_data)):
         # NOTE: CSV_Import name is based on the name provided in initial import to hyrax
-        if importer_data[i]["name"] == "CSV_Import":
+        if importer_data[i]["name"] == os.path.basename(timestamp_dir):
             importer_id = importer_data[i]["id"]
 
     return updated_metadata, importer_id
