@@ -30,6 +30,12 @@ IN_PROGRESS_SUBDIR = "in_progress"
 # where etd packages are copied after they have been processed.
 COMPLETE_SUBDIR = "complete"
 
+# METADATA_SUBDIR defines the name of the subdirectory under the processing location
+# where the metadata csvs are stored used for import
+METADATA_SUBDIR = "metadata"
+
+# Lives in the metadata subdirectory
+# Stores the pdf file copies of packages
 FILES_SUBDIR = "files"
 
 # MARC_SUBDIR defines the name of the subdirectory under the processing location
@@ -87,13 +93,6 @@ log_failed_array = []
 
 
 class InvalidBag(Exception):
-    pass
-
-
-class PermissionsInvalid(Exception):
-    def __init__(self, var):
-        self.var = var
-
     pass
 
 
@@ -222,13 +221,15 @@ def process(
     awaiting_work_path = os.path.join(processing_directory, AWAITING_WORK_SUBDIR)
     in_progress_path = os.path.join(processing_directory, IN_PROGRESS_SUBDIR)
     complete_path = os.path.join(processing_directory, COMPLETE_SUBDIR)
-    files_path = os.path.join(in_progress_path, FILES_SUBDIR)
+    metadata_path = os.path.join(processing_directory, METADATA_SUBDIR)
+    files_path = os.path.join(metadata_path, FILES_SUBDIR)
     marc_path = os.path.join(processing_directory, MARC_SUBDIR)
     crossref_path = os.path.join(processing_directory, CROSSREF_SUBDIR)
 
     paths.append(awaiting_work_path)
     paths.append(in_progress_path)
     paths.append(complete_path)
+    paths.append(metadata_path)
     paths.append(files_path)
     paths.append(marc_path)
     paths.append(crossref_path)
@@ -277,6 +278,7 @@ def process(
                     package_path,
                     processing_directory,
                     in_progress_path,
+                    metadata_path,
                     files_path,
                     config_yaml,
                 )
@@ -288,7 +290,7 @@ def process(
             log_failed_array.append(os.path.basename(package_path) + " | " + e.message)
         package_path = None
 
-    metadata_path = in_progress_path + "/metadata.csv"
+    metadata_csv = metadata_path + "/metadata.csv"
     click.echo(
         "--------------------------------------------------------------------------------"
     )
@@ -388,7 +390,7 @@ def process(
         shutil.move(in_progress_path + "/" + package.source_identifier, complete_path)
 
     updated_metadata, importer_id = update_metadata(
-        metadata_path, doi_link, in_progress_path, target
+        metadata_csv, doi_link, metadata_path, target
     )
 
     click.echo("Updated csv metadata")
@@ -427,9 +429,10 @@ def process(
 
 
 def process_data(
-    oldest_etd_package_path,
+    package_path,
     processing_directory,
     in_progress_path,
+    metadata_path,
     files_path,
     config_yaml,
 ):
@@ -437,7 +440,7 @@ def process_data(
     Process the individual package, extracting metadata for upload
     """
     in_progress_package_path = os.path.join(
-        in_progress_path, os.path.basename(oldest_etd_package_path)
+        in_progress_path, os.path.basename(package_path)
     )
 
     package_basename = os.path.basename(in_progress_package_path)
@@ -467,7 +470,7 @@ def process_data(
         shutil.rmtree(os.path.join(in_progress_package_path + "/data", "contributor"))
     """
     click.echo("Validation and metadata processing complete")
-    csv_exporter(package_data, in_progress_path, in_progress_package_path, files_path)
+    csv_exporter(package_data, metadata_path, in_progress_package_path, files_path)
     click.echo("Package process complete!")
 
     return package_data
@@ -1208,13 +1211,13 @@ def create_marc_record(package_name, marc_path, work_link, xml_data):
     # except MarcError as e:
 
 
-def update_metadata(metadata_path, doi_link, in_progress_path, target):
+def update_metadata(metadata_csv, doi_link, metadata_path, target):
     # Update the metadata csv with DOI Link
     headers = {"Content-type": "application/json", "Token": "12345"}
     new_rows = []
 
     # Remove the file column from metadata file
-    with open(metadata_path, "r", newline="") as readfile:
+    with open(metadata_csv, "r", newline="") as readfile:
         csv_reader = csv.reader(readfile, delimiter=",")
         for row in csv_reader:
             row.pop()
@@ -1224,7 +1227,7 @@ def update_metadata(metadata_path, doi_link, in_progress_path, target):
                 row.append(doi_link.get(row[0]))
             new_rows.append(row)
 
-    updated_metadata = in_progress_path + "/updated_metadata.csv"
+    updated_metadata = metadata_path + "/updated_metadata.csv"
 
     # Add the doi link column to the metadata file
     with open(updated_metadata, "w", newline="") as csvfile:
