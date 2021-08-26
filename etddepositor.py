@@ -397,6 +397,9 @@ def process(
 
         shutil.move(in_progress_path + "/" + package.source_identifier, complete_path)
 
+    # Delete running file after crossref creation is complete
+    os.remove(running_file)
+
     updated_metadata, importer_id = update_metadata(
         metadata_csv, timestamp_dir, doi_link, target
     )
