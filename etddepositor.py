@@ -244,7 +244,11 @@ def process(
     for path in paths:
         if not os.path.isdir(path):
             click.echo(f"{path} does not exist yet. Creating now...")
-            os.mkdir(path, mode=0o770)
+
+            if os.path.basename(path) == HYRAX_SUBDIR or timestamp or FILES_SUBDIR:
+                os.mkdir(path, mode=0o775)
+            else:
+                os.mkdir(path, mode=0o770)
 
     with open("degree_config.yaml") as config_file:
         config_yaml = yaml.load(config_file, Loader=yaml.FullLoader)
