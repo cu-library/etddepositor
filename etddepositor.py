@@ -1,3 +1,4 @@
+from xml.dom import minidom
 import bagit
 import click
 import collections
@@ -14,47 +15,45 @@ import subprocess
 import time
 import warnings
 import xml.etree.ElementTree as ET
-from xml.dom import minidom
 import yaml
 import zipfile
-
-# AWAITING_WORK_SUBDIR defines the name of the subdirectory under the processing location
-# where etd packages are copied to before they are processed.
-AWAITING_WORK_SUBDIR = "awaiting_work"
-
-# IN_PROGRESS_SUBDIR defines the name of the subdirectory under the processing location
-# where etd packages are copied when they are being worked on.
-IN_PROGRESS_SUBDIR = "in_progress"
-
-# COMPLETE_SUBDIR defines the name of the subdirectory under the processing location
-# where etd packages are copied after they have been processed.
-COMPLETE_SUBDIR = "complete"
-
-# METADATA_SUBDIR defines the name of the subdirectory under the processing location
-# where the metadata csvs are stored used for import
-METADATA_SUBDIR = "metadata"
-
-HYRAX_SUBDIR = "hyrax"
-
-# Lives in the metadata subdirectory
-# Stores the pdf file copies of packages
-FILES_SUBDIR = "files"
-
-# MARC_SUBDIR defines the name of the subdirectory under the processing location
-# where etd packages are used to create marc records
-MARC_SUBDIR = "marc"
-
-
-CROSSREF_SUBDIR = "crossref"
-
-# NAMESPACES is a dictionary of namespace prefixes to URIs.
-NAMESPACES = {"dc": "http://purl.org/dc/elements/1.1/"}
-
 
 # CONTEXT_SETTINGS is a click-specific config dict which allows us to define a
 # prefix for the automatic environment variable option feature.
 CONTEXT_SETTINGS = {"auto_envvar_prefix": "ETD_DEPOSITOR"}
 
+# AWAITING_WORK_SUBDIR is the name of the subdirectory under the provided
+# processing directory where ETD packages are copied to before they are processed.
+AWAITING_WORK_SUBDIR = "awaiting_work"
+
+# IN_PROGRESS_SUBDIR is the name of the subdirectory under the provided
+# processing directory where ETD packages are copied when they are being worked on.
+IN_PROGRESS_SUBDIR = "in_progress"
+
+# COMPLETE_SUBDIR is the name of the subdirectory under the provided
+# processing directory where ETD packages are copied after they have been processed.
+COMPLETE_SUBDIR = "complete"
+
+# HYRAX_SUBDIR is the name of the subdirectory under the provided
+# processing directory where the Hyrax-ready CSVs and files are created.
+HYRAX_SUBDIR = "hyrax"
+
+# MARC_SUBDIR is the name of the subdirectory under the provided
+# processing location where the MARC records for ETDs are created.
+MARC_SUBDIR = "marc"
+
+# CROSSREF_SUBDIR is the name of the subdirectory under the provided
+# processing location where the Crossref-ready metadata for ETDs are created.
+CROSSREF_SUBDIR = "crossref"
+
+# DOI_PREFIX is Carleton University Library's DOI prefix, used when minting
+# new DOIs for ETDs.
+DOI_PREFIX = "10.22215"
+
+# NAMESPACES is a dictionary of namespace prefixes to URIs.
+NAMESPACES = {"dc": "http://purl.org/dc/elements/1.1/"}
+
+# ETDPackageData is a container for the metadata pulled from the FGPA bags.
 ETDPackageData = collections.namedtuple(
     "ETDPackageData",
     [
@@ -75,6 +74,8 @@ ETDPackageData = collections.namedtuple(
     ],
 )
 
+# CrossRefData is a container for the metadata which will populate the
+# Crossref-ready records for ETDs.
 CrossRefData = collections.namedtuple(
     "CrossRefData",
     [
@@ -88,20 +89,25 @@ CrossRefData = collections.namedtuple(
     ],
 )
 
-DOI_PREFIX = "10.22215"
 
+# TODO bad globals
 log_success_array = []
 log_failed_array = []
 
 
 class InvalidBag(Exception):
+    """Raised when a BagIt package from FGPA is invalid."""
+
     pass
 
 
 class MissingFile(Exception):
+    """Raised when a required file is missing."""
+
     pass
 
 
+# TODO add docstring
 class ProcessDataError(Exception):
     def __init__(self, message):
         self.message = message
@@ -109,6 +115,7 @@ class ProcessDataError(Exception):
     pass
 
 
+# TODO add docstring
 class MarcError(Exception):
     pass
 
