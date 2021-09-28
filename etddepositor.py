@@ -265,23 +265,24 @@ def process(
     for path in paths:
         if not os.path.isdir(path):
             click.echo(f"{path} does not exist yet. Creating now...")
-
+            # The Hyrax paths need to be readable by all users for the import to work.
             if os.path.basename(path) == HYRAX_SUBDIR or timestamp or FILES_SUBDIR:
                 os.mkdir(path, mode=0o775)
             else:
                 os.mkdir(path, mode=0o770)
 
+    # Load the degree configuration yaml file.
     with open("degree_config.yaml") as config_file:
         config_yaml = yaml.load(config_file, Loader=yaml.FullLoader)
 
-    # Get a list of the package directories that are in the awaiting work directory.
+    # Get a list of the package directories in the awaiting work directory.
     packages_awaiting_work = glob.glob(os.path.join(awaiting_work_path, "*"))
 
     packages = []
 
-    # Checks if the awaiting work directory has packages to process
-    if not os.listdir(awaiting_work_path):
-        click.echo("No valid packages found to process.")
+    # If there are no packagtes
+    if not packages_awaiting_work:
+        click.echo(f"No packages in {AWAITING_WORK_SUBDIR} to process.")
         raise click.Abort
 
     for package_path in packages_awaiting_work:
@@ -289,18 +290,14 @@ def process(
             "--------------------------------------------------------------------------------"
         )
 
-        if package_path and not invalid_ok and not bagit.Bag(package_path).is_valid():
-            click.echo(
-                f"Unable to process {os.path.basename(package_path)}, BagIt file is not valid."
-            )
-            log_failed_array.append(
-                f"{os.path.basename(package_path)} | BagIt file is not valid"
-            )
-            continue
-        click.echo(
-            f"Moving {os.path.basename(package_path)} to 'in progress' directory."
-        )
+        package_name = os.path.basename(package_path)
 
+        if not bagit.Bag(package_path).is_valid() and not invalid_ok:
+            click.echo(f"Unable to process {package_name}, BagIt file is not valid.")
+            log_failed_array.append(f"{package_name} | BagIt file is not valid")
+            continue
+
+        click.echo(f"Moving {package_name} to 'in progress' directory.")
         shutil.move(package_path, in_progress_path)
 
         try:
@@ -314,12 +311,10 @@ def process(
                     config_yaml,
                 )
             )
-
         except ProcessDataError as e:
-            click.echo(f"Failed to process data for {os.path.basename(package_path)}")
+            click.echo(f"Failed to process data for {package_name}")
             click.echo(e.message)
             log_failed_array.append(os.path.basename(package_path) + " | " + e.message)
-        package_path = None
 
     metadata_csv = timestamp_dir + "/metadata.csv"
     click.echo(
