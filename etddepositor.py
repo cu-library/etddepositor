@@ -38,6 +38,10 @@ COMPLETE_SUBDIR = "complete"
 # processing directory where the Hyrax-ready CSVs and files are created.
 HYRAX_SUBDIR = "hyrax"
 
+# FILES_SUBDIR is the name of the subdirectory under the Hyrax subdirectory
+# where files are stored for Hyrax import.
+FILES_SUBDIR = "files"
+
 # MARC_SUBDIR is the name of the subdirectory under the provided
 # processing location where the MARC records for ETDs are created.
 MARC_SUBDIR = "marc"
@@ -153,19 +157,26 @@ def copy(ctx, inbox):
     # Copy the processing location out of the context object.
     processing_directory = ctx.obj["processing_directory"]
 
-    # Build the awaiting work location path.
+    # Build the three possible locations of BagIt packages.
     awaiting_work_path = os.path.join(processing_directory, AWAITING_WORK_SUBDIR)
+    in_progress_path = os.path.join(processing_directory, IN_PROGRESS_SUBDIR)
+    complete_path = os.path.join(processing_directory, COMPLETE_SUBDIR)
 
-    # Does that path exist?
+    # Does the awaiting work path exist?
     if not os.path.isdir(awaiting_work_path):
         click.echo(f"{awaiting_work_path} does not exist yet. Creating now...")
         os.mkdir(awaiting_work_path, mode=0o770)
 
     # Find the packages that are already in the processing location.
     existing_packages = [
-        os.path.basename(x)
-        for x in glob.glob(os.path.join(processing_directory, "*", "*"))
+        os.path.basename(x) for x in glob.glob(os.path.join(awaiting_work_path, "*"))
     ]
+    existing_packages.extend(
+        [os.path.basename(x) for x in glob.glob(os.path.join(in_progress_path, "*"))]
+    )
+    existing_packages.extend(
+        [os.path.basename(x) for x in glob.glob(os.path.join(complete_path, "*"))]
+    )
 
     # Find the list of bags in the ITS directory which aren't already processed.
     new_package_paths = [
@@ -225,8 +236,7 @@ def process(
     # Copy the processing location out of the context object.
     processing_directory = ctx.obj["processing_directory"]
 
-    # Build the three processing location subdirectory paths.
-    paths = []
+    # Build the processing location subdirectories.
     awaiting_work_path = os.path.join(processing_directory, AWAITING_WORK_SUBDIR)
     in_progress_path = os.path.join(processing_directory, IN_PROGRESS_SUBDIR)
     complete_path = os.path.join(processing_directory, COMPLETE_SUBDIR)
@@ -234,20 +244,24 @@ def process(
     marc_path = os.path.join(processing_directory, MARC_SUBDIR)
     crossref_path = os.path.join(processing_directory, CROSSREF_SUBDIR)
 
+    # Build the timestamp, used to name subdirectories
+    # under the Hyrax subdirectory to compartmentalize each Hyrax import.
     timestamp = f"{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}"
     timestamp_dir = os.path.join(hyrax_path, timestamp)
     files_path = os.path.join(timestamp_dir, FILES_SUBDIR)
 
-    paths.append(awaiting_work_path)
-    paths.append(in_progress_path)
-    paths.append(complete_path)
-    paths.append(hyrax_path)
-    paths.append(timestamp_dir)
-    paths.append(files_path)
-    paths.append(marc_path)
-    paths.append(crossref_path)
+    paths = [
+        awaiting_work_path,
+        in_progress_path,
+        complete_path,
+        hyrax_path,
+        timestamp_dir,
+        files_path,
+        marc_path,
+        crossref_path,
+    ]
 
-    # Do the 'in progress' and 'complete' directories exist?
+    # Create the subdirectories if they don't exist.
     for path in paths:
         if not os.path.isdir(path):
             click.echo(f"{path} does not exist yet. Creating now...")
@@ -266,7 +280,7 @@ def process(
     packages = []
 
     # Checks if the awaiting work directory has packages to process
-    if not os.listdir(awaiting_work_path):  # flake8: noqa: C901
+    if not os.listdir(awaiting_work_path):
         click.echo("No valid packages found to process.")
         raise click.Abort
 
