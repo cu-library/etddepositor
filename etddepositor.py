@@ -636,7 +636,8 @@ def process_subjects(subject_elements, mappings):
     for subject_element in subject_elements:
         subject_code = subject_element.text.strip()
         if subject_code in mappings["lc_subject"]:
-            subjects.append(mappings["lc_subject"][subject_code])
+            for subject_tags in mappings["lc_subject"][subject_code]:
+                subjects.append(subject_tags)
     return subjects
 
 
