@@ -303,8 +303,8 @@ def process(
     hyrax_import_packages, pre_import_failure_log = create_hyrax_import(
         packages,
         metadata_csv_path,
-        invalid_ok,
         files_path,
+        invalid_ok,
         doi_start,
         mappings,
     )
