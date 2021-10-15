@@ -749,18 +749,18 @@ def copy_thesis_pdf(package_data, package_path, files_path):
         package_data.creator.lower().replace(" ", "-").replace(",", "-")
     )
 
-    # Add the hyphen delimiter.
-    dest_file_name += "-"
+    # Add the double hyphen delimiter.
+    dest_file_name += "--"
 
     # The second part is the title.
     # Adds new words to the filename from the title, but stop after 40
     # characters.
     ascii_letters_digits = string.ascii_letters + string.digits
     for title_word in package_data.title.split():
-        dest_file_name += "".join(
+        dest_file_name += "-".join(
             filter(lambda x: x in ascii_letters_digits, title_word)
         )
-        if len(dest_file_name) > 40:
+        if len(dest_file_name) > 60:
             break
 
     dest_file_name = dest_file_name.lower()
