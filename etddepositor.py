@@ -869,8 +869,9 @@ def add_url(package_data, hyrax_host):
                     == package_data.source_identifier
                 ):
                     work_id = doc["id"]
-                    package_data.url = f"{hyrax_host}/concern/works/{work_id}"
-                    return package_data
+                    return package_data._replace(
+                        url=f"{hyrax_host}/concern/works/{work_id}"
+                    )
     raise GetURLFailedError
 
 
