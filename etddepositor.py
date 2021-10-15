@@ -50,6 +50,9 @@ CROSSREF_SUBDIR = "crossref"
 # DOIs for ETDs.
 DOI_PREFIX = "10.22215"
 
+# DOI_URL_PREFIX is the prefix to add to DOIs to make them resolvable.
+DOI_URL_PREFIX = "https://doi.org/"
+
 # NAMESPACES is a dictionary of namespace prefixes to URIs, used when
 # processing the FGPA provided metadata, which is in XML format.
 NAMESPACES = {
@@ -770,7 +773,7 @@ def add_to_csv(metadata_csv_path, package_data, package_files):
         "Etd",
         package_data.title,
         package_data.creator,
-        f"DOI: https://dx.doi.org/{package_data.doi}",
+        f"DOI: {DOI_URL_PREFIX}{package_data.doi}",
         create_csv_subject(package_data.subjects),
         package_data.abstract,
         package_data.publisher,
