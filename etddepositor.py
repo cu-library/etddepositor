@@ -709,7 +709,7 @@ def process_degree_level(level):
         raise MetadataError("degree level is missing")
     if level == "0":
         raise MetadataError("received undergraduate work, degree level is 0")
-    if level != "1" or level != "2":
+    if level != "1" and level != "2":
         raise MetadataError("invalid degree level")
     return level
 
