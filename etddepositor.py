@@ -757,15 +757,19 @@ def copy_thesis_pdf(package_data, package_path, files_path):
     # Adds new words to the filename from the title, but stop after 40
     # characters.
     ascii_letters_digits = string.ascii_letters + string.digits
+    title_words = []
+    title_words_len = 0
     for title_word in package_data.title.split():
         dest_file_name += "".join(
             filter(lambda x: x in ascii_letters_digits, title_word)
         )
-        if len(dest_file_name) > 120:
+        if len(dest_file_name + title_words_len) > 120:
             break
         else:
-            dest_file_name += "-"
+            title_words.append(title_word)
+            title_words_len += len(title_word)
 
+    dest_file_name += "-".join(title_words)
     dest_file_name = dest_file_name.lower()
     dest_file_name += ".pdf"
     dest_path = os.path.join(files_path, dest_file_name)
