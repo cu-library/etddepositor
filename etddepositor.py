@@ -198,24 +198,24 @@ def copy(ctx, inbox_directory_path):
     ),
 )
 @click.option(
-    "--user_id",
+    "--user-id",
     required=True,
     help="Passed as the user_id option when running the Hyrax importer.",
 )
 @click.option(
-    "--auth_token",
+    "--auth-token",
     required=True,
     help="Passed as the auth_token option when running the Hyrax importer.",
 )
 @click.option(
-    "--doi_start",
+    "--doi-start",
     type=int,
     default=1,
     required=True,
     help="The starting number of the incrementing part of the generated DOIs.",
 )
 @click.option(
-    "--hyrax_host",
+    "--hyrax-host",
     required=True,
     help=(
         "The scheme and domain name of the Hyrax instance we are importing "
@@ -224,18 +224,18 @@ def copy(ctx, inbox_directory_path):
     ),
 )
 @click.option(
-    "--smtp_host",
+    "--smtp-host",
     required=True,
     help="The SMTP server to use when sending the email report.",
 )
-@click.option("--smtp_port", type=int, default=25, required=True)
+@click.option("--smtp-port", type=int, default=25, required=True)
 @click.option(
-    "--email_from",
+    "--email-from",
     required=True,
     help="The 'from' address for the report email.",
 )
 @click.option(
-    "--email_to", required=True, help="The 'to' address for the report email."
+    "--email-to", required=True, help="The 'to' address for the report email."
 )
 def process(
     ctx,
