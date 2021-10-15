@@ -1,0 +1,1302 @@
+abbreviation:
+  Doctor of Philosophy: Ph.D.
+  Master of Applied Science: M.App.Sc.
+  Master of Architectural Stud: M.A.S.
+  Master of Architecture: M.Arch.
+  Master of Arts: M.A.
+  Master of Business Administration: M.B.A.
+  Master of Cognitive Science: M.Cog.Sc
+  Master of Computer Science: M.C.S.
+  Master of Design: M.Des.
+  Master of Engineering: M.Eng.
+  Master of Information Tech: M.I.T.
+  Master of Journalism: M.J.
+  Master of Management Studies: M.M.S.
+  Master of Public Policy: M.P.P.
+  Master of Science: M.Sc.
+  Master of Science in Information and System Science: M.Sc.
+  Master of Social Work: M.S.W.
+  Masters of Engineering: M.Eng.
+  Masters of Social Work: M.S.W.
+discipline:
+  MA-07: Communication
+  MA-08A: Applied Linguistics and Discourse Studies
+  MA-08AAS: Applied Linguistics and Discourse Studies
+  MA-08ADH: Applied Linguistics and Discourse Studies
+  MA-10: Art History
+  MA-10DH: Art History
+  MA-11: Canadian Studies
+  MA-11DH: Canadian Studies
+  MA-15: English
+  MA-15AS: English
+  MA-15DH: English
+  MA-16B: French and Francophone Studies
+  MA-16BAS: French and Francophone Studies
+  MA-16BDH: French and Francophone Studies
+  MA-19: History
+  MA-19AS: History
+  MA-19DH: History
+  MA-19P: History
+  MA-19PDH: Public History
+  MA-231: Music and Culture
+  MA-231DH: Music and Culture
+  MA-24: Philosophy
+  MA-24DH: Philosophy
+  MA-251: Religion and Public Life
+  MA-28: Film Studies
+  MA-28A: Film Studies
+  MA-28AS: Film Studies
+  MA-28DH: Film Studies
+  MA-33: Political Economy
+  MA-33AS: Political Economy
+  MA-39: Legal Studies
+  MA-39AS: Legal Studies
+  MA-3M: Sociology
+  MA-3MC: Social Work
+  MA-40: Anthropology
+  MA-40AS: Anthropology
+  MA-40DH: Anthropology
+  MA-41: Economics
+  MA-41AS: Economics
+  MA-41F: Economics
+  MA-42: Geography
+  MA-43: International Affairs
+  MA-43/JD: International Affairs / Juris Doctor
+  MA-43AC: International Affairs
+  MA-43AC/JD: International Affairs / Juris Doctor
+  MA-43AR: International Affairs
+  MA-43AR/JD: International Affairs / Juris Doctor
+  MA-43AS: International Affairs / Juris Doctor
+  MA-43C: International Affairs
+  MA-43C/JD: International Affairs / Juris Doctor
+  MA-43CAS: International Affairs
+  MA-43DC: International Affairs
+  MA-43DC/JD: International Affairs / Juris Doctor
+  MA-43DP: International Affairs
+  MA-43DP/JD: International Affairs / Juris Doctor
+  MA-43EC: International Affairs
+  MA-43EC/JD: International Affairs / Juris Doctor
+  MA-43EP: International Affairs
+  MA-43EP/JD: International Affairs / Juris Doctor
+  MA-43GC: International Affairs
+  MA-43GC/JD: International Affairs / Juris Doctor
+  MA-43GP: International Affairs
+  MA-43GP/JD: International Affairs / Juris Doctor
+  MA-43IC: International Affairs
+  MA-43IC/JD: International Affairs / Juris Doctor
+  MA-43ID: International Affairs
+  MA-43ID/JD: International Affairs / Juris Doctor
+  MA-43IN: International Affairs
+  MA-43IN/JD: International Affairs / Juris Doctor
+  MA-43PC: International Affairs
+  MA-43PC/JD: International Affairs / Juris Doctor
+  MA-44A: Women's and Gender Studies
+  MA-44AAS: Women's and Gender Studies
+  MA-46: Political Science
+  MA-46AS: Political Science
+  MA-46C: Political Science
+  MA-46CAS: Political Science
+  MA-47: Psychology
+  MA-48: Public Administration
+  MA-48C: Public Administration
+  MA-50: Sociology
+  MA-50AS: Sociology
+  MA-50DH: Sociology
+  MA-531: European, Russian and Eurasian Studies
+  MA-531C: European, Russian and Eurasian Studies
+  MA-69A: Human-Computer Interaction
+  MA-SEC: Sustainable Energy
+  MA-SEP: Sustainable Energy
+  MARCH-31A: Architecture
+  MARCH-79: Architecture
+  MAS-31: Architectural Studies
+  MASC-69E: Engineering, Human-Computer Interaction
+  MASC-78: Engineering, Aerospace
+  MASC-81: Engineering, Civil
+  MASC-82E: Engineering, Electrical and Computer
+  MASC-82S: Engineering, Electrical and Computer
+  MASC-82SDS: Engineering, Electrical and Computer
+  MASC-83: Engineering, Materials
+  MASC-84: Engineering, Mechanical
+  MASC-95: Engineering, Environmental
+  MASC-BIOMED: Engineering, Biomedical
+  MASC-SE: Engineering, Sustainable Energy
+  MASC-TIM: Engineering , Technology Innovation Management
+  MBA-71: MBA (Business Administration)
+  MBA-71A: MBA (Business Administration)
+  MBA-71B: MBA (Business Administration)
+  MBA-71C: MBA (Business Administration)
+  MBA-71FM: MBA (Business Administration)
+  MBA-71FMA: MBA (Business Administration)
+  MBA-71I: MBA (Business Administration)
+  MBA-71IB: MBA (Business Administration)
+  MBA-71IBA: MBA (Business Administration)
+  MBA-71ID: MBA (Business Administration)
+  MBA-71IDA: MBA (Business Administration)
+  MBA-71MA: MBA (Business Administration)
+  MBA-71MC: MBA (Business Administration)
+  MBA-71MCA: MBA (Business Administration)
+  MBA-71TM: MBA (Business Administration)
+  MCOGSC-98: Cognitive Science
+  MCS-5M: Engineering, Electrical and Computer
+  MCS-69S: Human-Computer Interaction
+  MCS-77: Computer Science
+  MCS-77A: Computer Science
+  MCS-77B: Computer Science
+  MCS-77C: Computer Science
+  MDES-IDES: Industrial Design
+  MENG-5K: Engineering, Electrical and Computer
+  MENG-5L: Engineering, Electrical and Computer
+  MENG-77: Engineering, Telecommunications Technology Management
+  MENG-78: Engineering, Aerospace
+  MENG-81: Engineering, Civil
+  MENG-82E: Engineering, Electrical and Computer
+  MENG-82S: Engineering, Electrical and Computer
+  MENG-83: Engineering, Materials
+  MENG-84: Engineering, Mechanical
+  MENG-95: Engineering, Environmental
+  MENG-SE: Sustainable Energy
+  MENG-TIM: Engineering , Technology Innovation Management
+  MIPIS-43: Infrastructure Protection and International Security
+  MIPIS-43C: Infrastructure Protection and International Security
+  MIPIS-81: Infrastructure Protection and International Security
+  MIPIS-81C: Infrastructure Protection and International Security
+  MJ-4L-PR1: Journalism
+  MJ-4L-PR2: Journalism
+  MJ-4N-JS1: Journalism
+  MJ-4N-JS2: Journalism
+  MJ-4P-BJ1: Journalism
+  MJ-4P-BJ2: Journalism
+  MPM-PM: Political Management
+  MPNL-48P: Philanthropy and Nonprofit Leadership
+  MSC-42: Geography
+  MSC-5C: Pure Mathematics
+  MSC-5D: Mathematics
+  MSC-5E: Probability and Statistics
+  MSC-5EB: Mathematics
+  MSC-5F: Mathematics
+  MSC-5Y: Physics
+  MSC-60: Biology
+  MSC-60B: Biology
+  MSC-60H: "Health: Science, Technology and Policy"
+  MSC-60HL: "Health: Science, Technology and Policy"
+  MSC-62: Chemistry
+  MSC-6E: Neuroscience
+  MSC-6EG: Neuroscience
+  MSC-7A: FLAG
+  MSC-7B: FLAG
+  MSC-7C: FLAG
+  MSC-7D: Chemical and Environmental Toxicology
+  MSC-7E: Chemical and Environmental Toxicology
+  MSC-7G: FLAG
+  MSC-7GT: Chemical and Environmental Toxicology
+  MSC-96: Earth Sciences
+  MSC-9J: Physics
+  MSC-9K: Physics
+  MSC-9L: Mathematics
+  MSW-1YR-5CR: Social Work
+  MSW-1YR-6CR: Social Work
+  MSW-2YR-11CR: Social Work
+  MSW-49: Social Work
+  Mar-79: Architecture
+  PHD-07: Communication
+  PHD-08A: Applied Linguistics and Discourse Studies
+  PHD-11: Canadian Studies
+  PHD-11PE: FLAG
+  PHD-15: English
+  PHD-19: History
+  PHD-19PE: FLAG
+  PHD-31: Architecture
+  PHD-34: Public Policy
+  PHD-34PE: FLAG
+  PHD-39: Legal Studies
+  PHD-39PE: FLAG
+  PHD-40: Anthropology
+  PHD-40PE: FLAG
+  PHD-41: Economics
+  PHD-42: Geography
+  PHD-42PE: FLAG
+  PHD-43: International Affairs
+  PHD-46: Political Science
+  PHD-46PE: FLAG
+  PHD-47: Psychology
+  PHD-49A: Social Work
+  PHD-49PE: FLAG
+  PHD-50: Sociology
+  PHD-50PE: Sociology
+  PHD-5C: Mathematics
+  PHD-5D: Mathematics
+  PHD-5E: Probability and Statistics
+  PHD-60: Biology
+  PHD-62: Chemistry
+  PHD-6E: Neuroscience
+  PHD-6EG: Neuroscience
+  PHD-78: Engineering, Aerospace
+  PHD-7D: FLAG
+  PHD-7E: FLAG
+  PHD-7G: FLAG
+  PHD-7GT: FLAG
+  PHD-7M: Computer Science
+  PHD-7N: Management
+  PHD-81: Engineering, Civil
+  PHD-82E: Engineering, Electrical and Computer
+  PHD-82S: Engineering, Electrical and Computer
+  PHD-84: Engineering, Mechanical
+  PHD-95: Engineering, Environmental
+  PHD-96: Earth Sciences
+  PHD-97: FLAG
+  PHD-98: Cognitive Science
+  PHD-9J: Physics
+  PHD-9K: Physics
+  PHD-BA: Cultural Mediations
+  PHD-BB: Cultural Mediations
+  PHD-BC: Cultural Mediations
+  PHD-BD: Cultural Mediations
+description_escape_table:
+  '"': "&quot;"
+  "$": "&#36;"
+  "&": "&amp;"
+  "'": "&apos;"
+  "<": "&lt;"
+  ">": "&gt;"
+  "\n": " "
+  "\r": ""
+  "\u2018": "'"
+  "\u2019": "'"
+  "\u201c": '"'
+  "\u201d": '"'
+  "\u2013": "-"
+lc_subject:
+  B001:
+    - - a
+      - Agriculture.
+  B002:
+    - - a
+      - Agronomy.
+  B003:
+    - - a
+      - Animal culture.
+    - - a
+      - Animal nutrition.
+  B004:
+    - - a
+      - Veterinary pathology.
+  B005:
+    - - a
+      - Fisheries.
+    - - a
+      - Aquaculture.
+  B006:
+    - - a
+      - Food analysis.
+  B007:
+    - - a
+      - Forests and forestry.
+    - - a
+      - Animals.
+  B008:
+    - - a
+      - Horticulture.
+  B009:
+    - - a
+      - Plants, Cultivated.
+  B010:
+    - - a
+      - Plant diseases.
+  B011:
+    - - a
+      - Range management.
+  B012:
+    - - a
+      - Soil science.
+  B013:
+    - - a
+      - Wood.
+    - - a
+      - Forest products.
+      - x
+      - Biotechnology.
+  B014:
+    - - a
+      - Biology.
+  B015:
+    - - a
+      - Anatomy.
+  B016:
+    - - a
+      - Physiology.
+  B017:
+    - - a
+      - Bioinformatics.
+  B018:
+    - - a
+      - Biometry.
+  B019:
+    - - a
+      - Botany.
+  B020:
+    - - a
+      - Cytology.
+  B021:
+    - - a
+      - Ecology.
+  B022:
+    - - a
+      - Entomology.
+  B023:
+    - - a
+      - Genetics.
+  B024:
+    - - a
+      - Limnology.
+  B025:
+    - - a
+      - Microbiology.
+  B026:
+    - - a
+      - Molecular biology.
+  B027:
+    - - a
+      - Neurosciences.
+  B028:
+    - - a
+      - Oceanography.
+  B029:
+    - - a
+      - Parasitology.
+  B030:
+    - - a
+      - Physiology.
+  B031:
+    - - a
+      - Plant physiology.
+  B032:
+    - - a
+      - Veterinary medicine.
+  B033:
+    - - a
+      - Virology.
+  B034:
+    - - a
+      - Zoology.
+  B035:
+    - - a
+      - Biophysics.
+  B036:
+    - - a
+      - Medical physics.
+  C001:
+    - - a
+      - Architecture.
+  C002:
+    - - a
+      - Art and history.
+  C003:
+    - - a
+      - Motion pictures.
+  C004:
+    - - a
+      - Dance.
+  C005:
+    - - a
+      - Decorative arts.
+    - - a
+      - Design.
+  C006:
+    - - a
+      - Art.
+  C007:
+    - - a
+      - Information science.
+  C008:
+    - - a
+      - Journalism.
+  C009:
+    - - a
+      - Landscape architecture.
+  C010:
+    - - a
+      - Library science.
+  C011:
+    - - a
+      - Communication.
+  C012:
+    - - a
+      - Music.
+  C013:
+    - - a
+      - Oral communication.
+  C014:
+    - - a
+      - Theater.
+  E001:
+    - - a
+      - Education.
+  E002:
+    - - a
+      - School management and organization.
+  E003:
+    - - a
+      - Adult education.
+    - - a
+      - Continuing education.
+  E004:
+    - - a
+      - Agricultural education.
+  E005:
+    - - a
+      - Art.
+      - x
+      - Study and teaching.
+  E006:
+    - - a
+      - Education, Bilingual.
+    - - a
+      - Multicultural education.
+  E007:
+    - - a
+      - Business education.
+  E008:
+    - - a
+      - Community colleges.
+  E009:
+    - - a
+      - Education.
+      - x
+      - Curricula.
+  E010:
+    - - a
+      - Early childhood education.
+  E011:
+    - - a
+      - Educational psychology.
+  E012:
+    - - a
+      - Education, Elementary.
+  E013:
+    - - a
+      - Education.
+      - x
+      - Finance.
+  E014:
+    - - a
+      - Educational counseling.
+  E015:
+    - - a
+      - Health education.
+  E016:
+    - - a
+      - Education, Higher.
+  E017:
+    - - a
+      - Education.
+      - x
+      - History.
+  E018:
+    - - a
+      - Home economics.
+      - x
+      - Study and teaching.
+  E019:
+    - - a
+      - Manual training.
+  E020:
+    - - a
+      - Language and languages.
+      - x
+      - Study and teaching.
+    - - a
+      - Literature.
+      - x
+      - Study and teaching.
+  E021:
+    - - a
+      - Mathematics.
+      - x
+      - Study and teaching.
+  E022:
+    - - a
+      - Music.
+      - x
+      - Study and teaching.
+  E023:
+    - - a
+      - Education.
+      - x
+      - Philosophy.
+  E024:
+    - - a
+      - Physical education and training.
+  E025:
+    - - a
+      - Reading.
+  E026:
+    - - a
+      - Religious Education.
+  E027:
+    - - a
+      - Science.
+      - x
+      - Study and teaching.
+  E028:
+    - - a
+      - Education, Secondary.
+  E029:
+    - - a
+      - Social Sciences.
+      - x
+      - Study and teaching.
+  E030:
+    - - a
+      - Educational sociology.
+  E031:
+    - - a
+      - Special Education.
+  E032:
+    - - a
+      - Teachers.
+      - x
+      - Training of.
+  E033:
+    - - a
+      - Educational technology.
+  E034:
+    - - a
+      - Educational tests and measurements.
+  E035:
+    - - a
+      - Vocational education.
+  H001:
+    - - a
+      - Environmental sciences.
+  H002:
+    - - a
+      - Medical sciences.
+  H003:
+    - - a
+      - Audiology .
+  H004:
+    - - a
+      - Dentistry.
+  H005:
+    - - a
+      - Medical sciences.
+      - x
+      - Study and teaching.
+  H006:
+    - - a
+      - Epidemiology.
+  H007:
+    - - a
+      - Health services administration.
+  H008:
+    - - a
+      - Human growth.
+  H009:
+    - - a
+      - Immunology.
+  H010:
+    - - a
+      - Biomedical engineering.
+  H011:
+    - - a
+      - Mental health.
+  H012:
+    - - a
+      - Nursing.
+  H013:
+    - - a
+      - Nutrition.
+  H014:
+    - - a
+      - Obstetrics.
+    - - a
+      - Gynecology .
+  H015:
+    - - a
+      - Industrial hygiene.
+    - - a
+      - Industrial safety.
+  H016:
+    - - a
+      - Oncology.
+  H017:
+    - - a
+      - Ophthalmology.
+  H018:
+    - - a
+      - Pathology.
+  H019:
+    - - a
+      - Pharmacology.
+  H020:
+    - - a
+      - Pharmacy.
+  H021:
+    - - a
+      - Public health.
+  H022:
+    - - a
+      - Radiology.
+  H023:
+    - - a
+      - Recreation.
+  H024:
+    - - a
+      - Rehabilitation.
+    - - a
+      - Therapeutics.
+  H025:
+    - - a
+      - Speech disorders.
+  H026:
+    - - a
+      - Toxicology.
+  H027:
+    - - a
+      - Home economics.
+  L001:
+    - - a
+      - Language and languages.
+  L002:
+    - - a
+      - Classical languages.
+  L003:
+    - - a
+      - Linguistics.
+  L004:
+    - - a
+      - Languages, Modern.
+  L005:
+    - - a
+      - Rhetoric.
+    - - a
+      - Composition (Language arts).
+  L006:
+    - - a
+      - Literature.
+  L007:
+    - - a
+      - Classical literature.
+  L008:
+    - - a
+      - Comparative literature.
+  L009:
+    - - a
+      - Literature, Medieval.
+  L010:
+    - - a
+      - Literature, Modern.
+  L011:
+    - - a
+      - African literature.
+  L012:
+    - - a
+      - American literature.
+  L013:
+    - - a
+      - Oriental literature.
+  L014:
+    - - a
+      - Australian literature.
+    - - a
+      - New Zealand literature.
+    - - a
+      - Pacific Island literature.
+  L015:
+    - - a
+      - Canadian literature.
+  L016:
+    - - a
+      - French-Canadian literature.
+  L017:
+    - - a
+      - Caribbean literature.
+  L018:
+    - - a
+      - English literature.
+  L019:
+    - - a
+      - Germanic literature.
+  L020:
+    - - a
+      - Latin American literature.
+  L021:
+    - - a
+      - Middle Eastern literature.
+  L022:
+    - - a
+      - Romance literature.
+  L023:
+    - - a
+      - Scandinavian literature.
+    - - a
+      - Icelandic literature.
+  L024:
+    - - a
+      - East European literature.
+    - - a
+      - Slavic literature.
+  M001:
+    - - a
+      - Chemistry.
+  M002:
+    - - a
+      - Agricultural chemistry.
+  M003:
+    - - a
+      - Chemistry, Analytic.
+  M004:
+    - - a
+      - Biochemistry.
+  M005:
+    - - a
+      - Chemistry, Inorganic.
+  M006:
+    - - a
+      - Nuclear chemistry.
+  M007:
+    - - a
+      - Chemistry, Organic .
+  M008:
+    - - a
+      - Pharmaceutical chemistry.
+  M009:
+    - - a
+      - Chemistry, Physical and theoretical.
+  M010:
+    - - a
+      - Polymers.
+  M011:
+    - - a
+      - Radiation.
+  M012:
+    - - a
+      - Mathematics.
+  M013:
+    - - a
+      - Physics.
+  M014:
+    - - a
+      - Sound.
+  M015:
+    - - a
+      - Astronomy.
+    - - a
+      - Astrophysics.
+  M016:
+    - - a
+      - Atmospheric physics.
+  M017:
+    - - a
+      - Atoms.
+    - - a
+      - Physics.
+  M018:
+    - - a
+      - Condensed matter.
+  M019:
+    - - a
+      - Electricity.
+    - - a
+      - Magnetism.
+  M020:
+    - - a
+      - Particles (Nuclear physics).
+  M021:
+    - - a
+      - Fluid dynamics.
+    - - a
+      - Plasma dynamics.
+  M022:
+    - - a
+      - Molecules.
+  M023:
+    - - a
+      - Nuclear physics.
+  M024:
+    - - a
+      - Optics.
+  M025:
+    - - a
+      - Radiation.
+    - - a
+      - Physics.
+  M026:
+    - - a
+      - Physics.
+      - x
+      - Philosophy.
+  M027:
+    - - a
+      - Statistical physics.
+  M028:
+    - - a
+      - Mechanics, Applied.
+  M029:
+    - - a
+      - Artificial intelligence.
+  M030:
+    - - a
+      - Computer science.
+  M031:
+    - - a
+      - Force and energy.
+  M032:
+    - - a
+      - Engineering.
+  M033:
+    - - a
+      - Aerospace engineering.
+  M034:
+    - - a
+      - Agricultural engineering.
+  M035:
+    - - a
+      - Automobiles.
+      - x
+      - Design and construction.
+  M036:
+    - - a
+      - Biomedical engineering.
+  M037:
+    - - a
+      - Chemical engineering.
+  M038:
+    - - a
+      - Civil engineering.
+  M039:
+    - - a
+      - Electrical engineering.
+  M040:
+    - - a
+      - Environmental engineering.
+  M041:
+    - - a
+      - Industrial engineering.
+  M042:
+    - - a
+      - Marine engineering.
+    - - a
+      - Ocean engineering.
+  M043:
+    - - a
+      - Materials science.
+  M044:
+    - - a
+      - Mechanical engineering.
+  M045:
+    - - a
+      - Metallurgy.
+  M046:
+    - - a
+      - Mining engineering.
+  M047:
+    - - a
+      - Nuclear engineering.
+  M048:
+    - - a
+      - Packaging.
+    - - a
+      - Engineering.
+  M049:
+    - - a
+      - Petroleum engineering.
+  M050:
+    - - a
+      - Robotics.
+  M051:
+    - - a
+      - Sanitary engineering.
+    - - a
+      - Municipal engineering.
+  M052:
+    - - a
+      - System theory.
+    - - a
+      - Electric networks.
+    - - a
+      - System analysis.
+  M053:
+    - - a
+      - Rock mechanics.
+  M054:
+    - - a
+      - Operations research.
+  M055:
+    - - a
+      - Technology.
+    - - a
+      - Plastics.
+  M056:
+    - - a
+      - Textile industry.
+  P001:
+    - - a
+      - Philosophy.
+  P002:
+    - - a
+      - Religion.
+  P003:
+    - - a
+      - Bible.
+      - x
+      - Study and teaching.
+  P004:
+    - - a
+      - Clergy.
+  P005:
+    - - a
+      - Religion.
+      - x
+      - History.
+  P006:
+    - - a
+      - Religion.
+      - x
+      - Philosophy.
+  P007:
+    - - a
+      - Theology.
+  R001:
+    - - a
+      - Atmospheric physics.
+  R002:
+    - - a
+      - Biogeochemistry.
+  R003:
+    - - a
+      - Geochemistry.
+  R004:
+    - - a
+      - Geodesy.
+  R005:
+    - - a
+      - Geology.
+  R006:
+    - - a
+      - Geophysics .
+  R007:
+    - - a
+      - Hydrology.
+  R008:
+    - - a
+      - Mineralogy.
+  R009:
+    - - a
+      - Paleobotany.
+  R010:
+    - - a
+      - Paleoecology.
+  R011:
+    - - a
+      - Paleontology .
+  R012:
+    - - a
+      - Paleontology.
+  R013:
+    - - a
+      - Palynology.
+  R014:
+    - - a
+      - Physical geography.
+  R015:
+    - - a
+      - Oceanography.
+  R016:
+    - - a
+      - Remote sensing.
+  S001:
+    - - a
+      - United States.
+      - x
+      - Study and teaching.
+  S002:
+    - - a
+      - Archaeology.
+  S003:
+    - - a
+      - Ethnology.
+  S004:
+    - - a
+      - Medical anthropology.
+    - - a
+      - Forensic anthropology.
+  S005:
+    - - a
+      - Physical anthropology.
+  S006:
+    - - a
+      - Biography.
+  S007:
+    - - a
+      - African Americans.
+      - x
+      - Study and teaching.
+  S008:
+    - - a
+      - Industrial management.
+  S009:
+    - - a
+      - Accounting.
+  S010:
+    - - a
+      - Banks and banking.
+  S011:
+    - - a
+      - Management.
+  S012:
+    - - a
+      - Marketing.
+  S013:
+    - - a
+      - Canada.
+      - x
+      - Study and teaching.
+  S014:
+    - - a
+      - Economics.
+  S015:
+    - - a
+      - Agriculture.
+      - x
+      - Economic aspects.
+  S016:
+    - - a
+      - Commerce.
+  S017:
+    - - a
+      - Finance.
+  S018:
+    - - a
+      - Economics.
+      - x
+      - History.
+  S019:
+    - - a
+      - Labor economics.
+  S020:
+    - - a
+      - Economics.
+  S021:
+    - - a
+      - Folklore.
+  S022:
+    - - a
+      - Geography.
+  S023:
+    - - a
+      - Gerontology.
+  S024:
+    - - a
+      - Gender mainstreaming.
+  S025:
+    - - a
+      - Hispanic Americans.
+      - x
+      - Study and teaching.
+  S026:
+    - - a
+      - History.
+  S027:
+    - - a
+      - History, Ancient.
+  S028:
+    - - a
+      - Middle Ages.
+  S029:
+    - - a
+      - History, Modern.
+  S030:
+    - - a
+      - Africa.
+      - x
+      - History.
+  S031:
+    - - a
+      - Asia.
+      - x
+      - History.
+    - - a
+      - Australia.
+      - x
+      - History.
+    - - a
+      - Oceania.
+      - x
+      - History.
+  S032:
+    - - a
+      - African Americans.
+      - x
+      - History.
+  S033:
+    - - a
+      - Canada.
+      - x
+      - History.
+  S034:
+    - - a
+      - Church history.
+  S035:
+    - - a
+      - Europe.
+      - x
+      - History.
+  S036:
+    - - a
+      - Latin America.
+      - x
+      - History.
+  S037:
+    - - a
+      - Middle East.
+      - x
+      - History.
+  S038:
+    - - a
+      - Military history.
+  S039:
+    - - a
+      - Russia.
+      - x
+      - History.
+  S040:
+    - - a
+      - United States.
+      - x
+      - History.
+  S041:
+    - - a
+      - Science.
+      - x
+      - History.
+  S042:
+    - - a
+      - Jews.
+      - x
+      - Study and teaching.
+  S043:
+    - - a
+      - Law.
+  S044:
+    - - a
+      - Armed forces.
+      - x
+      - Study and teaching.
+  S045:
+    - - a
+      - Museum techniques.
+  S046:
+    - - a
+      - Indians.
+      - x
+      - Study and teaching.
+  S047:
+    - - a
+      - Political science.
+  S048:
+    - - a
+      - International law.
+    - - a
+      - International relations.
+  S049:
+    - - a
+      - Public administration.
+  S050:
+    - - a
+      - Recreation.
+  S051:
+    - - a
+      - Social service.
+  S052:
+    - - a
+      - Sociology.
+  S053:
+    - - a
+      - Corrections.
+    - - a
+      - Criminology.
+  S054:
+    - - a
+      - Demography.
+  S055:
+    - - a
+      - Ethnology.
+      - x
+      - Study and teaching.
+  S056:
+    - - a
+      - Families.
+      - x
+      - Study and teaching.
+    - - a
+      - Self.
+      - x
+      - Study and teaching.
+  S057:
+    - - a
+      - Industrial relations.
+  S058:
+    - - a
+      - Organizational sociology.
+  S059:
+    - - a
+      - Public welfare.
+  S060:
+    - - a
+      - Social structure.
+    - - a
+      - Community development.
+  S061:
+    - - a
+      - Sociology.
+      - x
+      - Methodology.
+  S062:
+    - - a
+      - Transportation.
+  S063:
+    - - a
+      - City planning.
+    - - a
+      - Regional planning.
+  S064:
+    - - a
+      - Women's studies.
+  Y001:
+    - - a
+      - Psychology.
+  Y002:
+    - - a
+      - Behaviorism (Psychology).
+  Y003:
+    - - a
+      - Clinical psychology.
+  Y004:
+    - - a
+      - Cognitive psychology.
+  Y005:
+    - - a
+      - Developmental psychology.
+  Y006:
+    - - a
+      - Psychology, Experimental.
+  Y007:
+    - - a
+      - Psychology, Industrial.
+  Y008:
+    - - a
+      - Personality.
+  Y009:
+    - - a
+      - Psychophysiology.
+  Y010:
+    - - a
+      - Psychobiology.
+  Y011:
+    - - a
+      - Psychometrics.
+  Y012:
+    - - a
+      - Social psychology.
