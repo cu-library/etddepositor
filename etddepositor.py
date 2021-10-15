@@ -653,15 +653,15 @@ def process_contributors(contributor_elements):
 
 
 def process_date(date):
+    """Ensure date is properly formatted, then return the year as a string"""
+
     date = date.strip()
     if not date:
         raise MetadataError("date tag is missing")
     try:
-        datetime.datetime.strptime(date, "%Y-%M-%d")
+        return str(datetime.datetime.strptime(date, "%Y-%M-%d").year)
     except ValueError:
         raise MetadataError(f"date value {date} is not properly formatted")
-    date = date[:4]
-    return date
 
 
 def process_language(language):

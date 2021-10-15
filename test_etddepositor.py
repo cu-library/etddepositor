@@ -67,3 +67,14 @@ LAC Non-Exclusive License||2||Y||13-MAY-16
             etddepositor.check_embargo_and_agreements(
                 self.embargo_date_bad.strip().split("\n")
             )
+
+
+def test_process_date():
+    assert etddepositor.process_date("2021-06-01") == "2021"
+    assert etddepositor.process_date("1900-06-01") == "1900"
+    with pytest.raises(etddepositor.MetadataError, match="missing"):
+        etddepositor.process_date("")
+    with pytest.raises(
+        etddepositor.MetadataError, match="not properly formatted"
+    ):
+        etddepositor.process_date("BLAH")
