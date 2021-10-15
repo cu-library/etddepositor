@@ -439,7 +439,7 @@ def create_hyrax_import(
                 f"{name}_permissions_meta.txt",
             )
             with open(
-                permissions_path, "r", encoding="uft-8"
+                permissions_path, "r", encoding="utf-8"
             ) as permissions_file:
                 permissions_file_content = permissions_file.readlines()
             # We pass a list of lines here instead of a file handle to
