@@ -803,12 +803,12 @@ def add_to_csv(metadata_csv_path, package_data, package_files):
 
 def create_csv_subject(subjects):
     csv_subjects = []
-    for subject_tags in subject:
+    for subject_tags in subjects:
         a_text = subject_tags[1]
         a_text = a_text.replace(".", "")
         csv_subject = a_text
         if len(subject_tags) == 4:
-            x_text = subject[4]
+            x_text = subject_tags[4]
             x_text = x_text.replace(".", "")
             csv_subject = f"{csv_subject} -- {x_text}"
         csv_subjects.append(csv_subject)
@@ -1067,7 +1067,9 @@ def create_marc_record(package_data, marc_path):
     )
     for subject_tags in package_data.subjects:
         record.add_field(
-            pymarc.Field(tag="650", indicators=[" ", "0"], subfields=subject_tags)
+            pymarc.Field(
+                tag="650", indicators=[" ", "0"], subfields=subject_tags
+            )
         )
     record.add_field(
         pymarc.Field(
