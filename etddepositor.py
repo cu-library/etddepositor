@@ -863,7 +863,11 @@ def add_url(package_data, hyrax_host):
         if resp.status_code == 200:
             json = resp.json()
             for doc in json["response"]["docs"]:
-                if doc["source_tesim"][0] == package_data.source_identifier:
+                if (
+                    "source_tesim" in doc
+                    and doc["source_tesim"][0]
+                    == package_data.source_identifier
+                ):
                     work_id = doc["id"]
                     package_data.url = f"{hyrax_host}/concern/works/{work_id}"
                     return package_data
