@@ -1233,13 +1233,19 @@ def send_email_report(
     with open(marc_archive_path, "rb") as marc_archive_file:
         marc_archive_data = marc_archive_file.read()
     msg.add_attachment(
-        marc_archive_data, maintype="application", subtype="zip"
+        marc_archive_data,
+        maintype="application",
+        subtype="zip",
+        filename=os.path.basename(marc_archive_path),
     )
 
     with open(crossref_file_path, "rb") as crossref_file:
         crossref_file_data = crossref_file.read()
     msg.add_attachment(
-        crossref_file_data, maintype="application", subtype="xml"
+        crossref_file_data,
+        maintype="application",
+        subtype="xml",
+        filename=os.path.basename(crossref_file_path),
     )
 
     server = smtplib.SMTP(smtp_host, smtp_port)
