@@ -720,7 +720,7 @@ def copy_package_files(package_data, package_path, files_path):
     if os.path.isdir(supplemental_path):
         archive_file_name = f"{thesis_file_name[:-4]}-supplemental.zip"
         archive_path = os.path.join(files_path, archive_file_name)
-        shutil.make_archive(archive_path, "zip", supplemental_path)
+        shutil.make_archive(archive_path[:-4], "zip", supplemental_path)
         return thesis_file_name, archive_file_name
     return (thesis_file_name,)
 
@@ -746,7 +746,7 @@ def copy_thesis_pdf(package_data, package_path, files_path):
     # We want an short pdf file name.
     # The first part is the creator name, simplified.
     dest_file_name = (
-        package_data.creator.lower().replace(" ", "").replace("-", "")
+        package_data.creator.lower().replace(" ", "-").replace(",", "-")
     )
 
     # Add the hyphen delimiter.
@@ -789,7 +789,8 @@ def add_to_csv(metadata_csv_path, package_data, package_files):
         package_data.degree,
         package_data.discipline,
         package_data.level,
-        "Thesis" "|".join(package_files),
+        "Thesis",
+        "|".join(package_files),
     ]
 
     with open(
