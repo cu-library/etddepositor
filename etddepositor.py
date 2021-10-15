@@ -309,7 +309,7 @@ def process(
         mappings,
     )
 
-    click.echo("Running Bulkrax importer... ", nl=False)
+    click.echo("Running Bulkrax importer.")
     subprocess.run(
         [
             importer,
@@ -333,7 +333,6 @@ def process(
             hyrax_host,
         ]
     )
-    click.echo("Done")
 
     (
         completed_packages,
@@ -371,7 +370,7 @@ def process(
     )
     click.echo("Done")
 
-    click.echo("Moving processed packages to done subdirectory...", nl=False)
+    click.echo("Moving processed packages to done subdirectory: ", nl=False)
     for package in completed_packages:
         shutil.move(package.path, done_path)
     click.echo("Done")
