@@ -57,7 +57,7 @@ DOI_URL_PREFIX = "https://doi.org/"
 # processing the FGPA provided metadata, which is in XML format.
 NAMESPACES = {
     "dc": "http://purl.org/dc/elements/1.1/",
-    "ns": "http://www.ndltd.org/standards/metadata/etdms/1.1/",
+    "etdms": "http://www.ndltd.org/standards/metadata/etdms/1.1/",
 }
 
 # PackageData is a container for package data, used to create the Hyrax
@@ -589,17 +589,21 @@ def create_package_data(
     language = root.findtext("dc:language", default="", namespaces=NAMESPACES)
     language = process_language(language)
 
-    degree = root.findtext("degree/name", default="", namespaces=NAMESPACES)
+    degree = root.findtext(
+        "etdms:degree/etdms:name", default="", namespaces=NAMESPACES
+    )
     degree = process_degree(degree)
 
     abbreviation = process_degree_abbreviation(degree, mappings)
 
     discipline = root.findtext(
-        "degree/discipline", default="", namespaces=NAMESPACES
+        "etdms:degree/etdms:discipline", default="", namespaces=NAMESPACES
     )
     discipline = process_degree_discipline(discipline, mappings)
 
-    level = root.findtext("degree/level", default="", namespaces=NAMESPACES)
+    level = root.findtext(
+        "etdms:degree/etdms:level", default="", namespaces=NAMESPACES
+    )
     level = process_degree_level(level)
 
     doi = f"{DOI_PREFIX}/etd/{date}-{doi_ident}"
