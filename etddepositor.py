@@ -351,7 +351,9 @@ def process(
 
     click.echo("Creating MARC archive: ", nl=False)
     marc_archive_path = os.path.join(
-        processing_directory, MARC_SUBDIR, f"{ datetime.date.today().isoformat()}-marc-archive.zip"
+        processing_directory,
+        MARC_SUBDIR,
+        f"{ datetime.date.today().isoformat()}-marc-archive.zip",
     )
     # make_archive doesn't want the archive extension.
     shutil.make_archive(marc_archive_path[:-4], "zip", marc_path)
