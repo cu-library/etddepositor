@@ -760,14 +760,14 @@ def copy_thesis_pdf(package_data, package_path, files_path):
     title_words = []
     title_words_len = 0
     for title_word in package_data.title.split():
-        dest_file_name += "".join(
+        title_word_filtered = "".join(
             filter(lambda x: x in ascii_letters_digits, title_word)
         )
         if len(dest_file_name) + title_words_len > 120:
             break
         else:
-            title_words.append(title_word)
-            title_words_len += len(title_word)
+            title_words.append(title_word_filtered)
+            title_words_len += len(title_word_filtered)
 
     dest_file_name += "-".join(title_words)
     dest_file_name = dest_file_name.lower()
