@@ -761,7 +761,7 @@ def copy_thesis_pdf(package_data, package_path, files_path):
         dest_file_name += "".join(
             filter(lambda x: x in ascii_letters_digits, title_word)
         )
-        if len(dest_file_name) > 60:
+        if len(dest_file_name) > 120:
             break
         else:
             dest_file_name += "-"
