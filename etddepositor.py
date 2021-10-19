@@ -813,7 +813,7 @@ def create_csv_subject(subjects):
         a_text = a_text.replace(".", "")
         csv_subject = a_text
         if len(subject_tags) == 4:
-            x_text = subject_tags[4]
+            x_text = subject_tags[3]
             x_text = x_text.replace(".", "")
             csv_subject = f"{csv_subject} -- {x_text}"
         csv_subjects.append(csv_subject)
