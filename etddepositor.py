@@ -496,7 +496,6 @@ def check_embargo_and_agreements(content_lines):
             current_date = datetime.date.today()
             expiry_date = line.split(" ")[2]
             embargo_date = embargo_string_to_datetime(expiry_date)
-            print(embargo_date)
             if current_date < embargo_date:
                 raise MetadataError(
                     f"the embargo date of {embargo_date} has not passed"

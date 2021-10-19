@@ -2,6 +2,16 @@ import etddepositor
 import pytest
 
 
+def test_cwrite_metadata_csv_header(tmp_path):
+    metadata_csv_path = tmp_path / "metadata.csv"
+    etddepositor.write_metadata_csv_header(metadata_csv_path)
+    assert metadata_csv_path.read_text() == (
+        "source_identifier,model,title,creator,identifier,subject,"
+        "abstract,publisher,contributor,date_created,language,"
+        "degree,degree_discipline,degree_level,resource_type,file\n"
+    )
+
+
 class TestEmbargoAndAgreements:
 
     valid = """Student ID: 10000000
@@ -31,13 +41,22 @@ LAC Non-Exclusive License||2||N||31-AUG-15
 
     weird_line = """BOO!"""
 
-    embargo_date_bad = """Student ID: 100944645
+    embargo_date_not_passed = """Student ID: 100944645
 Thesis ID: 1794
 Embargo Expiry: 13-AUG-99
 Carleton University Thesis License Agreement||1||Y||19-APR-16
 FIPPA||1||Y||19-APR-16
 Academic Integrity Statement||1||Y||19-APR-16
 LAC Non-Exclusive License||2||Y||13-MAY-16
+    """
+
+    embargo_date_bad = """Student ID: 100944645
+    Thesis ID: 1794
+    Embargo Expiry: Epoch+1
+    Carleton University Thesis License Agreement||1||Y||19-APR-16
+    FIPPA||1||Y||19-APR-16
+    Academic Integrity Statement||1||Y||19-APR-16
+    LAC Non-Exclusive License||2||Y||13-MAY-16
     """
 
     @pytest.mark.parametrize("document", [valid, valid_no_lac])
@@ -60,9 +79,17 @@ LAC Non-Exclusive License||2||Y||13-MAY-16
                 self.weird_line.strip().split("\n")
             )
 
-    def test_embargo_date_bad(self):
+    def test_embargo_date_not_passed(self):
         with pytest.raises(
             etddepositor.MetadataError, match=r"the embargo date of.*2099"
+        ):
+            etddepositor.check_embargo_and_agreements(
+                self.embargo_date_not_passed.strip().split("\n")
+            )
+
+    def test_embargo_date_bad(self):
+        with pytest.raises(
+            etddepositor.MetadataError, match="could not be processed"
         ):
             etddepositor.check_embargo_and_agreements(
                 self.embargo_date_bad.strip().split("\n")
