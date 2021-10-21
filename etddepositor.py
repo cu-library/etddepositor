@@ -570,7 +570,7 @@ def create_package_data(
     description = root.findtext(
         "dc:description", default="", namespaces=NAMESPACES
     )
-    description = process_description(description, mappings)
+    description = process_description(description)
 
     publisher = root.findtext(
         "dc:publisher", default="", namespaces=NAMESPACES
@@ -640,11 +640,8 @@ def process_subjects(subject_elements, mappings):
     return subjects
 
 
-def process_description(description, mappings):
-    description = description.strip()
-    for symbol, replacement in mappings["description_escape_table"].items():
-        description = description.replace(symbol, replacement)
-    return description
+def process_description(description):
+    return description.strip().replace("\n", " ").replace("\r", "")
 
 
 def process_contributors(contributor_elements):
