@@ -214,8 +214,6 @@ def copy(ctx, inbox_directory_path):
 )
 @click.option(
     "--collection-source-id",
-    type=int,
-    default=1,
     required=True,
     help="The source ID for the parent collection in Hyrax.",
 )
