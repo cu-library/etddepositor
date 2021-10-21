@@ -836,9 +836,11 @@ def post_import_processing(hyrax_import_packages, hyrax_host, marc_path):
     for package_data in hyrax_import_packages:
         click.echo(f"{package_data.name}: ", nl=False)
         try:
-            add_url(package_data, hyrax_host)
-            create_marc_record(package_data, marc_path)
-            body_element.append(create_dissertation_element(package_data))
+            package_data_with_url = add_url(package_data, hyrax_host)
+            create_marc_record(package_data_with_url, marc_path)
+            body_element.append(
+                create_dissertation_element(package_data_with_url)
+            )
         except GetURLFailedError:
             err_msg = "Link not found in Hyrax."
             click.echo(err_msg)
@@ -848,7 +850,7 @@ def post_import_processing(hyrax_import_packages, hyrax_host, marc_path):
             click.echo(err_msg)
             failure_log.append(f"{package_data.name}: {err_msg}")
         else:
-            completed_packages.append(package_data)
+            completed_packages.append(package_data_with_url)
             click.echo("Done")
 
     return completed_packages, crossref_et, failure_log
