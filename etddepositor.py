@@ -8,6 +8,7 @@ import shutil
 import smtplib
 import string
 import subprocess
+import textwrap
 import time
 import xml.etree.ElementTree as ElementTree
 from typing import List
@@ -59,6 +60,10 @@ NAMESPACES = {
     "dc": "http://purl.org/dc/elements/1.1/",
     "etdms": "http://www.ndltd.org/standards/metadata/etdms/1.1/",
 }
+
+# FLAG is a string which we assign to some attributes of the package
+# if our mapping for that attribute is incomplete or unknowable.
+FLAG = "FLAG"
 
 # PackageData is a container for package data, used to create the Hyrax
 # import, MARC record, and Crossref records for an ETD.
@@ -687,17 +692,17 @@ def process_degree(degree):
     elif degree == "Master of Information Tech":
         return "Master of Information Technology"
     elif degree == "":
-        return "FLAG"
+        return FLAG
     return degree
 
 
 def process_degree_abbreviation(degree, mappings):
-    return mappings["abbreviation"].get(degree, "FLAG")
+    return mappings["abbreviation"].get(degree, FLAG)
 
 
 def process_degree_discipline(discipline, mappings):
     discipline = discipline.strip()
-    return mappings["discipline"].get(discipline, "FLAG")
+    return mappings["discipline"].get(discipline, FLAG)
 
 
 def process_degree_level(level):
@@ -1237,10 +1242,24 @@ def send_email_report(
     )
     contents += f"{len(completed_packages)} completed packages.\n"
     for package_data in completed_packages:
-        contents += (
-            f"{package_data.name} {package_data.title} "
-            f"{package_data.creator} {package_data.doi}\n"
+        short_title = textwrap.shorten(
+            package_data.title, 15, placeholder="..."
         )
+        contents += (
+            f"{package_data.name} {short_title} "
+            f"{package_data.creator} {package_data.url}"
+        )
+        if package_data.degree is FLAG:
+            contents += " Degree is flagged in record."
+        if package_data.abbreviation is FLAG:
+            contents += " Degree abbreviation is flagged in record."
+        if package_data.discipline is FLAG:
+            contents += " Degree discipline is flagged in record."
+        if "$" in package_data.abstract:
+            contents += " Abstract has '$' symbol, possible LaTeX codes."
+        if "\\" in package_data.abstract:
+            contents += " Abstract has '\\' symbol, possible LaTeX codes."
+        contents += "\n"
     contents += "\n"
     contents += f"{len(failure_log)} failed packages.\n"
     for line in failure_log:
