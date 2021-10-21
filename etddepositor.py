@@ -1281,7 +1281,7 @@ def send_email_report(
     contents += f"{len(completed_packages)} completed packages.\n"
     for package_data in completed_packages:
         short_title = textwrap.shorten(
-            package_data.title, 15, placeholder="..."
+            package_data.title, 30, placeholder="..."
         )
         contents += (
             f"{package_data.name} {short_title} "
