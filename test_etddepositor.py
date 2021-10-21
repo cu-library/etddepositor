@@ -8,7 +8,7 @@ def test_cwrite_metadata_csv_header(tmp_path):
     assert metadata_csv_path.read_text() == (
         "source_identifier,model,title,creator,identifier,subject,"
         "abstract,publisher,contributor,date_created,language,"
-        "degree,degree_discipline,degree_level,resource_type,file\n"
+        "degree,degree_discipline,degree_level,resource_type,collection,file\n"
     )
 
 

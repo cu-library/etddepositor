@@ -213,6 +213,13 @@ def copy(ctx, inbox_directory_path):
     help="Passed as the auth_token option when running the Hyrax importer.",
 )
 @click.option(
+    "--collection-source-id",
+    type=int,
+    default=1,
+    required=True,
+    help="The source ID for the parent collection in Hyrax.",
+)
+@click.option(
     "--doi-start",
     type=int,
     default=1,
@@ -257,6 +264,7 @@ def process(
     invalid_ok,
     user_id,
     auth_token,
+    collection_source_id,
     doi_start,
     hyrax_host,
     public_hyrax_host,
@@ -320,6 +328,7 @@ def process(
         metadata_csv_path,
         files_path,
         invalid_ok,
+        collection_source_id,
         doi_start,
         mappings,
     )
@@ -414,6 +423,7 @@ def write_metadata_csv_header(metadata_csv_path):
         "degree_discipline",
         "degree_level",
         "resource_type",
+        "collection",
         "file",
     ]
 
@@ -425,7 +435,13 @@ def write_metadata_csv_header(metadata_csv_path):
 
 
 def create_hyrax_import(
-    packages, metadata_csv_path, files_path, invalid_ok, doi_start, mappings
+    packages,
+    metadata_csv_path,
+    files_path,
+    invalid_ok,
+    collection_source_id,
+    doi_start,
+    mappings,
 ):
     """Process each package to create the Hyrax import."""
 
@@ -475,7 +491,12 @@ def create_hyrax_import(
             package_files = copy_package_files(
                 package_data, package_path, files_path
             )
-            add_to_csv(metadata_csv_path, package_data, package_files)
+            add_to_csv(
+                metadata_csv_path,
+                package_data,
+                collection_source_id,
+                package_files,
+            )
         except ElementTree.ParseError as e:
             err_msg = f"Error parsing XML, {e}."
             click.echo(err_msg)
@@ -791,7 +812,9 @@ def copy_thesis_pdf(package_data, package_path, files_path):
     return dest_file_name
 
 
-def add_to_csv(metadata_csv_path, package_data, package_files):
+def add_to_csv(
+    metadata_csv_path, package_data, collection_source_id, package_files
+):
     """Writes the package metadata to the Hyrax import CSV."""
 
     row = [
@@ -810,6 +833,7 @@ def add_to_csv(metadata_csv_path, package_data, package_files):
         package_data.discipline,
         package_data.level,
         "Thesis",
+        collection_source_id,
         "|".join(package_files),
     ]
 
