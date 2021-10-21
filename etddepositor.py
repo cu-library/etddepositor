@@ -229,6 +229,15 @@ def copy(ctx, inbox_directory_path):
     ),
 )
 @click.option(
+    "--public-hyrax-host",
+    required=True,
+    help=(
+        "The scheme and domain name which the public uses to access the "
+        "Hyrax instance we are importing into. Used to create the resource "
+        "links in the Crossref and MARC metadata."
+    ),
+)
+@click.option(
     "--smtp-host",
     required=True,
     help="The SMTP server to use when sending the email report.",
@@ -250,6 +259,7 @@ def process(
     auth_token,
     doi_start,
     hyrax_host,
+    public_hyrax_host,
     smtp_host,
     smtp_port,
     email_from,
@@ -343,7 +353,9 @@ def process(
         completed_packages,
         crossref_et,
         post_import_failure_log,
-    ) = post_import_processing(hyrax_import_packages, hyrax_host, marc_path)
+    ) = post_import_processing(
+        hyrax_import_packages, hyrax_host, public_hyrax_host, marc_path
+    )
 
     click.echo("Writing complete Crossref file: ", nl=False)
     crossref_file_path = os.path.join(
@@ -822,7 +834,9 @@ def create_csv_subject(subjects):
     return "|".join(csv_subjects)
 
 
-def post_import_processing(hyrax_import_packages, hyrax_host, marc_path):
+def post_import_processing(
+    hyrax_import_packages, hyrax_host, public_hyrax_host, marc_path
+):
 
     # Package data for packages which have been successfully imported
     # into Hyrax.
@@ -841,7 +855,9 @@ def post_import_processing(hyrax_import_packages, hyrax_host, marc_path):
     for package_data in hyrax_import_packages:
         click.echo(f"{package_data.name}: ", nl=False)
         try:
-            package_data_with_url = add_url(package_data, hyrax_host)
+            package_data_with_url = add_url(
+                package_data, hyrax_host, public_hyrax_host
+            )
             create_marc_record(package_data_with_url, marc_path)
             body_element.append(
                 create_dissertation_element(package_data_with_url)
@@ -861,7 +877,7 @@ def post_import_processing(hyrax_import_packages, hyrax_host, marc_path):
     return completed_packages, crossref_et, failure_log
 
 
-def add_url(package_data, hyrax_host):
+def add_url(package_data, hyrax_host, public_hyrax_host):
     for wait in range(10):
         time.sleep(wait * wait)
         resp = requests.get(
@@ -879,7 +895,7 @@ def add_url(package_data, hyrax_host):
                 ):
                     work_id = doc["id"]
                     return package_data._replace(
-                        url=f"{hyrax_host}/concern/works/{work_id}"
+                        url=f"{public_hyrax_host}/concern/works/{work_id}"
                     )
     raise GetURLFailedError
 
