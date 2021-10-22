@@ -195,6 +195,12 @@ def copy(ctx, inbox_directory_path):
     required=True,
 )
 @click.option(
+    "--mapping",
+    "mapping_file_path",
+    type=click.Path(exists=True, dir_okay=False, file_okay=True),
+    required=True,
+)
+@click.option(
     "--invalid-ok/--invalid-not-ok",
     default=False,
     help=(
@@ -259,6 +265,7 @@ def copy(ctx, inbox_directory_path):
 def process(
     ctx,
     importer,
+    mapping_file_path,
     invalid_ok,
     user_id,
     auth_token,
@@ -282,7 +289,7 @@ def process(
     processing_directory = ctx.obj["processing_directory"]
 
     # Load the mappings file.
-    with open("mappings.yaml") as mappings_file:
+    with open(mapping_file_path, encoding="utf-8") as mappings_file:
         mappings = yaml.load(mappings_file, Loader=yaml.FullLoader)
 
     # Ensure the subjects in the mappings file are properly formatted.
