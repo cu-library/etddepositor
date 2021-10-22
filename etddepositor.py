@@ -907,7 +907,7 @@ def post_import_processing(
 
 
 def add_url(package_data, hyrax_host, public_hyrax_host):
-    for wait in range(10):
+    for wait in range(30):
         time.sleep(wait * wait)
         resp = requests.get(
             hyrax_host
