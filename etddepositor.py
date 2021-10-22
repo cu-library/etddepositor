@@ -10,6 +10,7 @@ import string
 import subprocess
 import textwrap
 import time
+import warnings
 import xml.etree.ElementTree as ElementTree
 from typing import List
 
@@ -17,6 +18,7 @@ import bagit
 import click
 import pymarc
 import requests
+import requests.packages.urllib3.exceptions
 import yaml
 
 # CONTEXT_SETTINGS is a click-specific config dict which allows us to define a
@@ -909,11 +911,15 @@ def post_import_processing(
 def add_url(package_data, hyrax_host, public_hyrax_host):
     for wait in range(30):
         time.sleep(wait * wait)
-        resp = requests.get(
-            hyrax_host
-            + "/catalog.json?sourcetesim="
-            + package_data.source_identifier
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter(
+                "ignore", requests.packages.urllib3.exceptions.SecurityWarning
+            )
+            resp = requests.get(
+                hyrax_host
+                + "/catalog.json?sourcetesim="
+                + package_data.source_identifier
+            )
         if resp.status_code == 200:
             json = resp.json()
             for doc in json["response"]["docs"]:
