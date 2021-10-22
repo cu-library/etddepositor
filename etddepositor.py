@@ -1294,30 +1294,27 @@ def send_email_report(
     contents += f"{len(completed_packages)} completed packages.\n"
     for package_data in completed_packages:
         short_title = textwrap.shorten(
-            package_data.title, 30, placeholder="..."
+            package_data.title, 40, placeholder="..."
         )
-        contents += (
-            f"{package_data.name} {short_title} "
-            f"{package_data.creator} {package_data.url}"
-        )
+        contents += f"{package_data.creator} {short_title} {package_data.url}"
         if package_data.degree is FLAG:
-            contents += " Degree is flagged in record."
+            contents += " Degree is flagged."
         if package_data.abbreviation is FLAG:
-            contents += " Degree abbreviation is flagged in record."
+            contents += " Degree abbreviation is flagged."
         if package_data.discipline is FLAG:
-            contents += " Degree discipline is flagged in record."
+            contents += " Degree discipline is flagged."
         if "$" in package_data.abstract:
-            contents += " Abstract contains '$' symbol, possible LaTeX codes."
+            contents += " Abstract contains '$', LaTeX codes?"
         if "\\" in package_data.abstract:
-            contents += " Abstract contains '\\' symbol, possible LaTeX codes."
+            contents += " Abstract contains '\\', LaTeX codes?"
         if "\uFFFD" in package_data.title:
-            contents += " Title contains unicode replacement character."
+            contents += " Title contains replacement character."
         if "\uFFFD" in package_data.creator:
-            contents += " Creator contains unicode replacement character."
+            contents += " Creator contains replacement character."
         if "\uFFFD" in package_data.abstract:
-            contents += " Abstract contains unicode replacement character."
+            contents += " Abstract contains replacement character."
         if "\uFFFD" in str(package_data.contributors):
-            contents += " Contributors contains unicode replacement character."
+            contents += " Contributors contains replacement character."
         contents += "\n"
     contents += "\n"
     contents += f"{len(failure_log)} failed packages.\n"
