@@ -1307,9 +1307,17 @@ def send_email_report(
         if package_data.discipline is FLAG:
             contents += " Degree discipline is flagged in record."
         if "$" in package_data.abstract:
-            contents += " Abstract has '$' symbol, possible LaTeX codes."
+            contents += " Abstract contains '$' symbol, possible LaTeX codes."
         if "\\" in package_data.abstract:
-            contents += " Abstract has '\\' symbol, possible LaTeX codes."
+            contents += " Abstract contains '\\' symbol, possible LaTeX codes."
+        if "\uFFFD" in package_data.title:
+            contents += " Title contains unicode replacement character."
+        if "\uFFFD" in package_data.creator:
+            contents += " Creator contains unicode replacement character."
+        if "\uFFFD" in package_data.abstract:
+            contents += " Abstract contains unicode replacement character."
+        if "\uFFFD" in str(package_data.contributors):
+            contents += " Contributors contains unicode replacement character."
         contents += "\n"
     contents += "\n"
     contents += f"{len(failure_log)} failed packages.\n"
