@@ -1296,7 +1296,9 @@ def send_email_report(
         short_title = textwrap.shorten(
             package_data.title, 40, placeholder="..."
         )
-        contents += f"{package_data.creator} {short_title} {package_data.url}"
+        contents += (
+            f"{package_data.creator} - {short_title} {package_data.url}"
+        )
         if package_data.degree is FLAG:
             contents += " Degree is flagged."
         if package_data.abbreviation is FLAG:
