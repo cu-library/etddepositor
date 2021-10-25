@@ -686,7 +686,7 @@ def process_subjects(subject_elements, mappings):
 
 
 def process_description(description):
-    return description.strip().replace("\n", " ").replace("\r", "")
+    return description.replace("\n", " ").replace("\r", "").strip()
 
 
 def process_contributors(contributor_elements):
