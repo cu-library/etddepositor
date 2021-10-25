@@ -1,6 +1,9 @@
-import etddepositor
-import pytest
 import xml.etree.ElementTree as ElementTree
+
+import pymarc
+import pytest
+
+import etddepositor
 
 
 def test_cwrite_metadata_csv_header(tmp_path):
@@ -95,150 +98,6 @@ LAC Non-Exclusive License||2||Y||13-MAY-16
             etddepositor.check_embargo_and_agreements(
                 self.embargo_date_bad.strip().split("\n")
             )
-
-
-def test_process_date():
-    assert etddepositor.process_date("2021-06-01") == "2021"
-    assert etddepositor.process_date("1900-06-01") == "1900"
-    with pytest.raises(etddepositor.MetadataError, match="missing"):
-        etddepositor.process_date("")
-    with pytest.raises(
-        etddepositor.MetadataError, match="not properly formatted"
-    ):
-        etddepositor.process_date("BLAH")
-
-
-def test_process_subjects():
-    mappings = {
-        "lc_subject": {
-            "B001": [["a", "Agriculture."]],
-            "B013": [
-                ["a", "Wood."],
-                ["a", "Forest products.", "x", "Biotechnology"],
-            ],
-        }
-    }
-
-    subject_elements = [
-        ElementTree.Element("subject"),
-        ElementTree.Element("subject"),
-        ElementTree.Element("subject"),
-    ]
-
-    subject_elements[0].text = "  B001"
-    subject_elements[1].text = "B013  "
-    subject_elements[2].text = "Unknown"
-
-    assert etddepositor.process_subjects(subject_elements, mappings) == [
-        ["a", "Agriculture."],
-        ["a", "Wood."],
-        ["a", "Forest products.", "x", "Biotechnology"],
-    ]
-
-
-def test_process_description():
-    assert (
-        etddepositor.process_description("   \n\r   Abstract!\n  \n\r")
-        == "Abstract!"
-    )
-
-
-def test_process_contributors():
-    contributor_no_role = ElementTree.Element("contributor")
-    contributor_no_role.text = "Kevin Bowrin"
-    contributor_with_role = ElementTree.Element("contributor")
-    contributor_with_role.text = "James Ronin"
-    contributor_with_role.set("role", "co-author")
-
-    assert etddepositor.process_contributors(
-        [contributor_no_role, contributor_with_role]
-    ) == ["Kevin Bowrin", "James Ronin (Co-author)"]
-
-
-def test_process_language():
-    assert etddepositor.process_language("fre") == "fra"
-    assert etddepositor.process_language("fra") == "fra"
-    assert etddepositor.process_language("eng") == "eng"
-    assert etddepositor.process_language("") == "eng"
-    with pytest.raises(
-        etddepositor.MetadataError, match="unexpected language"
-    ):
-        etddepositor.process_language("bla")
-
-
-def test_process_degree():
-    assert etddepositor.process_degree("Master of Stuff") == "Master of Stuff"
-    assert (
-        etddepositor.process_degree(" Master of Stuff ") == "Master of Stuff"
-    )
-    assert (
-        etddepositor.process_degree("Master of Architectural Stud")
-        == "Master of Architectural Studies"
-    )
-    assert (
-        etddepositor.process_degree("Master of Information Tech")
-        == "Master of Information Technology"
-    )
-    assert etddepositor.process_degree("") == etddepositor.FLAG
-
-
-def test_process_degree_abbreviation():
-    mappings = {
-        "abbreviation": {
-            "Doctor of Philosophy": "Ph.D.",
-        }
-    }
-
-    assert (
-        etddepositor.process_degree_abbreviation(
-            "Doctor of Philosophy", mappings
-        )
-        == "Ph.D."
-    )
-
-    assert (
-        etddepositor.process_degree_abbreviation("Unknown", mappings)
-        == etddepositor.FLAG
-    )
-
-
-def test_process_degree_discipline():
-    mappings = {
-        "discipline": {
-            "MA-07": "Communication",
-            "MA-15": "English",
-        }
-    }
-
-    assert (
-        etddepositor.process_degree_discipline("MA-07", mappings)
-        == "Communication"
-    )
-
-    assert (
-        etddepositor.process_degree_discipline("   MA-15   ", mappings)
-        == "English"
-    )
-
-    assert (
-        etddepositor.process_degree_discipline("Unknown", mappings)
-        == etddepositor.FLAG
-    )
-
-
-def test_process_degree_level():
-    assert etddepositor.process_degree_level("1") == "1"
-    assert etddepositor.process_degree_level("2") == "2"
-    with pytest.raises(
-        etddepositor.MetadataError, match="degree level is missing"
-    ):
-        etddepositor.process_degree_level("")
-    with pytest.raises(etddepositor.MetadataError, match="undergraduate work"):
-        etddepositor.process_degree_level("0")
-    with pytest.raises(
-        etddepositor.MetadataError, match="invalid degree level"
-    ):
-        etddepositor.process_degree_level("blah")
 
 
 def test_create_package_data():
@@ -377,3 +236,290 @@ http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
             "/a/path/here",
             mappings,
         )
+
+
+def test_process_subjects():
+    mappings = {
+        "lc_subject": {
+            "B001": [["a", "Agriculture."]],
+            "B013": [
+                ["a", "Wood."],
+                ["a", "Forest products.", "x", "Biotechnology"],
+            ],
+        }
+    }
+
+    subject_elements = [
+        ElementTree.Element("subject"),
+        ElementTree.Element("subject"),
+        ElementTree.Element("subject"),
+    ]
+
+    subject_elements[0].text = "  B001"
+    subject_elements[1].text = "B013  "
+    subject_elements[2].text = "Unknown"
+
+    assert etddepositor.process_subjects(subject_elements, mappings) == [
+        ["a", "Agriculture."],
+        ["a", "Wood."],
+        ["a", "Forest products.", "x", "Biotechnology"],
+    ]
+
+
+def test_process_description():
+    assert (
+        etddepositor.process_description("   \n\r   Abstract!\n  \n\r")
+        == "Abstract!"
+    )
+
+
+def test_process_contributors():
+    contributor_no_role = ElementTree.Element("contributor")
+    contributor_no_role.text = "Kevin Bowrin"
+    contributor_with_role = ElementTree.Element("contributor")
+    contributor_with_role.text = "James Ronin"
+    contributor_with_role.set("role", "co-author")
+
+    assert etddepositor.process_contributors(
+        [contributor_no_role, contributor_with_role]
+    ) == ["Kevin Bowrin", "James Ronin (Co-author)"]
+
+
+def test_process_date():
+    assert etddepositor.process_date("2021-06-01") == "2021"
+    assert etddepositor.process_date("1900-06-01") == "1900"
+    with pytest.raises(etddepositor.MetadataError, match="missing"):
+        etddepositor.process_date("")
+    with pytest.raises(
+        etddepositor.MetadataError, match="not properly formatted"
+    ):
+        etddepositor.process_date("BLAH")
+
+
+def test_process_language():
+    assert etddepositor.process_language("fre") == "fra"
+    assert etddepositor.process_language("fra") == "fra"
+    assert etddepositor.process_language("eng") == "eng"
+    assert etddepositor.process_language("") == "eng"
+    with pytest.raises(
+        etddepositor.MetadataError, match="unexpected language"
+    ):
+        etddepositor.process_language("bla")
+
+
+def test_process_degree():
+    assert etddepositor.process_degree("Master of Stuff") == "Master of Stuff"
+    assert (
+        etddepositor.process_degree(" Master of Stuff ") == "Master of Stuff"
+    )
+    assert (
+        etddepositor.process_degree("Master of Architectural Stud")
+        == "Master of Architectural Studies"
+    )
+    assert (
+        etddepositor.process_degree("Master of Information Tech")
+        == "Master of Information Technology"
+    )
+    assert etddepositor.process_degree("") == etddepositor.FLAG
+
+
+def test_process_degree_abbreviation():
+    mappings = {
+        "abbreviation": {
+            "Doctor of Philosophy": "Ph.D.",
+        }
+    }
+
+    assert (
+        etddepositor.process_degree_abbreviation(
+            "Doctor of Philosophy", mappings
+        )
+        == "Ph.D."
+    )
+
+    assert (
+        etddepositor.process_degree_abbreviation("Unknown", mappings)
+        == etddepositor.FLAG
+    )
+
+
+def test_process_degree_discipline():
+    mappings = {
+        "discipline": {
+            "MA-07": "Communication",
+            "MA-15": "English",
+        }
+    }
+
+    assert (
+        etddepositor.process_degree_discipline("MA-07", mappings)
+        == "Communication"
+    )
+
+    assert (
+        etddepositor.process_degree_discipline("   MA-15   ", mappings)
+        == "English"
+    )
+
+    assert (
+        etddepositor.process_degree_discipline("Unknown", mappings)
+        == etddepositor.FLAG
+    )
+
+
+def test_process_degree_level():
+    assert etddepositor.process_degree_level("1") == "1"
+    assert etddepositor.process_degree_level("2") == "2"
+    with pytest.raises(
+        etddepositor.MetadataError, match="degree level is missing"
+    ):
+        etddepositor.process_degree_level("")
+    with pytest.raises(etddepositor.MetadataError, match="undergraduate work"):
+        etddepositor.process_degree_level("0")
+    with pytest.raises(
+        etddepositor.MetadataError, match="invalid degree level"
+    ):
+        etddepositor.process_degree_level("blah")
+
+
+def test_create_csv_subject():
+    assert etddepositor.create_csv_subject([["a", "Physics."]]) == "Physics"
+    assert (
+        etddepositor.create_csv_subject(
+            [["a", "Physics.", "x", "Alternative."]]
+        )
+        == "Physics -- Alternative"
+    )
+    assert (
+        etddepositor.create_csv_subject(
+            [["a", "Mathematics."], ["a", "Chemistry."]]
+        )
+        == "Mathematics|Chemistry"
+    )
+
+
+def test_create_marc_record(tmp_path):
+    etddepositor.create_marc_record(
+        etddepositor.PackageData(
+            name="StudentNumber_ThesisNumber",
+            source_identifier="",
+            title="Title",
+            creator="Creator, Test",
+            subjects=[
+                ["a", "TestCode1."],
+                ["a", "Test2.", "x", "Specify."],
+                ["a", "TestCode2."],
+            ],
+            abstract="",
+            publisher="",
+            contributors=[],
+            date="2021",
+            language="fra",
+            degree="",
+            abbreviation="Ph.D.",
+            discipline="Processing Studies",
+            level="",
+            url="https://a.url.here/2021-77",
+            doi="",
+            path="",
+        ),
+        tmp_path,
+    )
+
+    with open(
+        tmp_path / "StudentNumber_ThesisNumber_marc.mrc", "rb"
+    ) as marc_file:
+        record = next(pymarc.MARCReader(marc_file, to_unicode=True))
+        assert record.title() == "Title."
+        assert record["100"]["a"] == "Creator, Test,"
+        assert (
+            record["502"]["a"] == "Thesis (Ph.D.) - Carleton University, 2021."
+        )
+        assert [f.subfields_as_dict() for f in record.get_fields("650")] == [
+            {"a": ["TestCode1."]},
+            {"a": ["Test2."], "x": ["Specify."]},
+            {"a": ["TestCode2."]},
+        ]
+        assert record["710"]["g"] == "Processing Studies."
+        assert record["856"]["u"] == "https://a.url.here/2021-77"
+
+
+def test_create_crossref_etree():
+    test_crossref_etree, body = etddepositor.create_crossref_etree()
+    root = test_crossref_etree.getroot()
+    assert root.tag == "doi_batch"
+    assert (
+        root.findtext("head/depositor/depositor_name")
+        == "Carleton University Library"
+    )
+    assert (
+        root.findtext("head/depositor/email_address")
+        == "doi@library.carleton.ca"
+    )
+
+
+def test_create_dissertation_element():
+    dissertation_element = etddepositor.create_dissertation_element(
+        etddepositor.PackageData(
+            name="",
+            source_identifier="",
+            title="Title",
+            creator="Creator, Test",
+            subjects=[],
+            abstract="",
+            publisher="",
+            contributors=[],
+            date="2021",
+            language="",
+            degree="Doctor of Philosophy",
+            abbreviation="",
+            discipline="",
+            level="",
+            url="https://a.url.here/work1",
+            doi=f"{etddepositor.DOI_PREFIX}/etd/2021-1",
+            path="",
+        )
+    )
+    assert dissertation_element.findtext("person_name/given_name") == "Test"
+    assert dissertation_element.findtext("person_name/surname") == "Creator"
+    assert dissertation_element.findtext("titles/title") == "Title"
+    assert dissertation_element.findtext("approval_date/year") == "2021"
+    assert dissertation_element.findtext("degree") == "Doctor of Philosophy"
+    assert (
+        dissertation_element.findtext("doi_data/doi")
+        == f"{etddepositor.DOI_PREFIX}/etd/2021-1"
+    )
+    assert (
+        dissertation_element.findtext("doi_data/resource")
+        == "https://a.url.here/work1"
+    )
+
+    dissertation_element_mononymous = etddepositor.create_dissertation_element(
+        etddepositor.PackageData(
+            name="",
+            source_identifier="",
+            title="",
+            creator="Mononymous",
+            subjects=[],
+            abstract="",
+            publisher="",
+            contributors=[],
+            date="",
+            language="",
+            degree="",
+            abbreviation="",
+            discipline="",
+            level="",
+            url="",
+            doi="",
+            path="",
+        )
+    )
+    assert (
+        dissertation_element_mononymous.findtext("person_name/given_name")
+        == ""
+    )
+    assert (
+        dissertation_element_mononymous.findtext("person_name/surname")
+        == "Mononymous"
+    )
