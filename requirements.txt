@@ -4,7 +4,7 @@ black==21.9b0
 certifi==2021.10.8
 charset-normalizer==2.0.7
 click==8.0.3
-dataclasses==0.8
+dataclasses==0.8 ; python_version == '3.6'
 flake8==4.0.1
 idna==3.3
 importlib-metadata==4.2.0
