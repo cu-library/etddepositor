@@ -1151,7 +1151,7 @@ def create_marc_record(package_data, marc_path):
             indicators=["4", "0"],
             subfields=[
                 "u",
-                package_data.url,
+                f"{DOI_URL_PREFIX}{package_data.doi}",
                 "z",
                 "Free Access (Digital Library Full Text)",
             ],

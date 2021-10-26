@@ -419,8 +419,8 @@ def test_create_marc_record(tmp_path):
             abbreviation="Ph.D.",
             discipline="Processing Studies",
             level="",
-            url="https://a.url.here/2021-77",
-            doi="",
+            url="",
+            doi="10.223/etd/2021-1",
             path="",
         ),
         tmp_path,
@@ -441,7 +441,10 @@ def test_create_marc_record(tmp_path):
             {"a": ["TestCode2."]},
         ]
         assert record["710"]["g"] == "Processing Studies."
-        assert record["856"]["u"] == "https://a.url.here/2021-77"
+        assert (
+            record["856"]["u"]
+            == f"{etddepositor.DOI_URL_PREFIX}10.223/etd/2021-1"
+        )
 
 
 def test_create_crossref_etree():
