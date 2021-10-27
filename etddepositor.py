@@ -836,7 +836,7 @@ def add_to_csv(
         "|".join(package_data.contributors),
         package_data.date,
         package_data.language,
-        package_data.degree,
+        f"{package_data.degree} ({package_data.abbreviation})",
         package_data.discipline,
         package_data.level,
         "Thesis",

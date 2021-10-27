@@ -1,3 +1,4 @@
+import csv
 import xml.etree.ElementTree as ElementTree
 
 import pymarc
@@ -380,6 +381,75 @@ def test_process_degree_level():
         etddepositor.MetadataError, match="invalid degree level"
     ):
         etddepositor.process_degree_level("blah")
+
+
+def test_add_to_csv(tmp_path):
+    metadata_csv_path = tmp_path / "metadata.csv"
+    package_data = etddepositor.PackageData(
+        name="StudentNumber_ThesisNumber",
+        source_identifier=(
+            "8fa99d4e9e189018f4781a5549d0f092"
+            "616664c2d15403c4a83b3d62b967719d"
+        ),
+        title="Title",
+        creator="Creator, Test",
+        subjects=[
+            ["a", "TestCode1."],
+            ["a", "Test2", "x", "Specify"],
+            ["a", "TestCode2."],
+        ],
+        abstract="\u00E9Abstract",
+        publisher="Publisher",
+        contributors=["Contributor A (Co-author)", "Contributor B"],
+        date="2021",
+        language="fra",
+        degree="Doctor of Philosophy",
+        abbreviation="Ph.D.",
+        discipline="Processing Studies",
+        level="2",
+        url="",
+        doi=f"{etddepositor.DOI_PREFIX}/etd/2021-77",
+        path="/a/path/here",
+    )
+
+    etddepositor.add_to_csv(
+        metadata_csv_path,
+        package_data,
+        "collection_id_1",
+        ["/tmp/file1", "/tmp/file2"],
+    )
+
+    with open(
+        metadata_csv_path, newline="", encoding="utf-8"
+    ) as metadata_csv_file:
+        csv_reader = csv.reader(metadata_csv_file)
+        line = next(csv_reader)
+        assert line == [
+            (
+                "8fa99d4e9e189018f4781a5549d0f092"
+                "616664c2d15403c4a83b3d62b967719d"
+            ),
+            "Etd",
+            "Title",
+            "Creator, Test",
+            (
+                "DOI: "
+                f"{etddepositor.DOI_URL_PREFIX}"
+                f"{etddepositor.DOI_PREFIX}/etd/2021-77"
+            ),
+            "TestCode1|Test2 -- Specify|TestCode2",
+            "\u00E9Abstract",
+            "Publisher",
+            "Contributor A (Co-author)|Contributor B",
+            "2021",
+            "fra",
+            "Doctor of Philosophy (Ph.D.)",
+            "Processing Studies",
+            "2",
+            "Thesis",
+            "collection_id_1",
+            "/tmp/file1|/tmp/file2",
+        ]
 
 
 def test_create_csv_subject():
