@@ -6,7 +6,7 @@ import pytest
 import etddepositor
 
 
-def test_cwrite_metadata_csv_header(tmp_path):
+def test_write_metadata_csv_header(tmp_path):
     metadata_csv_path = tmp_path / "metadata.csv"
     etddepositor.write_metadata_csv_header(metadata_csv_path)
     assert metadata_csv_path.read_text() == (
