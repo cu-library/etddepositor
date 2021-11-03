@@ -34,7 +34,7 @@ Carleton University Thesis License Agreement||1||Y||06-AUG-15
 FIPPA||1||Y||06-AUG-15
 Academic Integrity Statement||1||Y||06-AUG-15
 LAC Non-Exclusive License||2||N||31-AUG-15
-    """
+"""
 
     not_signed = """Student ID: 10000000
 Thesis ID: 1000
@@ -42,7 +42,7 @@ Carleton University Thesis License Agreement||1||N||06-AUG-15
 FIPPA||1||Y||06-AUG-15
 Academic Integrity Statement||1||Y||06-AUG-15
 LAC Non-Exclusive License||2||N||31-AUG-15
-    """
+"""
 
     weird_line = """BOO!"""
 
@@ -53,16 +53,16 @@ Carleton University Thesis License Agreement||1||Y||19-APR-16
 FIPPA||1||Y||19-APR-16
 Academic Integrity Statement||1||Y||19-APR-16
 LAC Non-Exclusive License||2||Y||13-MAY-16
-    """
+"""
 
     embargo_date_bad = """Student ID: 100944645
-    Thesis ID: 1794
-    Embargo Expiry: Epoch+1
-    Carleton University Thesis License Agreement||1||Y||19-APR-16
-    FIPPA||1||Y||19-APR-16
-    Academic Integrity Statement||1||Y||19-APR-16
-    LAC Non-Exclusive License||2||Y||13-MAY-16
-    """
+Thesis ID: 1794
+Embargo Expiry: Epoch+1
+Carleton University Thesis License Agreement||1||Y||19-APR-16
+FIPPA||1||Y||19-APR-16
+Academic Integrity Statement||1||Y||19-APR-16
+LAC Non-Exclusive License||2||Y||13-MAY-16
+"""
 
     @pytest.mark.parametrize("document", [valid, valid_no_lac])
     def test_check_embargo_and_agreements_pass(self, document):
@@ -112,8 +112,8 @@ def test_create_package_data():
     }
     package_metadata_xml = ElementTree.ElementTree(
         ElementTree.fromstring(
-            """
-<thesis xmlns="http://www.ndltd.org/standards/metadata/etdms/1.1/"
+            """<thesis
+xmlns="http://www.ndltd.org/standards/metadata/etdms/1.1/"
 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 xmlns:dc="http://purl.org/dc/elements/1.1/"
 xmlns:dcterms="http://purl.org/dc/terms/"
@@ -181,8 +181,8 @@ http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
 
     empty_package_metadata_xml = ElementTree.ElementTree(
         ElementTree.fromstring(
-            """
-<thesis xmlns="http://www.ndltd.org/standards/metadata/etdms/1.1/"
+            """<thesis
+xmlns="http://www.ndltd.org/standards/metadata/etdms/1.1/"
 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 xmlns:dc="http://purl.org/dc/elements/1.1/"
 xmlns:dcterms="http://purl.org/dc/terms/"
@@ -210,20 +210,20 @@ http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
 
     empty_with_title_package_metadata_xml = ElementTree.ElementTree(
         ElementTree.fromstring(
-            """
-    <thesis xmlns="http://www.ndltd.org/standards/metadata/etdms/1.1/"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xmlns:dc="http://purl.org/dc/elements/1.1/"
-    xmlns:dcterms="http://purl.org/dc/terms/"
-    xsi:schemaLocation="http://www.ndltd.org/standards/metadata/etdms/1.1/
-    http://www.ndltd.org/standards/metadata/etdms/1.1/etdms11.xsd
-    http://purl.org/dc/elements/1.1/
-    http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdc.xsd
-    http://purl.org/dc/terms/
-    http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
-    >
-      <dc:title xml:lang="en">Title</dc:title>
-    </thesis>"""
+            """<thesis
+xmlns="http://www.ndltd.org/standards/metadata/etdms/1.1/"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xmlns:dc="http://purl.org/dc/elements/1.1/"
+xmlns:dcterms="http://purl.org/dc/terms/"
+xsi:schemaLocation="http://www.ndltd.org/standards/metadata/etdms/1.1/
+http://www.ndltd.org/standards/metadata/etdms/1.1/etdms11.xsd
+http://purl.org/dc/elements/1.1/
+http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdc.xsd
+http://purl.org/dc/terms/
+http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
+>
+  <dc:title xml:lang="en">Title</dc:title>
+</thesis>"""
         )
     )
 
