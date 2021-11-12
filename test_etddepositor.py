@@ -300,6 +300,9 @@ def test_process_date():
 def test_process_language():
     assert etddepositor.process_language("fre") == "fra"
     assert etddepositor.process_language("fra") == "fra"
+    assert etddepositor.process_language("ger") == "deu"
+    assert etddepositor.process_language("deu") == "deu"
+    assert etddepositor.process_language("spa") == "spa"
     assert etddepositor.process_language("eng") == "eng"
     assert etddepositor.process_language("") == "eng"
     with pytest.raises(

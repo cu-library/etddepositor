@@ -719,6 +719,10 @@ def process_language(language):
     language = language.strip()
     if language == "fre" or language == "fra":
         return "fra"
+    elif language == "ger" or language == "deu":
+        return "deu"
+    elif language == "spa":
+        return "spa"
     elif language == "eng" or language == "":
         return "eng"
     else:
