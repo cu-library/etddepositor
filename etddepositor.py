@@ -82,6 +82,7 @@ PackageData = collections.namedtuple(
         "contributors",
         "date",
         "language",
+        "agreements",
         "degree",
         "abbreviation",
         "discipline",
@@ -426,6 +427,7 @@ def write_metadata_csv_header(metadata_csv_path):
         "contributor",
         "date_created",
         "language",
+        "agreement",
         "degree",
         "degree_discipline",
         "degree_level",
@@ -486,14 +488,21 @@ def create_hyrax_import(
                 permissions_file_content = permissions_file.readlines()
             # We pass a list of lines here instead of a file handle to
             # make unit testing easier.
-            check_embargo_and_agreements(permissions_file_content)
+            agreements = process_embargo_and_agreements(
+                permissions_file_content, mappings
+            )
 
             package_metadata_xml_path = os.path.join(
                 package_path, "data", "meta", f"{name}_etdms_meta.xml"
             )
             package_metadata_xml = ElementTree.parse(package_metadata_xml_path)
             package_data = create_package_data(
-                package_metadata_xml, name, doi_ident, package_path, mappings
+                package_metadata_xml,
+                name,
+                doi_ident,
+                agreements,
+                package_path,
+                mappings,
             )
             package_files = copy_package_files(
                 package_data, package_path, files_path
@@ -524,18 +533,21 @@ def create_hyrax_import(
     return hyrax_import_packages, failure_log
 
 
-def check_embargo_and_agreements(content_lines):
-    """Check that we can process this ETD package.
+def process_embargo_and_agreements(content_lines, mappings):
+    """Process the embargo and agreements metadata file.
 
     The package's permissions metadata must state that the embargo period has
     passed and that the student has signed the required agreements.
+
+    Return a list of identifiers to signed agreements.
     """
+
+    # The list of identifiers (term ids).
+    agreements = []
 
     for line in content_lines:
         line = line.strip()
-        if line.startswith(
-            ("Student ID", "Thesis ID", "LAC Non-Exclusive License")
-        ):
+        if line.startswith(("Student ID", "Thesis ID")):
             continue
         elif line.startswith("Embargo Expiry"):
             current_date = datetime.date.today()
@@ -546,20 +558,22 @@ def check_embargo_and_agreements(content_lines):
                     f"the embargo date of {embargo_date} has not passed"
                 )
             continue
-        elif line.startswith(
-            (
-                "Academic Integrity Statement",
-                "FIPPA",
-                "Carleton University Thesis License Agreement",
-            )
-        ):
-            if line.split("||")[2] != "Y":
+        elif any(line.startswith(name) for name in mappings["agreements"]):
+            line_split = line.split("||")
+            if line_split[0] not in mappings["agreements"]:
                 raise MetadataError(f"{line} is invalid")
+            agreement = mappings["agreements"][line_split[0]]
+            signed = line_split[2] == "Y"
+            if agreement["required"] and not signed:
+                raise MetadataError(f"{line} is required but not signed")
+            if signed:
+                agreements.append(agreement["identifier"])
             continue
-
         raise MetadataError(
-            f"{line} was not expected in the permissions document content"
+            f"{line} was not expected in the permissions document"
         )
+
+    return agreements
 
 
 def embargo_string_to_datetime(embargo):
@@ -591,7 +605,7 @@ def embargo_string_to_datetime(embargo):
 
 
 def create_package_data(
-    package_metadata_xml, name, doi_ident, package_path, mappings
+    package_metadata_xml, name, doi_ident, agreements, package_path, mappings
 ):
     """Extract the package data from the package XML."""
 
@@ -664,6 +678,7 @@ def create_package_data(
         publisher=publisher,
         contributors=contributors,
         date=date,
+        agreements=agreements,
         language=language,
         degree=degree,
         abbreviation=abbreviation,
@@ -840,6 +855,7 @@ def add_to_csv(
         "|".join(package_data.contributors),
         package_data.date,
         package_data.language,
+        "|".join(package_data.agreements),
         f"{package_data.degree} ({package_data.abbreviation})",
         package_data.discipline,
         package_data.level,

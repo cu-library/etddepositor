@@ -19,6 +19,19 @@ abbreviation:
   Master of Social Work: M.S.W.
   Masters of Engineering: M.Eng.
   Masters of Social Work: M.S.W.
+agreements:
+  Carleton University Thesis License Agreement:
+    identifier: "https://curve.carleton.ca/e413696d-a5b3-41b2-99e3-c28ea7af861d"
+    required: true
+  FIPPA:
+    identifier: "https://curve.carleton.ca/c0a3758d-7619-4c21-86d2-6d9092c32319"
+    required: true
+  Academic Integrity Statement:
+    identifier: "https://curve.carleton.ca/f6ba051b-0254-4191-9d26-ae29ed90ff62"
+    required: true
+  LAC Non-Exclusive License:
+    identifier: "https://curve.carleton.ca/bdd87162-9c52-480f-ac35-c0cebe35109f"
+    required: false
 discipline:
   MA-07: Communication
   MA-08A: Applied Linguistics and Discourse Studies

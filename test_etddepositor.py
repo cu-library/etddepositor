@@ -12,12 +12,33 @@ def test_write_metadata_csv_header(tmp_path):
     etddepositor.write_metadata_csv_header(metadata_csv_path)
     assert metadata_csv_path.read_text() == (
         "source_identifier,model,title,creator,identifier,subject,"
-        "abstract,publisher,contributor,date_created,language,"
+        "abstract,publisher,contributor,date_created,language,agreement,"
         "degree,degree_discipline,degree_level,resource_type,collection,file\n"
     )
 
 
 class TestEmbargoAndAgreements:
+
+    mappings = {
+        "agreements": {
+            "Academic Integrity Statement": {
+                "identifier": "ais",
+                "required": True,
+            },
+            "Carleton University Thesis License Agreement": {
+                "identifier": "cutla",
+                "required": True,
+            },
+            "FIPPA": {
+                "identifier": "fs",
+                "required": True,
+            },
+            "LAC Non-Exclusive License": {
+                "identifier": "lnel",
+                "required": False,
+            },
+        }
+    }
 
     valid = """Student ID: 10000000
 Thesis ID: 1000
@@ -64,40 +85,47 @@ Academic Integrity Statement||1||Y||19-APR-16
 LAC Non-Exclusive License||2||Y||13-MAY-16
 """
 
-    @pytest.mark.parametrize("document", [valid, valid_no_lac])
-    def test_check_embargo_and_agreements_pass(self, document):
-        etddepositor.check_embargo_and_agreements(document.strip().split("\n"))
+    def test_valid(self):
+        assert etddepositor.process_embargo_and_agreements(
+            self.valid.strip().split("\n"), self.mappings
+        ) == ["cutla", "fs", "ais", "lnel"]
+
+    def test_valid_no_lac(self):
+        assert etddepositor.process_embargo_and_agreements(
+            self.valid_no_lac.strip().split("\n"), self.mappings
+        ) == ["cutla", "fs", "ais"]
 
     def test_not_signed(self):
         with pytest.raises(
-            etddepositor.MetadataError, match=r"Carleton.* is invalid"
+            etddepositor.MetadataError,
+            match=r"Carleton.* is required but not signed",
         ):
-            etddepositor.check_embargo_and_agreements(
-                self.not_signed.strip().split("\n")
+            etddepositor.process_embargo_and_agreements(
+                self.not_signed.strip().split("\n"), self.mappings
             )
 
     def test_weird_line(self):
         with pytest.raises(
             etddepositor.MetadataError, match=r"BOO! was not expected.*"
         ):
-            etddepositor.check_embargo_and_agreements(
-                self.weird_line.strip().split("\n")
+            etddepositor.process_embargo_and_agreements(
+                self.weird_line.strip().split("\n"), self.mappings
             )
 
     def test_embargo_date_not_passed(self):
         with pytest.raises(
             etddepositor.MetadataError, match=r"the embargo date of.*2099"
         ):
-            etddepositor.check_embargo_and_agreements(
-                self.embargo_date_not_passed.strip().split("\n")
+            etddepositor.process_embargo_and_agreements(
+                self.embargo_date_not_passed.strip().split("\n"), self.mappings
             )
 
     def test_embargo_date_bad(self):
         with pytest.raises(
             etddepositor.MetadataError, match="could not be processed"
         ):
-            etddepositor.check_embargo_and_agreements(
-                self.embargo_date_bad.strip().split("\n")
+            etddepositor.process_embargo_and_agreements(
+                self.embargo_date_bad.strip().split("\n"), self.mappings
             )
 
 
@@ -150,6 +178,7 @@ http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
         package_metadata_xml,
         "StudentNumber_ThesisNumber",
         77,
+        ["agreement_one", "agreement_two"],
         "/a/path/here",
         mappings,
     ) == etddepositor.PackageData(
@@ -170,6 +199,7 @@ http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
         contributors=["Contributor A (Co-author)", "Contributor B"],
         date="2021",
         language="fra",
+        agreements=["agreement_one", "agreement_two"],
         degree="Doctor of Philosophy",
         abbreviation="Ph.D.",
         discipline="Processing Studies",
@@ -204,6 +234,7 @@ http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
             empty_package_metadata_xml,
             "StudentNumber_ThesisNumber",
             1,
+            [],
             "/a/path/here",
             mappings,
         )
@@ -234,6 +265,7 @@ http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
             empty_with_title_package_metadata_xml,
             "StudentNumber_ThesisNumber",
             1,
+            [],
             "/a/path/here",
             mappings,
         )
@@ -406,6 +438,7 @@ def test_add_to_csv(tmp_path):
         contributors=["Contributor A (Co-author)", "Contributor B"],
         date="2021",
         language="fra",
+        agreements=["agreement_one", "agreement_two"],
         degree="Doctor of Philosophy",
         abbreviation="Ph.D.",
         discipline="Processing Studies",
@@ -446,6 +479,7 @@ def test_add_to_csv(tmp_path):
             "Contributor A (Co-author)|Contributor B",
             "2021",
             "fra",
+            "agreement_one|agreement_two",
             "Doctor of Philosophy (Ph.D.)",
             "Processing Studies",
             "2",
@@ -488,6 +522,7 @@ def test_create_marc_record(tmp_path):
             contributors=[],
             date="2021",
             language="fra",
+            agreements=[],
             degree="",
             abbreviation="Ph.D.",
             discipline="Processing Studies",
@@ -547,6 +582,7 @@ def test_create_dissertation_element():
             contributors=[],
             date="2021",
             language="",
+            agreements=[],
             degree="Doctor of Philosophy",
             abbreviation="",
             discipline="",
@@ -582,6 +618,7 @@ def test_create_dissertation_element():
             contributors=[],
             date="",
             language="",
+            agreements=[],
             degree="",
             abbreviation="",
             discipline="",
