@@ -110,7 +110,14 @@ class GetURLFailedError(Exception):
 @click.pass_context
 @click.option(
     "--processing-directory",
-    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+    type=click.Path(
+        exists=True,
+        dir_okay=True,
+        file_okay=False,
+        resolve_path=True,
+        readable=True,
+        writable=True,
+    ),
     required=True,
     help=(
         "The directory under which the tool will store ETD packages, "
@@ -133,7 +140,13 @@ def etddepositor(ctx, processing_directory):
 @click.option(
     "--inbox",
     "inbox_directory_path",
-    type=click.Path(exists=True, dir_okay=True, file_okay=False),
+    type=click.Path(
+        exists=True,
+        dir_okay=True,
+        file_okay=False,
+        resolve_path=True,
+        readable=True,
+    ),
     required=True,
     help="The directory containing the ITS copies of the thesis packages.",
 )
@@ -194,13 +207,26 @@ def copy(ctx, inbox_directory_path):
 @click.pass_context
 @click.option(
     "--importer",
-    type=click.Path(exists=True, dir_okay=False, file_okay=True),
+    type=click.Path(
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+        resolve_path=True,
+        executable=True,
+        readable=True,
+    ),
     required=True,
 )
 @click.option(
     "--mapping",
     "mapping_file_path",
-    type=click.Path(exists=True, dir_okay=False, file_okay=True),
+    type=click.Path(
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+        resolve_path=True,
+        readable=True,
+    ),
     required=True,
 )
 @click.option(
@@ -930,7 +956,7 @@ def post_import_processing(
 
 def add_url(package_data, hyrax_host, public_hyrax_host):
     for wait in range(30):
-        time.sleep(wait * wait)
+        # ime.sleep(wait * wait)
         with warnings.catch_warnings():
             warnings.simplefilter(
                 "ignore", requests.packages.urllib3.exceptions.SecurityWarning
