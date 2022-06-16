@@ -956,7 +956,7 @@ def post_import_processing(
 
 def add_url(package_data, hyrax_host, public_hyrax_host):
     for wait in range(30):
-        # ime.sleep(wait * wait)
+        time.sleep(wait * wait)
         with warnings.catch_warnings():
             warnings.simplefilter(
                 "ignore", requests.packages.urllib3.exceptions.SecurityWarning
