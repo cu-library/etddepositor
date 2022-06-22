@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ElementTree
 
 import pymarc
 import pytest
-
+import datetime
 import etddepositor
 
 
@@ -14,7 +14,7 @@ def test_write_metadata_csv_header(tmp_path):
         "source_identifier,model,title,creator,identifier,subject,"
         "abstract,publisher,contributor,date_created,language,agreement,"
         "degree,degree_discipline,degree_level,resource_type,collection,"
-        "rights_notes,file\n"
+        ",file,rights_notes\n"
     )
 
 
@@ -131,6 +131,8 @@ LAC Non-Exclusive License||2||Y||13-MAY-16
 
 
 def test_create_package_data():
+    today = datetime.date.today().year
+
     mappings = {
         "abbreviation": {"Doctor of Philosophy": "Ph.D."},
         "discipline": {"PHD-01": "Processing Studies"},
@@ -208,7 +210,17 @@ http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
         url="",
         doi=f"{etddepositor.DOI_PREFIX}/etd/2021-77",
         path="/a/path/here",
-        rights_notes="agreement here",
+        rights_notes = (
+            f"Copyright © {today} the author(s). Theses may be used for "
+            "non-commercial research, educational, or related academic "
+            "purposes only. Such uses include personal study, distribution to"
+            " students, research and scholarship. Theses may only be shared by"
+            " linking to Carleton University Digital Library and no part may "
+            "be copied without proper attribution to the author; no part may "
+            "be used for commercial purposes directly or indirectly via a "
+            "for-profit platform; no adaptation or derivative works are "
+            "permitted without consent from the copyright owner."
+        ),
     )
 
     empty_package_metadata_xml = ElementTree.ElementTree(
