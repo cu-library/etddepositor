@@ -461,7 +461,7 @@ def write_metadata_csv_header(metadata_csv_path):
         "resource_type",
         "collection",
         "file",
-        "rights_notes"
+        "rights_notes",
     ]
 
     with open(
@@ -655,8 +655,7 @@ def create_package_data(
     subjects = process_subjects(subject_elements, mappings)
 
     description = root.findtext(
-            
-            "dc:description", default="", namespaces=NAMESPACES
+        "dc:description", default="", namespaces=NAMESPACES
     )
     description = process_description(description)
 
@@ -685,19 +684,22 @@ def create_package_data(
 
     abbreviation = process_degree_abbreviation(degree, mappings)
 
-    rights_notes = root.findtext("dc:rights_notes", default="", namespaces=NAMESPACES)
-    
+    rights_notes = root.findtext(
+        "dc:rights_notes", default="", namespaces=NAMESPACES
+    )
+
     rights_notes = rights_notes.replace(rights_notes, "")
     if rights_notes == "":
         today = datetime.date.today()
-        rights_notes = f"Copyright © {today} the author(s). Theses may be used for non-commercial research, educational, or related academic purposes only. "\
-    "Such uses include personal study, distribution to students, research and scholarship. Theses may only be shared by linking to Carleton " \
-    "  University Digital Library and no part may be copied without proper attribution to the author; no part may be used for commercial purposes " \
-    "directly or indirectly via a for-profit platform; no adaptation or derivative works are permitted without consent from the copyright owner."
+        rights_notes = (
+            f"Copyright © {today} the author(s). Theses may be used for non-commercial research, educational, or related academic purposes only. "
+            "Such uses include personal study, distribution to students, research and scholarship. Theses may only be shared by linking to Carleton "
+            "  University Digital Library and no part may be copied without proper attribution to the author; no part may be used for commercial purposes "
+            "directly or indirectly via a for-profit platform; no adaptation or derivative works are permitted without consent from the copyright owner."
+        )
 
+    # process_rights_notes(rights_notes, mappings)
 
-    #process_rights_notes(rights_notes, mappings)
-    
     discipline = root.findtext(
         "etdms:degree/etdms:discipline", default="", namespaces=NAMESPACES
     )
@@ -729,7 +731,7 @@ def create_package_data(
         url="",
         doi=doi,
         path=package_path,
-        rights_notes=rights_notes
+        rights_notes=rights_notes,
     )
 
 
@@ -796,6 +798,7 @@ def process_degree(degree):
     elif degree == "":
         return FLAG
     return degree
+
 
 def process_degree_abbreviation(degree, mappings):
     return mappings["abbreviation"].get(degree, FLAG)
@@ -901,13 +904,13 @@ def add_to_csv(
         f"{package_data.degree} ({package_data.abbreviation})",
         package_data.discipline,
         package_data.level,
-       # package_data.rights_notes,
+        # package_data.rights_notes,
         "Thesis",
         collection_source_id,
         "|".join(package_files),
         package_data.rights_notes,
     ]
-    
+
     with open(
         metadata_csv_path, "a", newline="", encoding="utf-8"
     ) as metadata_csv_file:
@@ -947,7 +950,7 @@ def post_import_processing(
     click.echo(
         f"Post-import processing for {len(hyrax_import_packages)} packages."
     )
-    
+
     for package_data in hyrax_import_packages:
         click.echo(f"{package_data.name}: ", nl=False)
         try:
