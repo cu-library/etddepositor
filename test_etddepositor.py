@@ -13,7 +13,7 @@ def test_write_metadata_csv_header(tmp_path):
     assert metadata_csv_path.read_text() == (
         "source_identifier,model,title,creator,identifier,subject,"
         "abstract,publisher,contributor,date_created,language,agreement,"
-        "degree,degree_discipline,degree_level,resource_type,collection,file\n"
+        "degree,degree_discipline,degree_level,resource_type,collection,rights_notes,file\n"
     )
 
 
@@ -207,6 +207,7 @@ http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
         url="",
         doi=f"{etddepositor.DOI_PREFIX}/etd/2021-77",
         path="/a/path/here",
+        rights_notes="agreement here",
     )
 
     empty_package_metadata_xml = ElementTree.ElementTree(
@@ -446,6 +447,7 @@ def test_add_to_csv(tmp_path):
         url="",
         doi=f"{etddepositor.DOI_PREFIX}/etd/2021-77",
         path="/a/path/here",
+        rights_notes="agreement here",
     )
 
     etddepositor.add_to_csv(
@@ -530,6 +532,7 @@ def test_create_marc_record(tmp_path):
             url="",
             doi="10.223/etd/2021-1",
             path="",
+            rights_notes="agreement here",
         ),
         tmp_path,
     )
@@ -590,6 +593,8 @@ def test_create_dissertation_element():
             url="https://a.url.here/work1",
             doi=f"{etddepositor.DOI_PREFIX}/etd/2021-1",
             path="",
+            rights_notes="agreement here",
+
         )
     )
     assert dissertation_element.findtext("person_name/given_name") == "Test"

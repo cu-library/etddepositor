@@ -380,10 +380,6 @@ def process(
             "Create and Import",
             "--import_file_path",
             metadata_csv_path,
-            "--override_rights_statement",
-            "1",
-            "--rights_statement",
-            "http://rightsstatements.org/vocab/InC/1.0/",
             "--user_id",
             user_id,
             "--auth_token",
@@ -690,7 +686,7 @@ def create_package_data(
 
     rights_notes = rights_notes.replace(rights_notes, "")
     if rights_notes == "":
-        today = datetime.date.today()
+        today = datetime.date.today().year
         rights_notes = (
             f"Copyright © {today} the author(s). Theses may be used for "
             "non-commercial research, educational, or related academic "
