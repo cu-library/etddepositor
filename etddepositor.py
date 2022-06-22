@@ -692,13 +692,16 @@ def create_package_data(
     if rights_notes == "":
         today = datetime.date.today()
         rights_notes = (
-            f"Copyright © {today} the author(s). Theses may be used for non-commercial research, educational, or related academic purposes only. "
-            "Such uses include personal study, distribution to students, research and scholarship. Theses may only be shared by linking to Carleton "
-            "  University Digital Library and no part may be copied without proper attribution to the author; no part may be used for commercial purposes "
-            "directly or indirectly via a for-profit platform; no adaptation or derivative works are permitted without consent from the copyright owner."
+            f"Copyright © {today} the author(s). Theses may be used for "
+            "non-commercial research, educational, or related academic "
+            "purposes only. Such uses include personal study, distribution to"
+            " students, research and scholarship. Theses may only be shared by"
+            " linking to Carleton University Digital Library and no part may "
+            "be copied without proper attribution to the author; no part may "
+            "be used for commercial purposes directly or indirectly via a "
+            "for-profit platform; no adaptation or derivative works are "
+            "permitted without consent from the copyright owner."
         )
-
-    # process_rights_notes(rights_notes, mappings)
 
     discipline = root.findtext(
         "etdms:degree/etdms:discipline", default="", namespaces=NAMESPACES
