@@ -210,8 +210,7 @@ http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
         url="",
         doi=f"{etddepositor.DOI_PREFIX}/etd/2021-77",
         path="/a/path/here",
-        rights_notes = (
-            f"Copyright © {today} the author(s). Theses may be used for "
+        rights_notes = (f"Copyright © {today} the author(s). Theses may be used for "
             "non-commercial research, educational, or related academic "
             "purposes only. Such uses include personal study, distribution to"
             " students, research and scholarship. Theses may only be shared by"
