@@ -1,9 +1,9 @@
 import csv
 import xml.etree.ElementTree as ElementTree
-
+import datetime
 import pymarc
 import pytest
-import datetime
+
 import etddepositor
 
 
@@ -14,7 +14,7 @@ def test_write_metadata_csv_header(tmp_path):
         "source_identifier,model,title,creator,identifier,subject,"
         "abstract,publisher,contributor,date_created,language,agreement,"
         "degree,degree_discipline,degree_level,resource_type,collection,"
-        ",file,rights_notes\n"
+        "file,rights_notes\n"
     )
 
 
@@ -132,7 +132,6 @@ LAC Non-Exclusive License||2||Y||13-MAY-16
 
 def test_create_package_data():
     today = datetime.date.today().year
-
     mappings = {
         "abbreviation": {"Doctor of Philosophy": "Ph.D."},
         "discipline": {"PHD-01": "Processing Studies"},
@@ -210,7 +209,8 @@ http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
         url="",
         doi=f"{etddepositor.DOI_PREFIX}/etd/2021-77",
         path="/a/path/here",
-        rights_notes = (f"Copyright © {today} the author(s). Theses may be used for "
+        rights_notes=(
+            f"Copyright © {today} the author(s). Theses may be used for "
             "non-commercial research, educational, or related academic "
             "purposes only. Such uses include personal study, distribution to"
             " students, research and scholarship. Theses may only be shared by"
@@ -459,7 +459,7 @@ def test_add_to_csv(tmp_path):
         url="",
         doi=f"{etddepositor.DOI_PREFIX}/etd/2021-77",
         path="/a/path/here",
-        rights_notes="agreement here",
+        rights_notes="",
     )
 
     etddepositor.add_to_csv(
@@ -500,6 +500,7 @@ def test_add_to_csv(tmp_path):
             "Thesis",
             "collection_id_1",
             "/tmp/file1|/tmp/file2",
+            "",
         ]
 
 
@@ -544,7 +545,7 @@ def test_create_marc_record(tmp_path):
             url="",
             doi="10.223/etd/2021-1",
             path="",
-            rights_notes="agreement here",
+            rights_notes="test notes",
         ),
         tmp_path,
     )
@@ -605,8 +606,7 @@ def test_create_dissertation_element():
             url="https://a.url.here/work1",
             doi=f"{etddepositor.DOI_PREFIX}/etd/2021-1",
             path="",
-            rights_notes="agreement here",
-
+            rights_notes="test notes",
         )
     )
     assert dissertation_element.findtext("person_name/given_name") == "Test"
@@ -643,6 +643,7 @@ def test_create_dissertation_element():
             url="",
             doi="",
             path="",
+            rights_notes="",
         )
     )
     assert (
