@@ -455,7 +455,7 @@ def write_metadata_csv_header(metadata_csv_path):
         "degree_discipline",
         "degree_level",
         "resource_type",
-        "collection",
+        "parent",
         "file",
         "rights_notes",
     ]
