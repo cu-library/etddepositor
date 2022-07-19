@@ -1,3 +1,5 @@
+from os.path import join, basename
+import traceback
 import collections
 import csv
 import datetime
@@ -20,6 +22,7 @@ import pymarc
 import requests
 import requests.packages.urllib3.exceptions
 import yaml
+
 
 # CONTEXT_SETTINGS is a click-specific config dict which allows us to define a
 # prefix for the automatic environment variable option feature.
@@ -62,6 +65,8 @@ NAMESPACES = {
     "dc": "http://purl.org/dc/elements/1.1/",
     "etdms": "http://www.ndltd.org/standards/metadata/etdms/1.1/",
 }
+
+POSTBACK_SUBDIR = "postback"
 
 # FLAG is a string which we assign to some attributes of the package
 # if our mapping for that attribute is incomplete or unknowable.
@@ -292,6 +297,7 @@ def copy(ctx, inbox_directory_path):
 @click.option(
     "--email-to", required=True, help="The 'to' address for the report email."
 )
+@click.option("--outbox", required=True, help="add the outbox for postbacks")
 def process(
     ctx,
     importer,
@@ -307,6 +313,7 @@ def process(
     smtp_port,
     email_from,
     email_to,
+    outbox,
 ):
     """
     Process all packages which are awaiting work.
@@ -415,6 +422,9 @@ def process(
     # make_archive doesn't want the archive extension.
     shutil.make_archive(marc_archive_path[:-4], "zip", marc_path)
     click.echo("Done")
+    completed_student_id = completed_packages[0][0]
+    completed_url = completed_packages[0][15]
+    postback_url(completed_student_id, completed_url, ctx)
 
     click.echo("Sending report email: ", nl=False)
     send_email_report(
@@ -465,6 +475,35 @@ def write_metadata_csv_header(metadata_csv_path):
     ) as metadata_csv_file:
         csv_writer = csv.writer(metadata_csv_file)
         csv_writer.writerow(header_columns)
+
+
+config = {}
+config["postback_postfix"] = "_postback.txt"
+
+
+def postback_url(student_id, url, ctx):
+    processing_directory = ctx.obj["processing_directory"]
+    postback_path = os.path.join(processing_directory, POSTBACK_SUBDIR)
+
+    config["outbox"] = postback_path
+    try:
+        with open(
+            join(
+                config["outbox"],
+                basename(student_id) + config["postback_postfix"],
+            ),
+            "w",
+        ) as postback:
+            time_now = datetime.datetime.now()
+            time_now = time_now.replace(second=0, microsecond=0)
+            time_now = time_now.isoformat()
+            postback.write(
+                "{}||{}||1||{}".format(basename(student_id), time_now, url)
+            )
+    except:
+        print("Failed to write postbacks exiting job")
+        traceback.print_exc()
+        exit()
 
 
 def create_hyrax_import(
