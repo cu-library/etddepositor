@@ -1,5 +1,4 @@
 from os.path import join, basename
-import traceback
 import collections
 import csv
 import datetime
