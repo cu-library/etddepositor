@@ -500,9 +500,8 @@ def postback_url(student_id, url, ctx):
             postback.write(
                 "{}||{}||1||{}".format(basename(student_id), time_now, url)
             )
-    except:
-        print("Failed to write postbacks exiting job")
-        traceback.print_exc()
+    except Exception as e:
+        print(e)
         exit()
 
 
