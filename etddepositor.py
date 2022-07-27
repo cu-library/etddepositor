@@ -990,7 +990,7 @@ def post_import_processing(
     )
 
     for package_data in hyrax_import_packages:
-        click.echo(f"{package_data.name}: ", nl=False)
+        click.echo(f"{package_data.name}: ")
         try:
             package_data_with_url = add_url(
                 package_data, hyrax_host, public_hyrax_host
@@ -1016,16 +1016,20 @@ def post_import_processing(
 
 def add_url(package_data, hyrax_host, public_hyrax_host):
     for wait in range(30):
-        time.sleep(wait * wait)
+        sleep_time = wait * wait
+        if sleep_time > 0:
+            click.echo(f"Waiting {sleep_time} seconds.")
+        time.sleep(sleep_time)
         with warnings.catch_warnings():
             warnings.simplefilter(
                 "ignore", requests.packages.urllib3.exceptions.SecurityWarning
             )
-            resp = requests.get(
-                hyrax_host
-                + "/catalog.json?sourcetesim="
-                + package_data.source_identifier
+            search_url = (
+                f"{hyrax_host}/catalog.json"
+                f"?f[source_tesim][]={package_data.source_identifier}"
             )
+            click.echo(f"Checking {search_url} for ETD in Hyrax.")
+            resp = requests.get(search_url)
         if resp.status_code == 200:
             json = resp.json()
             for doc in json["response"]["docs"]:
@@ -1038,6 +1042,11 @@ def add_url(package_data, hyrax_host, public_hyrax_host):
                     return package_data._replace(
                         url=f"{public_hyrax_host}/concern/works/{work_id}"
                     )
+        else:
+            click.echo(
+                f"{package_data.source_identifier}"
+                " not found in catalog.json, retrying."
+            )
     raise GetURLFailedError
 
 
