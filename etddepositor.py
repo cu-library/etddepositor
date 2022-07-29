@@ -1119,7 +1119,7 @@ def create_marc_record(package_data, marc_path):
                 "a",
                 processed_author,
                 "e",
-                "author",
+                "author.",
             ],
         )
     )
