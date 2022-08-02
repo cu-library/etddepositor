@@ -775,12 +775,22 @@ def create_package_data(
 
 def process_subjects(subject_elements, mappings):
     subjects = []
-    for subject_element in subject_elements:
-        subject_code = subject_element.text.strip()
+
+    for set_element in subject_elements:
+
+        set_codes = set_element.text.strip()
+        try:
+            set_subjects.add(set_codes)
+        except NameError:
+            set_subjects = {set_codes}
+    for subject_element in set_subjects:
+        subject_code = subject_element
         if subject_code in mappings["lc_subject"]:
             for subject_tags in mappings["lc_subject"][subject_code]:
                 subjects.append(subject_tags)
+
     return subjects
+
 
 
 def process_description(description):
