@@ -792,7 +792,6 @@ def process_subjects(subject_elements, mappings):
     return subjects
 
 
-
 def process_description(description):
     return description.replace("\n", " ").replace("\r", "").strip()
 
