@@ -476,7 +476,6 @@ def process(
 
 def write_metadata_csv_header(metadata_csv_path):
     """Write the header columns to the Hyrax import metadata CSV file."""
-
     header_columns = [
         "source_identifier",
         "model",
@@ -503,6 +502,7 @@ def write_metadata_csv_header(metadata_csv_path):
         metadata_csv_path, "w", newline="", encoding="utf-8"
     ) as metadata_csv_file:
         csv_writer = csv.writer(metadata_csv_file)
+
         csv_writer.writerow(header_columns)
 
 
@@ -775,20 +775,18 @@ def create_package_data(
 
 def process_subjects(subject_elements, mappings):
     subjects = []
-
-    for set_element in subject_elements:
-
-        set_codes = set_element.text.strip()
-        try:
+    set_subjects = set()
+    for subject_element in subject_elements:
+        set_codes = subject_element.text.strip()
+        if len(set_subjects):
             set_subjects.add(set_codes)
-        except NameError:
+        else:
             set_subjects = {set_codes}
     for subject_element in set_subjects:
         subject_code = subject_element
         if subject_code in mappings["lc_subject"]:
             for subject_tags in mappings["lc_subject"][subject_code]:
                 subjects.append(subject_tags)
-
     return subjects
 
 
@@ -951,7 +949,6 @@ def add_to_csv(
         f"{package_data.degree} ({package_data.abbreviation})",
         package_data.discipline,
         package_data.level,
-        # package_data.rights_notes,
         "Thesis",
         collection_source_id,
         "|".join(package_files),
