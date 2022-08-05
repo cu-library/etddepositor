@@ -295,12 +295,9 @@ def test_process_subjects():
         }
     }
 
-    expected = [
-        ["a", "Agriculture."],
-        ["a", "Wood."],
-        ["a", "Forest products.", "x", "Biotechnology"],
-    ]
     subject_elements = [
+        ElementTree.Element("subject"),
+        ElementTree.Element("subject"),
         ElementTree.Element("subject"),
         ElementTree.Element("subject"),
         ElementTree.Element("subject"),
@@ -309,9 +306,14 @@ def test_process_subjects():
     subject_elements[0].text = "  B001"
     subject_elements[1].text = "B013  "
     subject_elements[2].text = "Unknown"
+    subject_elements[3].text = "B001 "
+    subject_elements[4].text = " B013 "
 
-    actual = etddepositor.process_subjects(subject_elements, mappings)
-    assert expected.sort() == actual.sort()
+    assert etddepositor.process_subjects(subject_elements, mappings) == [
+        ["a", "Agriculture."],
+        ["a", "Wood."],
+        ["a", "Forest products.", "x", "Biotechnology"],
+    ]
 
 
 def test_process_description():

@@ -775,19 +775,16 @@ def create_package_data(
 
 def process_subjects(subject_elements, mappings):
     subjects = []
-    set_subjects = set()
     for subject_element in subject_elements:
-        set_codes = subject_element.text.strip()
-        if len(set_subjects):
-            set_subjects.add(set_codes)
-        else:
-            set_subjects = {set_codes}
-    for subject_element in set_subjects:
-        subject_code = subject_element
+        subject_code = subject_element.text.strip()
         if subject_code in mappings["lc_subject"]:
             for subject_tags in mappings["lc_subject"][subject_code]:
                 subjects.append(subject_tags)
-    return subjects
+    deduplicated_subjects = []
+    for subject in subjects:
+        if subject not in deduplicated_subjects:
+            deduplicated_subjects.append(subject)
+    return deduplicated_subjects
 
 
 def process_description(description):
