@@ -250,7 +250,7 @@ def copy(ctx, inbox_directory_path):
     help="Passed as the auth_token option when running the Hyrax importer.",
 )
 @click.option(
-    "--collection-source-id",
+    "--parent-collection-id",
     required=True,
     help="The source ID for the parent collection in Hyrax.",
 )
