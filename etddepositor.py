@@ -314,7 +314,7 @@ def process(
     invalid_ok,
     user_id,
     auth_token,
-    collection_source_id,
+    parent_collection_id,
     doi_start,
     hyrax_host,
     public_hyrax_host,
@@ -379,7 +379,7 @@ def process(
         metadata_csv_path,
         files_path,
         invalid_ok,
-        collection_source_id,
+        parent_collection_id,
         doi_start,
         mappings,
     )
@@ -511,7 +511,7 @@ def create_hyrax_import(
     metadata_csv_path,
     files_path,
     invalid_ok,
-    collection_source_id,
+    parent_collection_id,
     doi_start,
     mappings,
 ):
@@ -573,7 +573,7 @@ def create_hyrax_import(
             add_to_csv(
                 metadata_csv_path,
                 package_data,
-                collection_source_id,
+                parent_collection_id,
                 package_files,
             )
         except ElementTree.ParseError as e:
@@ -926,7 +926,7 @@ def copy_thesis_pdf(package_data, package_path, files_path):
 
 
 def add_to_csv(
-    metadata_csv_path, package_data, collection_source_id, package_files
+    metadata_csv_path, package_data, parent_collection_id, package_files
 ):
     """Writes the package metadata to the Hyrax import CSV."""
 
@@ -947,7 +947,7 @@ def add_to_csv(
         package_data.discipline,
         package_data.level,
         "Thesis",
-        collection_source_id,
+        parent_collection_id,
         "|".join(package_files),
         package_data.rights_notes,
     ]
