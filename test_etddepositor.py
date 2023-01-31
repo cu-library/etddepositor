@@ -180,7 +180,7 @@ http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
         package_metadata_xml,
         "StudentNumber_ThesisNumber",
         77,
-        ["agreement_one", "agreement_two"],
+        ["agreement_one|||agreement_two"],
         "/a/path/here",
         mappings,
     ) == etddepositor.PackageData(
@@ -210,7 +210,7 @@ http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
         doi=f"{etddepositor.DOI_PREFIX}/etd/2021-77",
         path="/a/path/here",
         rights_notes=(
-            f"Copyright © {today} the author(s). Theses may be used for "
+            f"Copyright © 2021 the author(s). Theses may be used for "
             "non-commercial research, educational, or related academic "
             "purposes only. Such uses include personal study, distribution to"
             " students, research and scholarship. Theses may only be shared by"
@@ -452,10 +452,10 @@ def test_add_to_csv(tmp_path):
         ],
         abstract="\u00E9Abstract",
         publisher="Publisher",
-        contributors=["Contributor A (Co-author)|||Contributor B"],
+        contributors=["Contributor A (Co-author)", "Contributor B"],
         date="2021",
         language="fra",
-        agreements=["agreement_one|||agreement_two"],
+        agreements=["agreement_one", "agreement_two"],
         degree="Doctor of Philosophy",
         abbreviation="Ph.D.",
         discipline="Processing Studies",
@@ -470,7 +470,7 @@ def test_add_to_csv(tmp_path):
         metadata_csv_path,
         package_data,
         "collection_id_1",
-        ["/tmp/file1|||/tmp/file2"],
+        ["/tmp/file1", "/tmp/file2"],
     )
 
     with open(
@@ -491,7 +491,7 @@ def test_add_to_csv(tmp_path):
                 f"{etddepositor.DOI_URL_PREFIX}"
                 f"{etddepositor.DOI_PREFIX}/etd/2021-77"
             ),
-            "TestCode1|Test2 -- Specify|TestCode2",
+            "TestCode1|||Test2 -- Specify|||TestCode2",
             "\u00E9Abstract",
             "Publisher",
             "Contributor A (Co-author)|||Contributor B",
@@ -520,7 +520,7 @@ def test_create_csv_subject():
         etddepositor.create_csv_subject(
             [["a", "Mathematics."], ["a", "Chemistry."]]
         )
-        == "Mathematics|Chemistry"
+        == "Mathematics|||Chemistry"
     )
 
 
