@@ -21,6 +21,7 @@ import requests
 import requests.packages.urllib3.exceptions
 import yaml
 
+SPLIT_PATTERN = "|||"
 
 # CONTEXT_SETTINGS is a click-specific config dict which allows us to define a
 # prefix for the automatic environment variable option feature.
@@ -725,9 +726,8 @@ def create_package_data(
 
     rights_notes = rights_notes.replace(rights_notes, "")
     if rights_notes == "":
-        today = datetime.date.today().year
         rights_notes = (
-            f"Copyright © {today} the author(s). Theses may be used for "
+            f"Copyright © {date} the author(s). Theses may be used for "
             "non-commercial research, educational, or related academic "
             "purposes only. Such uses include personal study, distribution to"
             " students, research and scholarship. Theses may only be shared by"
@@ -936,19 +936,19 @@ def add_to_csv(
         package_data.title,
         package_data.creator,
         f"DOI: {DOI_URL_PREFIX}{package_data.doi}",
-        create_csv_subject(package_data.subjects),
+        create_csv_subject(SPLIT_PATTERN.join(package_data.subjects)),
         package_data.abstract,
         package_data.publisher,
-        "|".join(package_data.contributors),
+        SPLIT_PATTERN.join(package_data.contributors),
         package_data.date,
         package_data.language,
-        "|".join(package_data.agreements),
+        SPLIT_PATTERN.join(package_data.agreements),
         f"{package_data.degree} ({package_data.abbreviation})",
         package_data.discipline,
         package_data.level,
         "Thesis",
         parent_collection_id,
-        "|".join(package_files),
+        SPLIT_PATTERN.join(package_files),
         package_data.rights_notes,
     ]
 
