@@ -131,7 +131,6 @@ LAC Non-Exclusive License||2||Y||13-MAY-16
 
 
 def test_create_package_data():
-    today = datetime.date.today().year
     mappings = {
         "abbreviation": {"Doctor of Philosophy": "Ph.D."},
         "discipline": {"PHD-01": "Processing Studies"},
