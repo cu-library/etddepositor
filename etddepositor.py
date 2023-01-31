@@ -936,7 +936,7 @@ def add_to_csv(
         package_data.title,
         package_data.creator,
         f"DOI: {DOI_URL_PREFIX}{package_data.doi}",
-        create_csv_subject(SPLIT_PATTERN.join(package_data.subjects)),
+        create_csv_subject(package_data.subjects),
         package_data.abstract,
         package_data.publisher,
         SPLIT_PATTERN.join(package_data.contributors),
@@ -970,7 +970,7 @@ def create_csv_subject(subjects):
             x_text = x_text.replace(".", "")
             csv_subject = f"{csv_subject} -- {x_text}"
         csv_subjects.append(csv_subject)
-    return "|".join(csv_subjects)
+    return SPLIT_PATTERN.join(csv_subjects)
 
 
 def post_import_processing(
