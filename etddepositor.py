@@ -727,7 +727,7 @@ def create_package_data(
     rights_notes = rights_notes.replace(rights_notes, "")
     if rights_notes == "":
         rights_notes = (
-            f"Copyright © {date} the author(s). Theses may be used for "
+                f"Copyright © {date[0:4]} the author(s). Theses may be used for "
             "non-commercial research, educational, or related academic "
             "purposes only. Such uses include personal study, distribution to"
             " students, research and scholarship. Theses may only be shared by"
@@ -812,7 +812,8 @@ def process_date(date):
     if not date:
         raise MetadataError("date tag is missing")
     try:
-        return str(datetime.datetime.strptime(date, "%Y-%M-%d").year)
+        date = str(datetime.datetime.strptime(date, "%Y-%M-%d").year)
+        return date[0:10]
     except ValueError:
         raise MetadataError(f"date value {date} is not properly formatted")
 
