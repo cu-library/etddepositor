@@ -727,7 +727,7 @@ def create_package_data(
     rights_notes = rights_notes.replace(rights_notes, "")
     if rights_notes == "":
         rights_notes = (
-                f"Copyright © {date[0:4]} the author(s). Theses may be used for "
+            f"Copyright © {date[0:4]} the author(s). Theses may be used for "
             "non-commercial research, educational, or related academic "
             "purposes only. Such uses include personal study, distribution to"
             " students, research and scholarship. Theses may only be shared by"
