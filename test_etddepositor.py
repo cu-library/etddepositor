@@ -334,8 +334,8 @@ def test_process_contributors():
 
 
 def test_process_date():
-    assert etddepositor.process_date("2021-06-01") == "2021"
-    assert etddepositor.process_date("1900-06-01") == "1900"
+    assert etddepositor.process_date("2021-06-01") == "2021-06-01"
+    assert etddepositor.process_date("1900-06-01") == "1900-06-01"
     with pytest.raises(etddepositor.MetadataError, match="missing"):
         etddepositor.process_date("")
     with pytest.raises(
@@ -451,7 +451,7 @@ def test_add_to_csv(tmp_path):
         abstract="\u00E9Abstract",
         publisher="Publisher",
         contributors=["Contributor A (Co-author)", "Contributor B"],
-        date="2021",
+        date="2021-01-01",
         language="fra",
         agreements=["agreement_one", "agreement_two"],
         degree="Doctor of Philosophy",

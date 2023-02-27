@@ -748,7 +748,7 @@ def create_package_data(
     )
     level = process_degree_level(level)
 
-    doi = f"{DOI_PREFIX}/etd/{date}-{doi_ident}"
+    doi = f"{DOI_PREFIX}/etd/{date[0:4]}-{doi_ident}"
 
     return PackageData(
         name=name,
@@ -812,7 +812,7 @@ def process_date(date):
     if not date:
         raise MetadataError("date tag is missing")
     try:
-        date = str(datetime.datetime.strptime(date, "%Y-%M-%d").year)
+        date = str(datetime.datetime.strptime(date, "%Y-%m-%d"))
         return date[0:10]
     except ValueError:
         raise MetadataError(f"date value {date} is not properly formatted")
