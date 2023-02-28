@@ -198,6 +198,7 @@ http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
         publisher="Publisher",
         contributors=["Contributor A (Co-author)", "Contributor B"],
         date="2021-01-01",
+        year="2021",
         language="fra",
         agreements=["agreement_one", "agreement_two"],
         degree="Doctor of Philosophy",
@@ -334,8 +335,8 @@ def test_process_contributors():
 
 
 def test_process_date():
-    assert etddepositor.process_date("2021-06-01") == "2021-06-01"
-    assert etddepositor.process_date("1900-06-01") == "1900-06-01"
+    assert etddepositor.process_date("2021-06-01") == ("2021-06-01", "2021")
+    assert etddepositor.process_date("1900-06-01") == ("1900-06-01", "1900")
     with pytest.raises(etddepositor.MetadataError, match="missing"):
         etddepositor.process_date("")
     with pytest.raises(
@@ -452,6 +453,7 @@ def test_add_to_csv(tmp_path):
         publisher="Publisher",
         contributors=["Contributor A (Co-author)", "Contributor B"],
         date="2021-01-01",
+        year="2021",
         language="fra",
         agreements=["agreement_one", "agreement_two"],
         degree="Doctor of Philosophy",
@@ -537,7 +539,8 @@ def test_create_marc_record(tmp_path):
             abstract="",
             publisher="",
             contributors=[],
-            date="2021",
+            date="2021-01-01",
+            year="2021",
             language="fra",
             agreements=[],
             degree="",
@@ -598,7 +601,8 @@ def test_create_dissertation_element():
             abstract="",
             publisher="",
             contributors=[],
-            date="2021",
+            date="2021-01-01",
+            year="2021",
             language="",
             agreements=[],
             degree="Doctor of Philosophy",
@@ -636,6 +640,7 @@ def test_create_dissertation_element():
             publisher="",
             contributors=[],
             date="",
+            year="",
             language="",
             agreements=[],
             degree="",
