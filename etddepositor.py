@@ -730,13 +730,14 @@ def create_package_data(
         rights_notes = (
             f"Copyright © {year} the author(s). Theses may be used for "
             "non-commercial research, educational, or related academic "
-            "purposes only. Such uses include personal study, distribution to"
-            " students, research and scholarship. Theses may only be shared by"
-            " linking to Carleton University Digital Library and no part may "
-            "be copied without proper attribution to the author; no part may "
-            "be used for commercial purposes directly or indirectly via a "
-            "for-profit platform; no adaptation or derivative works are "
-            "permitted without consent from the copyright owner."
+            "purposes only. Such uses include personal study, distribution to "
+            "students, research and scholarship. Theses may only be shared by "
+            "linking to the Carleton University Institutional Repository and "
+            "no part may be copied without proper attribution to the author; "
+            "no part may be used for commercial purposes directly or "
+            "indirectly via a for-profit platform; no adaptation or "
+            "derivative works are permitted without consent from the "
+            "copyright owner."
         )
 
     discipline = root.findtext(
@@ -1274,7 +1275,10 @@ def create_marc_record(package_data, marc_path):
                 "u",
                 f"{DOI_URL_PREFIX}{package_data.doi}",
                 "z",
-                "Free Access (Digital Library Full Text)",
+                (
+                    "Free Access "
+                    "(Carleton University Institutional Repository Full Text)"
+                ),
             ],
         )
     )
