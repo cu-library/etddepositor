@@ -729,13 +729,14 @@ def create_package_data(
         rights_notes = (
             f"Copyright © {date[0:4]} the author(s). Theses may be used for "
             "non-commercial research, educational, or related academic "
-            "purposes only. Such uses include personal study, distribution to"
-            " students, research and scholarship. Theses may only be shared by"
-            " linking to Carleton University Digital Library and no part may "
-            "be copied without proper attribution to the author; no part may "
-            "be used for commercial purposes directly or indirectly via a "
-            "for-profit platform; no adaptation or derivative works are "
-            "permitted without consent from the copyright owner."
+            "purposes only. Such uses include personal study, research, " 
+            "scholarship, and teaching. Theses may only be shared by "
+            "linking to Carleton University Institutional Repository and no "
+            "part may be used without proper attribution to the author. No "
+            "part may be used for commercial purposes directly or "
+            "indirectly via a for-profit platform; no adaptation or "
+            "derivative works are permitted without consent from the "
+            "copyright owner."
         )
 
     discipline = root.findtext(
