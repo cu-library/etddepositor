@@ -83,6 +83,7 @@ PackageData = collections.namedtuple(
         "publisher",
         "contributors",
         "date",
+        "year",
         "language",
         "agreements",
         "degree",
@@ -708,7 +709,7 @@ def create_package_data(
     contributors = process_contributors(contributor_elements)
 
     date = root.findtext("dc:date", default="", namespaces=NAMESPACES)
-    date = process_date(date)
+    date, year = process_date(date)
 
     language = root.findtext("dc:language", default="", namespaces=NAMESPACES)
     language = process_language(language)
@@ -727,13 +728,13 @@ def create_package_data(
     rights_notes = rights_notes.replace(rights_notes, "")
     if rights_notes == "":
         rights_notes = (
-            f"Copyright © {date[0:4]} the author(s). Theses may be used for "
+            f"Copyright © {year} the author(s). Theses may be used for "
             "non-commercial research, educational, or related academic "
-            "purposes only. Such uses include personal study, research, " 
-            "scholarship, and teaching. Theses may only be shared by "
-            "linking to Carleton University Institutional Repository and no "
-            "part may be used without proper attribution to the author. No "
-            "part may be used for commercial purposes directly or "
+            "purposes only. Such uses include personal study, distribution to "
+            "students, research and scholarship. Theses may only be shared by "
+            "linking to the Carleton University Institutional Repository and "
+            "no part may be copied without proper attribution to the author; "
+            "no part may be used for commercial purposes directly or "
             "indirectly via a for-profit platform; no adaptation or "
             "derivative works are permitted without consent from the "
             "copyright owner."
@@ -749,7 +750,7 @@ def create_package_data(
     )
     level = process_degree_level(level)
 
-    doi = f"{DOI_PREFIX}/etd/{date[0:4]}-{doi_ident}"
+    doi = f"{DOI_PREFIX}/etd/{year}-{doi_ident}"
 
     return PackageData(
         name=name,
@@ -761,6 +762,7 @@ def create_package_data(
         publisher=publisher,
         contributors=contributors,
         date=date,
+        year=year,
         agreements=agreements,
         language=language,
         degree=degree,
@@ -807,16 +809,17 @@ def process_contributors(contributor_elements):
 
 
 def process_date(date):
-    """Ensure date is properly formatted, then return the year as a string"""
+    """Check date is properly formatted, return the date and year as strings"""
 
     date = date.strip()
     if not date:
         raise MetadataError("date tag is missing")
     try:
-        date = str(datetime.datetime.strptime(date, "%Y-%m-%d"))
-        return date[0:10]
+        # This strptime call validates the date, and we can pull out the year.
+        year = str(datetime.datetime.strptime(date, "%Y-%m-%d").year)
     except ValueError:
         raise MetadataError(f"date value {date} is not properly formatted")
+    return date, year
 
 
 def process_language(language):
@@ -1107,7 +1110,7 @@ def create_marc_record(package_data, marc_path):
         pymarc.Field(
             tag="008",
             data="{}s{}    onca||||omb|| 000|0 eng d".format(
-                today.strftime("%y%m%d"), package_data.date
+                today.strftime("%y%m%d"), package_data.year
             ),
         )
     )
@@ -1144,14 +1147,14 @@ def create_marc_record(package_data, marc_path):
         pymarc.Field(
             tag="264",
             indicators=[" ", "1"],
-            subfields=["a", "Ottawa,", "c", package_data.date],
+            subfields=["a", "Ottawa,", "c", package_data.year],
         )
     )
     record.add_field(
         pymarc.Field(
             tag="264",
             indicators=[" ", "4"],
-            subfields=["c", "\u00A9" + package_data.date],
+            subfields=["c", "\u00A9" + package_data.year],
         )
     )
     record.add_field(
@@ -1212,7 +1215,7 @@ def create_marc_record(package_data, marc_path):
                 "Thesis ("
                 + package_data.abbreviation
                 + ") - Carleton University, "
-                + package_data.date
+                + package_data.year
                 + ".",
             ],
         )
@@ -1272,7 +1275,10 @@ def create_marc_record(package_data, marc_path):
                 "u",
                 f"{DOI_URL_PREFIX}{package_data.doi}",
                 "z",
-                "Free Access (Digital Library Full Text)",
+                (
+                    "Free Access "
+                    "(Carleton University Institutional Repository Full Text)"
+                ),
             ],
         )
     )
@@ -1359,7 +1365,7 @@ def create_dissertation_element(package_data):
         dissertation, "approval_date", attrib={"media_type": "online"}
     )
     year = ElementTree.SubElement(approval_date, "year")
-    year.text = package_data.date
+    year.text = package_data.year
 
     institution = ElementTree.SubElement(dissertation, "institution")
     institution_name = ElementTree.SubElement(institution, "institution_name")
