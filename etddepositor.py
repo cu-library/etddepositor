@@ -1331,7 +1331,7 @@ def create_csv_list(package_data, csv_file_path):
     with open(csv_file_path, mode='w', newline='') as file:
             writer = csv.writer(file)
 
-            writer.writerow(["Author Name", "Package File Name", "Date Processed", "Link to Thesis in Hyrax", "PDF Name", "Supplimental File"])
+            writer.writerow(["Author Name", "Package File Name", "Date Processed", "Link to Thesis in Hyrax", "PDF File", "Supplemental File"])
 
 
 
