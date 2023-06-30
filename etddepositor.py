@@ -1,4 +1,3 @@
-import collections
 import csv
 import datetime
 import glob
@@ -22,6 +21,8 @@ import requests.packages.urllib3.exceptions
 import yaml
 import dataclasses
 
+# SPLIT_PATTERN is used in the Hyrax CSV exports to delimit multiple values
+# in the same column.
 SPLIT_PATTERN = "|||"
 
 # CONTEXT_SETTINGS is a click-specific config dict which allows us to define a
@@ -49,12 +50,12 @@ FILES_SUBDIR = "files"
 MARC_SUBDIR = "marc"
 
 # CROSSREF_SUBDIR is the name of the subdirectory under the provided processing
-# directory where the Crossref-ready metadata for ETDs are created.
+# directory where the Crossref-ready metadata file is created.
 CROSSREF_SUBDIR = "crossref"
 
-# CSV_INGEST_SUBDIR is the name of the subdirectory under the provided processing
-# directory where the cst-ingest-list for CMD are created.
-CSV_INGEST_SUBDIR = "csv_ingest"
+# CSV_REPORT_SUBDIR is the name of the subdirectory under the provided
+# processing directory where the CSV report of the import for CMD is created.
+CSV_REPORT_SUBDIR = "csv_report"
 
 # DOI_PREFIX is Carleton University Library's DOI prefix, used when minting new
 # DOIs for ETDs.
@@ -102,6 +103,7 @@ PackageData = dataclasses.make_dataclass(
         "package_files",
     ],
 )
+
 
 class MissingFileError(Exception):
     """Raised when a required file is missing."""
@@ -371,15 +373,14 @@ def process(
     files_path = os.path.join(hyrax_path, FILES_SUBDIR)
     marc_path = os.path.join(processing_directory, MARC_SUBDIR, ts)
     crossref_path = os.path.join(processing_directory, CROSSREF_SUBDIR, ts)
-    csv_ingest_path = os.path.join(processing_directory, CSV_INGEST_SUBDIR, ts)
-
+    csv_report_path = os.path.join(processing_directory, CSV_REPORT_SUBDIR, ts)
 
     # Create the subdirectories if they don't exist.
     os.makedirs(done_path, mode=0o770, exist_ok=True)
-    for path in [files_path, marc_path, crossref_path, csv_ingest_path]:
+    for path in [files_path, marc_path, crossref_path, csv_report_path]:
         os.makedirs(path, mode=0o775, exist_ok=True)
 
-    # Create the import metadata.csv file and add the header.
+    # Create the Hyrax import metadata.csv file and add the header.
     metadata_csv_path = os.path.join(hyrax_path, "metadata.csv")
     write_metadata_csv_header(metadata_csv_path)
 
@@ -392,7 +393,7 @@ def process(
         doi_start,
         mappings,
     )
-    
+
     click.echo("Running Bulkrax importer.")
     subprocess.run(
         [
@@ -419,14 +420,14 @@ def process(
         crossref_et,
         post_import_failure_log,
     ) = post_import_processing(
-        hyrax_import_packages, hyrax_host, public_hyrax_host, marc_path 
-    )
-    
-    click.echo("Writing complete CSV file: ", nl=False)
-    csv_file_path = os.path.join(
-        csv_ingest_path, f"{ datetime.date.today().isoformat()}-ingest_list.csv"
+        hyrax_import_packages, hyrax_host, public_hyrax_host, marc_path
     )
 
+    click.echo("Writing complete CSV file: ", nl=False)
+    csv_file_path = os.path.join(
+        csv_report_path,
+        f"{ datetime.date.today().isoformat()}-ingest_list.csv",
+    )
     create_csv_list(completed_packages, csv_file_path)
 
     click.echo("Writing complete Crossref file: ", nl=False)
@@ -469,11 +470,6 @@ def process(
             err_msg = f"Error writing postback file for {package.name}, {e}."
             click.echo(err_msg)
             post_import_failure_log.append(f"{err_msg}")
-    click.echo("Done")
-
-    crossref_et.write(
-        crossref_file_path, encoding="utf-8", xml_declaration=True
-    )
     click.echo("Done")
 
     click.echo("Sending report email: ", nl=False)
@@ -589,16 +585,12 @@ def create_hyrax_import(
                 package_path,
                 mappings,
             )
-            
+
             package_data.package_files = copy_package_files(
                 package_data, package_path, files_path
             )
 
-            add_to_csv(
-                metadata_csv_path,
-                package_data,
-                parent_collection_id
-            )
+            add_to_csv(metadata_csv_path, package_data, parent_collection_id)
 
         except ElementTree.ParseError as e:
             err_msg = f"Error parsing XML, {e}."
@@ -617,7 +609,7 @@ def create_hyrax_import(
             hyrax_import_packages.append(package_data)
             click.echo("Done")
 
-    return hyrax_import_packages, failure_log 
+    return hyrax_import_packages, failure_log
 
 
 def process_embargo_and_agreements(content_lines, mappings):
@@ -699,7 +691,7 @@ def create_package_data(
     source_identifier = hashlib.sha256(name.encode("utf-8")).hexdigest()
 
     root = package_metadata_xml.getroot()
-  
+
     title = root.findtext("dc:title", default="", namespaces=NAMESPACES)
     title = title.strip()
     if title == "":
@@ -830,6 +822,7 @@ def process_contributors(contributor_elements):
             contributors.append(name)
     return contributors
 
+
 def process_date(date):
     """Check date is properly formatted, return the date and year as strings"""
 
@@ -842,6 +835,7 @@ def process_date(date):
     except ValueError:
         raise MetadataError(f"date value {date} is not properly formatted")
     return date, year
+
 
 def process_language(language):
     language = language.strip()
@@ -951,9 +945,7 @@ def copy_thesis_pdf(package_data, package_path, files_path):
     return dest_file_name
 
 
-def add_to_csv(
-    metadata_csv_path, package_data, parent_collection_id
-):
+def add_to_csv(metadata_csv_path, package_data, parent_collection_id):
     """Writes the package metadata to the Hyrax import CSV."""
 
     row = [
@@ -1010,7 +1002,7 @@ def post_import_processing(
     # Create the ElementTree and body element which will be used to create the
     # Crossref XML.
     crossref_et, body_element = create_crossref_etree()
-    
+
     # A list of packages which failed during processing.
     failure_log: List[str] = []
 
@@ -1039,7 +1031,7 @@ def post_import_processing(
         else:
             completed_packages.append(package_data_with_url)
             click.echo("Done")
-    
+
     return completed_packages, crossref_et, failure_log
 
 
@@ -1068,10 +1060,12 @@ def add_url(package_data, hyrax_host, public_hyrax_host):
                     == package_data.source_identifier
                 ):
                     work_id = doc["id"]
-                    package_data = dataclasses.replace(package_data, url=f"{public_hyrax_host}/concern/works/{work_id}")
+                    package_data = dataclasses.replace(
+                        package_data,
+                        url=f"{public_hyrax_host}/concern/works/{work_id}",
+                    )
                     return package_data
-                       
-                    
+
         else:
             click.echo(
                 f"{package_data.source_identifier}"
@@ -1324,34 +1318,54 @@ def create_marc_record(package_data, marc_path):
     ) as marc_file:
         marc_file.write(record.as_marc())
 
+
 def create_csv_list(package_data, csv_file_path):
 
-    file_name = f"{datetime.date.today().isoformat()}-ingest_list.csv"
-    
-    with open(csv_file_path, mode='w', newline='') as file:
-            writer = csv.writer(file)
+    with open(csv_file_path, mode="w", newline="") as file:
+        writer = csv.writer(file)
 
-            writer.writerow(["Author Name", "Package File Name", "Date Processed", "Link to Thesis in Hyrax", "PDF File", "Supplemental File"])
+        writer.writerow(
+            [
+                "Author Name",
+                "Package File Name",
+                "Date Processed",
+                "Link to Thesis in Hyrax",
+                "PDF File",
+                "Supplemental File",
+            ]
+        )
 
+        for data in package_data:
+            author_name = data.creator
+            package_file_name = data.name
+            date_processed = datetime.datetime.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            print(date_processed)
+            link_to_thesis = data.url
+            print(link_to_thesis)
+            package_files = data.package_files
+            pdf_files = ""
+            zip_files = ""
+            if len(package_files) > 0:
+                pdf_files = ", ".join(
+                    [file for file in package_files if file.endswith(".pdf")]
+                )
+                zip_files = ", ".join(
+                    [file for file in package_files if file.endswith(".zip")]
+                )
 
+            writer.writerow(
+                [
+                    author_name,
+                    package_file_name,
+                    date_processed,
+                    link_to_thesis,
+                    pdf_files,
+                    zip_files,
+                ]
+            )
 
-            for data in package_data:
-                author_name = data.creator
-                package_file_name = data.name
-                date_processed = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                print(date_processed)
-                link_to_thesis = data.url
-                print(link_to_thesis)
-                package_files = data.package_files
-                pdf_files = ''
-                zip_files = ''
-                if len(package_files) > 0:
-                    pdf_files = ', '.join([file for file in package_files if file.endswith('.pdf')])
-                    zip_files = ', '.join([file for file in package_files if file.endswith('.zip')])
-
-                writer.writerow([author_name, package_file_name, date_processed, link_to_thesis, pdf_files, zip_files])
-
-    
     click.echo("Ingest list created successfully.")
 
 
@@ -1521,7 +1535,7 @@ def send_email_report(
         filename=os.path.basename(crossref_file_path),
     )
     with open(csv_file_path, "rb") as ingest_list_file:
-        
+
         ingest_list_data = ingest_list_file.read()
     msg.add_attachment(
         ingest_list_data,
@@ -1537,4 +1551,3 @@ def send_email_report(
 
 if __name__ == "__main__":
     etddepositor(obj={})
-
