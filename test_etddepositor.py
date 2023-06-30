@@ -220,6 +220,7 @@ http://www.ndltd.org/standards/metadata/etdms/1.1/etdmsdcterms.xsd"
             "for-profit platform; no adaptation or derivative works are "
             "permitted without consent from the copyright owner."
         ),
+        package_files=[],
     )
 
     empty_package_metadata_xml = ElementTree.ElementTree(
@@ -465,13 +466,13 @@ def test_add_to_csv(tmp_path):
         doi=f"{etddepositor.DOI_PREFIX}/etd/2021-77",
         path="/a/path/here",
         rights_notes="",
+        package_files=["/tmp/file1", "/tmp/file2"],
     )
 
     etddepositor.add_to_csv(
         metadata_csv_path,
         package_data,
         "collection_id_1",
-        ["/tmp/file1", "/tmp/file2"],
     )
 
     with open(
@@ -552,6 +553,7 @@ def test_create_marc_record(tmp_path):
             doi="10.223/etd/2021-1",
             path="",
             rights_notes="test notes",
+            package_files=[],
         ),
         tmp_path,
     )
@@ -614,6 +616,7 @@ def test_create_dissertation_element():
             doi=f"{etddepositor.DOI_PREFIX}/etd/2021-1",
             path="",
             rights_notes="test notes",
+            package_files=[],
         )
     )
     assert dissertation_element.findtext("person_name/given_name") == "Test"
@@ -652,6 +655,7 @@ def test_create_dissertation_element():
             doi="",
             path="",
             rights_notes="",
+            package_files=[],
         )
     )
     assert (

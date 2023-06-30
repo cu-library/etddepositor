@@ -1,4 +1,5 @@
 import csv
+import dataclasses
 import datetime
 import glob
 import hashlib
@@ -6,20 +7,20 @@ import os
 import shutil
 import smtplib
 import string
-import subprocess
 import textwrap
 import time
 import warnings
 import xml.etree.ElementTree as ElementTree
 from typing import List
 
+from bs4 import BeautifulSoup
 import bagit
 import click
 import pymarc
 import requests
 import requests.packages.urllib3.exceptions
 import yaml
-import dataclasses
+
 
 # SPLIT_PATTERN is used in the Hyrax CSV exports to delimit multiple values
 # in the same column.
@@ -217,18 +218,6 @@ def copy(ctx, inbox_directory_path):
 @etddepositor.command()
 @click.pass_context
 @click.option(
-    "--importer",
-    type=click.Path(
-        exists=True,
-        dir_okay=False,
-        file_okay=True,
-        resolve_path=True,
-        executable=True,
-        readable=True,
-    ),
-    required=True,
-)
-@click.option(
     "--mapping",
     "mapping_file_path",
     type=click.Path(
@@ -247,6 +236,14 @@ def copy(ctx, inbox_directory_path):
         "Process packages that are not valid BagIt containers. "
         "This can be used to process packages which needed manual fixes."
     ),
+)
+@click.option("--user-email", required=True, help=("The Hyrax user email."))
+@click.option(
+    "--user-password",
+    prompt=True,
+    hide_input=True,
+    confirmation_prompt=True,
+    help=("The Hyrax user password."),
 )
 @click.option(
     "--user-id",
@@ -275,8 +272,8 @@ def copy(ctx, inbox_directory_path):
     required=True,
     help=(
         "The scheme and domain name of the Hyrax instance we are importing "
-        "into. Passed as the url option when running the Hyrax importer and "
-        "used to find the Hyrax URLs for imported works."
+        "into. No trailing slash! Passed as the url option when running the "
+        "Hyrax importer and used to find the Hyrax URLs for imported works."
     ),
 )
 @click.option(
@@ -318,9 +315,10 @@ def copy(ctx, inbox_directory_path):
 )
 def process(
     ctx,
-    importer,
     mapping_file_path,
     invalid_ok,
+    user_email,
+    user_password,
     user_id,
     auth_token,
     parent_collection_id,
@@ -339,6 +337,28 @@ def process(
     Add the metadata and files to the Hyrax import, run the import,
     create MARC and Crossref ready metadata files, and send the email report.
     """
+
+    click.echo("Logging into Hyrax: ", nl=False)
+    session = requests.Session()
+    # We need the CSRF token, which is stored in the csrf-token meta tag.
+    sign_in_form_request = session.get(f"{hyrax_host}/users/sign_in")
+    sign_in_form_request.raise_for_status()
+    # TODO: Better error checks for finding the CSRF token.
+    csrf_token = BeautifulSoup(sign_in_form_request.text).find(
+        name="meta", attrs={"name": "csrf-token"}
+    )["content"]
+    sign_in_data = {
+        "authenticity_token": csrf_token,
+        "user[email]": user_email,
+        "user[password]": user_password,
+        "user[remember_me]": "0",
+        "commit": "Log+in",
+    }
+    sign_in_request = session.post(
+        f"{hyrax_host}/users/sign_in", data=sign_in_data
+    )
+    sign_in_request.raise_for_status()
+    click.echo("Done")
 
     # Copy the processing location out of the context object.
     processing_directory = ctx.obj["processing_directory"]
@@ -394,26 +414,28 @@ def process(
         mappings,
     )
 
-    click.echo("Running Bulkrax importer.")
-    subprocess.run(
-        [
-            importer,
-            "--name",
-            f"ETD-Deposit-{ts}",
-            "--parser_klass",
-            "Bulkrax::CsvParser",
-            "--commit",
-            "Create and Import",
-            "--import_file_path",
-            metadata_csv_path,
-            "--user_id",
-            user_id,
-            "--auth_token",
-            auth_token,
-            "--url",
-            hyrax_host,
-        ]
+    click.echo("Submitting Bulkrax import job:", nl=False)
+    import_job_data = {
+        "commit": "Create and Import",
+        "importer": {
+            "name": f"ETD-Deposit-{ts}",
+            "parser_klass": "Bulkrax::CsvParser",
+            "user_id": user_id,
+            "parser_fields": {
+                "import_file_path": metadata_csv_path,
+            },
+        },
+    }
+    import_job_request = session.post(
+        f"{hyrax_host}/importers",
+        data=import_job_data,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Token: {auth_token}",
+        },
     )
+    import_job_request.raise_for_status()
+    click.echo("Done")
 
     (
         completed_packages,
