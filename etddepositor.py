@@ -428,9 +428,8 @@ def process(
     }
     import_job_request = session.post(
         f"{hyrax_host}/importers",
-        data=import_job_data,
+        json=import_job_data,
         headers={
-            "Content-Type": "application/json",
             "Authorization": f"Token: {auth_token}",
         },
     )
