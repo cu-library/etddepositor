@@ -344,7 +344,7 @@ def process(
     sign_in_form_request = session.get(f"{hyrax_host}/users/sign_in")
     sign_in_form_request.raise_for_status()
     # TODO: Better error checks for finding the CSRF token.
-    csrf_token = BeautifulSoup(sign_in_form_request.text).find(
+    csrf_token = BeautifulSoup(sign_in_form_request.text, "html.parser").find(
         name="meta", attrs={"name": "csrf-token"}
     )["content"]
     sign_in_data = {
