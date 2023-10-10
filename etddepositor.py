@@ -1083,7 +1083,7 @@ def add_url(package_data, hyrax_host, public_hyrax_host):
                     work_id = doc["id"]
                     package_data = dataclasses.replace(
                         package_data,
-                        url=f"{public_hyrax_host}/concern/works/{work_id}",
+                        url=f"{public_hyrax_host}/concern/etds/{work_id}",
                     )
                     return package_data
 
