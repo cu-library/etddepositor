@@ -1353,6 +1353,7 @@ def create_csv_list(package_data, csv_file_path):
                 "Link to Thesis in Hyrax",
                 "PDF File",
                 "Supplemental File",
+                "Degree FLAG"
             ]
         )
 
@@ -1362,9 +1363,10 @@ def create_csv_list(package_data, csv_file_path):
             date_processed = datetime.datetime.now().strftime(
                 "%Y-%m-%d %H:%M:%S"
             )
-            print(date_processed)
+            degree = data.degree
+            if degree is FLAG:
+                degree = data.degree
             link_to_thesis = data.url
-            print(link_to_thesis)
             package_files = data.package_files
             pdf_files = ""
             zip_files = ""
@@ -1384,6 +1386,7 @@ def create_csv_list(package_data, csv_file_path):
                     link_to_thesis,
                     pdf_files,
                     zip_files,
+                    degree
                 ]
             )
 
