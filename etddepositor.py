@@ -1366,6 +1366,8 @@ def create_csv_list(package_data, csv_file_path):
             degree = data.degree
             if degree is FLAG:
                 degree = data.degree
+            else:
+                degree = ""
             link_to_thesis = data.url
             package_files = data.package_files
             pdf_files = ""
