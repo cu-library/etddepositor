@@ -1378,7 +1378,7 @@ def create_csv_list(package_data, csv_file_path):
             if discipline is FLAG:
                 contents += " Degree discipline is flagged."
             if "$" in abstract:
-               contents += " Abstract contains '$', LaTeX codes?"
+                contents += " Abstract contains '$', LaTeX codes?"
             if "\\" in abstract:
                 contents += " Abstract contains '\\', LaTeX codes?"
             if "\uFFFD" in title:
@@ -1389,7 +1389,7 @@ def create_csv_list(package_data, csv_file_path):
                 contents += " Abstract contains replacement character."
             if "\uFFFD" in str(contributors):
                 contents += " Contributors contains replacement character."
-                
+
             link_to_thesis = data.url
             package_files = data.package_files
             pdf_files = ""
@@ -1410,7 +1410,7 @@ def create_csv_list(package_data, csv_file_path):
                     link_to_thesis,
                     pdf_files,
                     zip_files,
-                    contents 
+                    contents
                 ]
             )
 
