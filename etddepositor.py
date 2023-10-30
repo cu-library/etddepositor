@@ -1353,21 +1353,43 @@ def create_csv_list(package_data, csv_file_path):
                 "Link to Thesis in Hyrax",
                 "PDF File",
                 "Supplemental File",
-                "Degree FLAG"
+                "Flagged Content"
             ]
         )
 
         for data in package_data:
+            contents = ""
             author_name = data.creator
+            abbreviation = data.abbreviation
+            discipline = data.discipline
             package_file_name = data.name
+            abstract = data.abstract
+            creator = data.creator
+            title = data.title
+            contributors = data.contributors
             date_processed = datetime.datetime.now().strftime(
                 "%Y-%m-%d %H:%M:%S"
             )
             degree = data.degree
             if degree is FLAG:
-                degree = data.degree
-            else:
-                degree = ""
+                contents += " Degree is flagged."
+            if abbreviation is FLAG:
+                contents += " Degree abbreviation is flagged."
+            if discipline is FLAG:
+                contents += " Degree discipline is flagged."
+            if "$" in abstract:
+               contents += " Abstract contains '$', LaTeX codes?"
+            if "\\" in abstract:
+                contents += " Abstract contains '\\', LaTeX codes?"
+            if "\uFFFD" in title:
+                contents += " Title contains replacement character."
+            if "\uFFFD" in creator:
+                contents += " Creator contains replacement character."
+            if "\uFFFD" in abstract:
+                contents += " Abstract contains replacement character."
+            if "\uFFFD" in str(contributors):
+                contents += " Contributors contains replacement character."
+                
             link_to_thesis = data.url
             package_files = data.package_files
             pdf_files = ""
@@ -1388,7 +1410,7 @@ def create_csv_list(package_data, csv_file_path):
                     link_to_thesis,
                     pdf_files,
                     zip_files,
-                    degree
+                    contents 
                 ]
             )
 
@@ -1517,25 +1539,6 @@ def send_email_report(
         contents += (
             f"{package_data.creator} - {short_title} {package_data.url}"
         )
-        if package_data.degree is FLAG:
-            contents += " Degree is flagged."
-        if package_data.abbreviation is FLAG:
-            contents += " Degree abbreviation is flagged."
-        if package_data.discipline is FLAG:
-            contents += " Degree discipline is flagged."
-        if "$" in package_data.abstract:
-            contents += " Abstract contains '$', LaTeX codes?"
-        if "\\" in package_data.abstract:
-            contents += " Abstract contains '\\', LaTeX codes?"
-        if "\uFFFD" in package_data.title:
-            contents += " Title contains replacement character."
-        if "\uFFFD" in package_data.creator:
-            contents += " Creator contains replacement character."
-        if "\uFFFD" in package_data.abstract:
-            contents += " Abstract contains replacement character."
-        if "\uFFFD" in str(package_data.contributors):
-            contents += " Contributors contains replacement character."
-        contents += "\n"
     contents += "\n"
     contents += f"{len(failure_log)} failed packages.\n"
     for line in failure_log:
