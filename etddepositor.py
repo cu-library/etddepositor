@@ -1539,6 +1539,7 @@ def send_email_report(
         contents += (
             f"{package_data.creator} - {short_title} {package_data.url}"
         )
+        contents += "\n"
     contents += "\n"
     contents += f"{len(failure_log)} failed packages.\n"
     for line in failure_log:
