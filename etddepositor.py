@@ -20,7 +20,10 @@ import pymarc
 import requests
 import requests.packages.urllib3.exceptions
 import yaml
+from pysolr import Solr
 
+# SWITCH THIS TO THE ENV VAR BEFORE PUSHING
+SOLR_URL = os.environ.get("SOLR_URL")
 
 # SPLIT_PATTERN is used in the Hyrax CSV exports to delimit multiple values
 # in the same column.
@@ -413,7 +416,8 @@ def process(
         doi_start,
         mappings,
     )
-
+    
+    
     click.echo("Submitting Bulkrax import job:", nl=False)
     import_job_data = {
         "commit": "Create and Import",
@@ -426,6 +430,7 @@ def process(
             },
         },
     }
+    
     import_job_request = session.post(
         f"{hyrax_host}/importers",
         json=import_job_data,
@@ -433,9 +438,9 @@ def process(
             "Authorization": f"Token: {auth_token}",
         },
     )
+     
     import_job_request.raise_for_status()
     click.echo("Done")
-
     (
         completed_packages,
         crossref_et,
@@ -1034,9 +1039,13 @@ def post_import_processing(
     for package_data in hyrax_import_packages:
         click.echo(f"{package_data.name}: ")
         try:
+            
             package_data_with_url = add_url(
-                package_data, hyrax_host, public_hyrax_host
+                package_data, public_hyrax_host
             )
+            
+            
+            
             create_marc_record(package_data_with_url, marc_path)
             body_element.append(
                 create_dissertation_element(package_data_with_url)
@@ -1056,7 +1065,7 @@ def post_import_processing(
     return completed_packages, crossref_et, failure_log
 
 
-def add_url(package_data, hyrax_host, public_hyrax_host):
+def add_url(package_data, public_hyrax_host):
     for wait in range(30):
         sleep_time = wait * wait
         if sleep_time > 0:
@@ -1067,25 +1076,33 @@ def add_url(package_data, hyrax_host, public_hyrax_host):
                 "ignore", requests.packages.urllib3.exceptions.SecurityWarning
             )
             search_url = (
-                f"{hyrax_host}/catalog.json"
-                f"?f[source_tesim][]={package_data.source_identifier}"
+                f"{public_hyrax_host}/catalog.json"
+                f"?q=source_tesim:{package_data.source_identifier}"
             )
             click.echo(f"Checking {search_url} for ETD in Hyrax.")
             resp = requests.get(search_url)
+            
         if resp.status_code == 200:
-            json = resp.json()
-            for doc in json["response"]["docs"]:
-                if (
-                    "source_tesim" in doc
-                    and doc["source_tesim"][0]
-                    == package_data.source_identifier
-                ):
-                    work_id = doc["id"]
-                    package_data = dataclasses.replace(
-                        package_data,
-                        url=f"{public_hyrax_host}/concern/etds/{work_id}",
-                    )
-                    return package_data
+            json_data = resp.json()      
+            data = json_data.get("data", {})
+            if data:
+                for item in data:                    
+                    item_id = item.get("id")
+                    solr = Solr(SOLR_URL)                    
+                    solr_response = solr.search(f'id:{item_id}')
+                    if solr_response:
+                        for doc in solr_response.docs:
+                            source_tesim = doc.get("source_tesim", [])
+                            if package_data.source_identifier in source_tesim:                   
+                                package_data = dataclasses.replace(
+                                    package_data,
+                                    url=f"{public_hyrax_host}/concern/etds/{item_id}")    
+                    else:
+                        break
+            else:
+                print('Data not found yet retrying...')
+                continue
+            return package_data
 
         else:
             click.echo(
