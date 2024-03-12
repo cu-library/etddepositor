@@ -22,7 +22,7 @@ import requests.packages.urllib3.exceptions
 import yaml
 from pysolr import Solr
 
-# SWITCH THIS TO THE ENV VAR BEFORE PUSHING
+# Used in the add_url for solr access"
 SOLR_URL = os.environ.get("SOLR_URL")
 
 # SPLIT_PATTERN is used in the Hyrax CSV exports to delimit multiple values
@@ -416,8 +416,6 @@ def process(
         doi_start,
         mappings,
     )
-    
-    
     click.echo("Submitting Bulkrax import job:", nl=False)
     import_job_data = {
         "commit": "Create and Import",
@@ -430,7 +428,6 @@ def process(
             },
         },
     }
-    
     import_job_request = session.post(
         f"{hyrax_host}/importers",
         json=import_job_data,
@@ -438,7 +435,6 @@ def process(
             "Authorization": f"Token: {auth_token}",
         },
     )
-     
     import_job_request.raise_for_status()
     click.echo("Done")
     (
@@ -1039,13 +1035,9 @@ def post_import_processing(
     for package_data in hyrax_import_packages:
         click.echo(f"{package_data.name}: ")
         try:
-            
             package_data_with_url = add_url(
                 package_data, public_hyrax_host
             )
-            
-            
-            
             create_marc_record(package_data_with_url, marc_path)
             body_element.append(
                 create_dissertation_element(package_data_with_url)
