@@ -1353,7 +1353,7 @@ def create_csv_list(package_data, csv_file_path):
                 "Link to Thesis in Hyrax",
                 "PDF File",
                 "Supplemental File",
-                "Flagged Content"
+                "Flagged Content",
             ]
         )
 
@@ -1410,7 +1410,7 @@ def create_csv_list(package_data, csv_file_path):
                     link_to_thesis,
                     pdf_files,
                     zip_files,
-                    contents
+                    contents,
                 ]
             )
 
