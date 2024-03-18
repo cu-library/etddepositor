@@ -22,6 +22,7 @@ pyflakes==2.4.0
 pymarc==4.2.2
 pyparsing==3.0.9
 pytest==7.1.2
+pysolr==3.8.1
 PyYAML==6.0
 pysolr==3.8.1
 regex==2022.6.2
