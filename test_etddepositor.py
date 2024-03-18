@@ -2,7 +2,6 @@ import csv
 import xml.etree.ElementTree as ElementTree
 import pymarc
 import pytest
-from pysolr import Solr
 
 import etddepositor
 
