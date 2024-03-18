@@ -1035,9 +1035,7 @@ def post_import_processing(
     for package_data in hyrax_import_packages:
         click.echo(f"{package_data.name}: ")
         try:
-            package_data_with_url = add_url(
-                package_data, public_hyrax_host
-            )
+            package_data_with_url = add_url(package_data, public_hyrax_host)
             create_marc_record(package_data_with_url, marc_path)
             body_element.append(
                 create_dissertation_element(package_data_with_url)
@@ -1073,26 +1071,27 @@ def add_url(package_data, public_hyrax_host):
             )
             click.echo(f"Checking {search_url} for ETD in Hyrax.")
             resp = requests.get(search_url)
-            
+
         if resp.status_code == 200:
-            json_data = resp.json()      
+            json_data = resp.json()
             data = json_data.get("data", {})
             if data:
-                for item in data:                    
+                for item in data:
                     item_id = item.get("id")
-                    solr = Solr(SOLR_URL)                    
-                    solr_response = solr.search(f'id:{item_id}')
+                    solr = Solr(SOLR_URL)
+                    solr_response = solr.search(f"id:{item_id}")
                     if solr_response:
                         for doc in solr_response.docs:
                             source_tesim = doc.get("source_tesim", [])
-                            if package_data.source_identifier in source_tesim:                   
+                            if package_data.source_identifier in source_tesim:
                                 package_data = dataclasses.replace(
                                     package_data,
-                                    url=f"{public_hyrax_host}/concern/etds/{item_id}")    
+                                    url=f"{public_hyrax_host}/concern/etds/{item_id}",
+                                )
                     else:
                         break
             else:
-                print('Data not found yet retrying...')
+                print("Data not found yet retrying...")
                 continue
             return package_data
 
@@ -1362,7 +1361,7 @@ def create_csv_list(package_data, csv_file_path):
                 "Link to Thesis in Hyrax",
                 "PDF File",
                 "Supplemental File",
-                "Flagged Content"
+                "Flagged Content",
             ]
         )
 
@@ -1419,7 +1418,7 @@ def create_csv_list(package_data, csv_file_path):
                     link_to_thesis,
                     pdf_files,
                     zip_files,
-                    contents
+                    contents,
                 ]
             )
 
