@@ -1086,8 +1086,8 @@ def add_url(package_data, public_hyrax_host):
                             if package_data.source_identifier in source_tesim:
                                 package_data = dataclasses.replace(
                                     package_data,
-                                    url=f"{public_hyrax_host}" \
-                                        f"concern/etds/{item_id}",
+                                    url=f"{public_hyrax_host}"
+                                    f"concern/etds/{item_id}",
                                 )
                     else:
                         break
