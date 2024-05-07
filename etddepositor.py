@@ -1087,7 +1087,7 @@ def add_url(package_data, public_hyrax_host):
                                 package_data = dataclasses.replace(
                                     package_data,
                                     url=f"{public_hyrax_host}"
-                                    f"concern/etds/{item_id}",
+                                    f"/concern/etds/{item_id}",
                                 )
                     else:
                         break
