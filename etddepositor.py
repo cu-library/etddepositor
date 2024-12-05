@@ -1254,6 +1254,17 @@ def create_marc_record(package_data, marc_path):
     )
     record.add_field(
         pymarc.Field(
+            tag="500",
+            indicators=[" ", " "],
+            subfields=[
+                "a",
+                package_data.abstract
+            ],
+
+        )
+    )
+    record.add_field(
+        pymarc.Field(
             tag="502",
             indicators=[" ", " "],
             subfields=[
