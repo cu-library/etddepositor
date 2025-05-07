@@ -470,6 +470,76 @@ def create_thesis_metadata_xml(package_data, output_package_dir):
     except Exception as e:
         print(f"Error writing metadata_thesis.xml: {e}")
 
+def process_embargo_and_agreements(content_lines, mappings):
+    """Process the embargo and agreements metadata file.
+
+    The package's permissions metadata must state that the embargo period has
+    passed and that the student has signed the required agreements.
+
+    Return a list of identifiers to signed agreements.
+    """
+
+    # The list of identifiers (term ids).
+    agreements = []
+
+    for line in content_lines:
+        line = line.strip()
+        if line.startswith(("Student ID", "Thesis ID")):
+            continue
+        elif line.startswith("Embargo Expiry"):
+            current_date = datetime.date.today()
+            expiry_date = line.split(" ")[2]
+            embargo_date = embargo_string_to_datetime(expiry_date)
+            if current_date < embargo_date:
+                raise MetadataError(
+                    f"the embargo date of {embargo_date} has not passed"
+                )
+            continue
+        elif any(line.startswith(name) for name in mappings["agreements"]):
+            line_split = line.split("||")
+            if line_split[0] not in mappings["agreements"]:
+                raise MetadataError(f"{line} is invalid")
+            agreement = mappings["agreements"][line_split[0]]
+            signed = line_split[2] == "Y"
+            if agreement["required"] and not signed:
+                raise MetadataError(f"{line} is required but not signed")
+            if signed:
+                agreements.append(agreement["identifier"])
+            continue
+        raise MetadataError(
+            f"{line} was not expected in the permissions document"
+        )
+
+    return agreements
+
+
+def embargo_string_to_datetime(embargo):
+    """Return the date representation of the embargo."""
+
+    month_to_int = {
+        "JAN": "1",
+        "FEB": "2",
+        "MAR": "3",
+        "APR": "4",
+        "MAY": "5",
+        "JUN": "6",
+        "JUL": "7",
+        "AUG": "8",
+        "SEP": "9",
+        "OCT": "10",
+        "NOV": "11",
+        "DEC": "12",
+    }
+    embargo_split = embargo.split("-")
+    try:
+        month_number = month_to_int[embargo_split[1]]
+        formatted_date = (
+            f"{embargo_split[0]}/{month_number}/20{embargo_split[2]}"
+        )
+        return datetime.datetime.strptime(formatted_date, "%d/%m/%Y").date()
+    except (IndexError, ValueError):
+        raise MetadataError(f"embargo date {embargo} could not be processed")
+
 
 def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, mappings, dspace_saf_path):
 
@@ -507,9 +577,9 @@ def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, map
                 permissions_file_content = permissions_file.readlines()
 
             #TODO: come back later and re introduce this
-            #agreements = process_embargo_and_agreements(
-            #    permissions_file_content, mappings
-            #)
+            agreements = process_embargo_and_agreements(
+                permissions_file_content, mappings
+            )
             
             item_id = index + 1
             item_dir_name = f"item_{item_id:03d}"
