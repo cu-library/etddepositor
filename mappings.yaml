@@ -21,16 +21,16 @@ abbreviation:
   Masters of Social Work: M.S.W.
 agreements:
   Carleton University Thesis License Agreement:
-    identifier: "https://repository.library.carleton.ca/concern/works/pc289j04q"
+    identifier: "Carleton University Thesis License Agreement"
     required: true
   FIPPA:
-    identifier: "https://repository.library.carleton.ca/concern/works/zc77sq08x"
+    identifier: "FIPPA"
     required: true
   Academic Integrity Statement:
-    identifier: "https://repository.library.carleton.ca/concern/works/nv9352841"
+    identifier: "Academic Integrity Statement"
     required: true
   LAC Non-Exclusive License:
-    identifier: "https://repository.library.carleton.ca/concern/works/tt44pm84n"
+    identifier: "LAC Non-Exclusive License"
     required: false
 discipline:
   MA-07: Communication

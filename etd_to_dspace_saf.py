@@ -23,9 +23,8 @@ CROSSREF_SUBDIR = "crossref"
 CSV_REPORT_SUBDIR = "csv_report"
 DSPACE_SAF_OUTPUT_SUBDIR = "dspace_saf"
 NOT_COMPLETE_SUBDIR = "not_complete"
-ITEM_SUBDIR_PREFIX = "item_"
-DUBLIN_CORE_FILENAME = "dublin_core.xml"
-CONTENTS_FILENAME = "contents"
+LICENSE_SUBDIR = "license"
+
 NAMESPACES = {
     "dc": "http://purl.org/dc/elements/1.1/",
     "etdms": "http://www.ndltd.org/standards/metadata/etdms/1.1/",
@@ -107,6 +106,8 @@ def create_output_directories(processing_directory):
     crossref_path = os.path.join(processing_directory, CROSSREF_SUBDIR)
     csv_report_path = os.path.join(processing_directory, CSV_REPORT_SUBDIR)
     not_complete_path = os.path.join(processing_directory, NOT_COMPLETE_SUBDIR)
+    license_path = os.path.join(processing_directory, LICENSE_SUBDIR)
+
 
     os.makedirs(done_path, mode=0o770, exist_ok=True)
     os.makedirs(marc_path, mode=0o775, exist_ok=True)
@@ -114,8 +115,9 @@ def create_output_directories(processing_directory):
     os.makedirs(csv_report_path, mode=0o775, exist_ok=True)
     os.makedirs(dspace_saf_output_path, mode=0o775, exist_ok=True)
     os.makedirs(not_complete_path, mode=0o775, exist_ok=True)
+    os.makedirs(license_path, mode=0o775, exist_ok=True)
 
-    return done_path, marc_path, crossref_path, csv_report_path, dspace_saf_output_path
+    return done_path, marc_path, crossref_path, csv_report_path, dspace_saf_output_path, not_complete_path, license_path 
 
 def write_metadata_csv_header(metadata_csv_path):
     """Write the header columns to the Hyrax import metadata CSV file."""
@@ -360,7 +362,6 @@ def add_to_csv(metadata_csv_path, package_data):
         process_value(package_data.language),
         process_value(package_data.rights_notes),
         process_value(package_data.title),
-        process_value(package_data.agreements),
         #TODO: come back later as it will need special handling
         #process_value(package_data.subjects)
     ]
@@ -434,20 +435,23 @@ def copy_package_files(package_data, package_path, files_path):
     return (thesis_file_name,)
 
 def create_local_metadata_xml(package_data, output_package_dir):
-    root = ElementTree.Element("dublin_core", schema="thesis")
 
-    if package_data.agreement:
-        ElementTree.SubElement(root, "dcvalue", element="agreement", qualifier="name").text = package_data.agreement
+    root = ElementTree.Element("dublin_core", schema="local")
+    
+    if "LAC Non-Exclusive License" in package_data.agreements:
+        ElementTree.SubElement(root, "dcvalue", element="hasLACLicence", qualifier="none").text = "true"
+        xml_string = ElementTree.tostring(root, encoding="unicode")
+        xml_file_path = os.path.join(output_package_dir, "metadata_local.xml")
 
-    xml_string = ElementTree.tostring(root, encoding="unicode")
-    xml_file_path = os.path.join(output_package_dir, "metadata_local.xml")
-
-    try:
-        with open(xml_file_path, "w", encoding="utf-8") as f:
-            f.write(xml_string)
-        print(f"Created metadata_local.xml in: {xml_file_path}")
-    except Exception as e:
-        print(f"Error writing metadata_local.xml: {e}")
+        try:
+            with open(xml_file_path, "w", encoding="utf-8") as f:
+                f.write(xml_string)
+            print(f"Created metadata_local.xml in: {xml_file_path}")
+        except Exception as e:
+            print(f"Error writing metadata_local.xml: {e}")
+    else:
+        print(f"No LAC agreement signed")
+    
 
 def create_thesis_metadata_xml(package_data, output_package_dir):
     
@@ -470,8 +474,8 @@ def create_thesis_metadata_xml(package_data, output_package_dir):
     except Exception as e:
         print(f"Error writing metadata_thesis.xml: {e}")
 
-def process_embargo_and_agreements(content_lines, mappings):
-    """Process the embargo and agreements metadata file.
+def process_agreements(content_lines, mappings):
+    """Process the agreements metadata file.
 
     The package's permissions metadata must state that the embargo period has
     passed and that the student has signed the required agreements.
@@ -486,15 +490,6 @@ def process_embargo_and_agreements(content_lines, mappings):
         line = line.strip()
         if line.startswith(("Student ID", "Thesis ID")):
             continue
-        elif line.startswith("Embargo Expiry"):
-            current_date = datetime.date.today()
-            expiry_date = line.split(" ")[2]
-            embargo_date = embargo_string_to_datetime(expiry_date)
-            if current_date < embargo_date:
-                raise MetadataError(
-                    f"the embargo date of {embargo_date} has not passed"
-                )
-            continue
         elif any(line.startswith(name) for name in mappings["agreements"]):
             line_split = line.split("||")
             if line_split[0] not in mappings["agreements"]:
@@ -505,43 +500,44 @@ def process_embargo_and_agreements(content_lines, mappings):
                 raise MetadataError(f"{line} is required but not signed")
             if signed:
                 agreements.append(agreement["identifier"])
-            continue
+                continue
+            else:
+                print(f"LAC agreement not signed")
+                continue
         raise MetadataError(
             f"{line} was not expected in the permissions document"
         )
 
     return agreements
 
-
-def embargo_string_to_datetime(embargo):
-    """Return the date representation of the embargo."""
-
-    month_to_int = {
-        "JAN": "1",
-        "FEB": "2",
-        "MAR": "3",
-        "APR": "4",
-        "MAY": "5",
-        "JUN": "6",
-        "JUL": "7",
-        "AUG": "8",
-        "SEP": "9",
-        "OCT": "10",
-        "NOV": "11",
-        "DEC": "12",
+def create_agreements(package_data, item_output_dir, license_path):
+    required_agreements = {
+        "Carleton University Thesis License Agreement": "license.txt",
+        "FIPPA": "fippa_statement.txt",
+        "Academic Integrity Statement": "academic_integrity_statement.txt"
     }
-    embargo_split = embargo.split("-")
-    try:
-        month_number = month_to_int[embargo_split[1]]
-        formatted_date = (
-            f"{embargo_split[0]}/{month_number}/20{embargo_split[2]}"
-        )
-        return datetime.datetime.strptime(formatted_date, "%d/%m/%Y").date()
-    except (IndexError, ValueError):
-        raise MetadataError(f"embargo date {embargo} could not be processed")
 
+    missing = [
+        name for name in required_agreements
+        if name not in package_data.agreements
+    ]
 
-def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, mappings, dspace_saf_path):
+    if missing:
+        print(f"Skipping item: missing required agreement(s): {', '.join(missing)}")
+        return False  
+
+    # All required agreements are signed, copy their respective files
+    for agreement_name, filename in required_agreements.items():
+        src = os.path.join(license_path, filename)  
+        dst = os.path.join(item_output_dir, filename)
+        shutil.copyfile(src, dst)
+
+    return True
+        
+    
+
+def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, mappings, dspace_saf_path, license_path):
+
 
     output_path = "/home/manfred/etddepositor/dspace-csv-archive/output/"
     
@@ -576,11 +572,10 @@ def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, map
             ) as permissions_file:
                 permissions_file_content = permissions_file.readlines()
 
-            #TODO: come back later and re introduce this
-            agreements = process_embargo_and_agreements(
+            agreements = process_agreements(
                 permissions_file_content, mappings
             )
-            
+                        
             item_id = index + 1
             item_dir_name = f"item_{item_id:03d}"
             item_output_dir = os.path.join(output_path, item_dir_name)
@@ -595,15 +590,18 @@ def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, map
             )
 
             package_metadata_xml = ElementTree.parse(package_metadata_xml_path)
-            agreements = True
+            
 
             package_data = create_package_data(package_metadata_xml, name, doi_ident, agreements, package_path, mappings)
-            package_data.package_files = copy_package_files(
-                package_data, package_path, dspace_saf_path
-            )
+            package_data.package_files = copy_package_files(package_data, package_path, dspace_saf_path)
 
             add_to_csv(metadata_csv_path, package_data)
             create_thesis_metadata_xml(package_data, item_output_dir)
+            create_local_metadata_xml(package_data, item_output_dir)
+            create_agreements(package_data, item_output_dir, license_path)
+
+
+            
             
         except ElementTree.ParseError as e:
             err_msg = f"Error parsing XML, {e}."
@@ -617,7 +615,6 @@ def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, map
             click.echo(err_msg)
         else:
             doi_ident += 1
-            print('we go there')
             #hyrax_import_packages.append(package_data)
             click.echo("Done")
 
@@ -645,7 +642,7 @@ def process(base_directory, doi_start, invalid_ok, mapping_file):
 
     # Validate subject mappings
     validate_subject_mappings(mappings)
-    done_path, marc_path, crossref_path, csv_report_path, dspace_saf_output_path = create_output_directories(processing_directory)
+    done_path, marc_path, crossref_path, csv_report_path, dspace_saf_output_path, not_complete_path, license_path = create_output_directories(processing_directory)
 
     # Find packages in the ready directory
     packages = find_etd_packages(processing_directory)
@@ -653,16 +650,16 @@ def process(base_directory, doi_start, invalid_ok, mapping_file):
 
     if not packages:
         click.echo("No packages found. Exiting.")
-        #TODO remove this eventually
-        #return
+        return
     
     #click.echo(f"Outputting DSpace SAF to: {dspace_saf_output_path}")
 
     #TODO: YOU ARE STEALING THIS FROM CSV_REPORT YOU'LL NEED TO MAKE ANOTHER
     metadata_csv_path = os.path.join(dspace_saf_output_path, "metadata.csv")
+
     write_metadata_csv_header(metadata_csv_path)
 
-    create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, mappings, dspace_saf_output_path)
+    create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, mappings, dspace_saf_output_path, license_path)
  
 
     click.echo("ETD processing complete.")
