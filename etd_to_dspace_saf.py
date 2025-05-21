@@ -10,12 +10,20 @@ import bagit
 import dataclasses
 import string
 from typing import List
-import ast
+import smtplib
 from xml.etree import ElementTree
 from xml.dom import minidom
 import subprocess
+import time
+import pymarc
+import requests
+import textwrap
+
+API_BASE = "https://carleton-dev.scholaris.ca/server/api"
+DSPACE_BASE_URL = "https://carleton-dev.scholaris.ca"
 
 
+POSTBACK_TMP_SUBDIR_PATH = "/home/manfred/etddepositor/processing_dir/postback_tmp"
 READY_SUBDIR = "ready"
 DONE_SUBDIR = "done"
 MARC_SUBDIR = "marc"
@@ -24,6 +32,7 @@ CSV_REPORT_SUBDIR = "csv_report"
 DSPACE_SAF_OUTPUT_SUBDIR = "dspace_saf"
 NOT_COMPLETE_SUBDIR = "not_complete"
 LICENSE_SUBDIR = "license"
+MAPPING_SUBDIR = "mapping"
 
 NAMESPACES = {
     "dc": "http://purl.org/dc/elements/1.1/",
@@ -49,12 +58,88 @@ PackageData = dataclasses.make_dataclass(
         "degree",
         "degree_discipline",
         "degree_level", 
+        "url",
+        "student_id",
     ],
 )
+class DSpaceSession(requests.Session):
+    def __init__(self, api_base):
+        super().__init__()
+        self.api_base = api_base
+        self.auth_token = None
+        self.last_auth_time = None
+        self.csrf_token = None
+        self.fetch_initial_csrf_token()
+
+    def fetch_initial_csrf_token(self):
+        response = super().get(f"{self.api_base}/security/csrf")
+        response.raise_for_status()
+        self.headers.update(response)
+
+    def authenticate(self, user, password):
+        login_payload = {"user": user, "password": password}
+        try:
+            response = self.post(f"{self.api_base}/authn/login", data=login_payload)
+            response.raise_for_status()
+            self.update_csrf_token(response)
+
+            self.auth_token = response.headers.get("Authorization")
+            if self.auth_token:
+                self.headers.update({"Authorization": self.auth_token})
+                self.last_auth_time = time.time()
+
+        except requests.exceptions.HTTPError as e:
+            print(f"HTTP error during authentication for user {user}: {e}")
+            print(f"Response content: {response.text}")
+
+        except requests.exceptions.RequestException as e:
+            print(f"Request error during authentication for user {user}: {e}")
+
+        except Exception as e:
+            print(f"Unexpected error during authentication for user {user}: {e}")
+
+    def refresh_csrf_token(self):
+        response = super().get(f"{self.api_base}/security/csrf")
+        response.raise_for_status()
+        self.update_csrf_token(response)
+
+    def ensure_auth_valid(self, user, password):
+        if self.auth_token and (time.time() - self.last_auth_time > 1800):
+            self.authenticate(user, password)        
+
+    def update_csrf_token(self, response):
+        if "dspace-xsrf-token" in response.headers:
+            self.csrf_token = response.headers["DSPACE-XSRF-TOKEN"]
+            self.headers.update({"X-XSRF-TOKEN": self.csrf_token})
+
+    def request(self, method, url, **kwargs):
+        try:
+            response = super().request(method, url, **kwargs)
+            response.raise_for_status()
+            self.update_csrf_token(response)
+            print(f"Successful {method} request to {url}")  
+            return response
+
+        except requests.exceptions.HTTPError as e:
+            print(f"HTTP error during {method} request to {url}: {e}")
+            print(f"Response content: {response.text}")  
+
+        except requests.exceptions.RequestException as e:
+            print(f"Request error during {method} request to {url}: {e}")
+
+        except Exception as e:
+            print(f"Unexpected error during {method} request to {url}: {e}")
+
+    def safe_request(self, method, url, **kwargs):
+        return self.request(method, url, **kwargs)
+
 
 # DOI_PREFIX is Carleton University Library's DOI prefix, used when minting new
 # DOIs for ETDs.
 DOI_PREFIX = "10.22215"
+
+# DOI_URL_PREFIX is the prefix to add to DOIs to make them resolvable.
+DOI_URL_PREFIX = "https://doi.org/"
 
 # FLAG is a string which we assign to some attributes of the package
 # if our mapping for that attribute is incomplete or unknowable.
@@ -107,6 +192,7 @@ def create_output_directories(processing_directory):
     csv_report_path = os.path.join(processing_directory, CSV_REPORT_SUBDIR)
     not_complete_path = os.path.join(processing_directory, NOT_COMPLETE_SUBDIR)
     license_path = os.path.join(processing_directory, LICENSE_SUBDIR)
+    mapping_path = os.path.join(processing_directory, MAPPING_SUBDIR)
 
 
     os.makedirs(done_path, mode=0o770, exist_ok=True)
@@ -116,8 +202,10 @@ def create_output_directories(processing_directory):
     os.makedirs(dspace_saf_output_path, mode=0o775, exist_ok=True)
     os.makedirs(not_complete_path, mode=0o775, exist_ok=True)
     os.makedirs(license_path, mode=0o775, exist_ok=True)
+    os.makedirs(mapping_path, mode=0o775, exist_ok=True)
 
-    return done_path, marc_path, crossref_path, csv_report_path, dspace_saf_output_path, not_complete_path, license_path 
+
+    return done_path, marc_path, crossref_path, csv_report_path, dspace_saf_output_path, not_complete_path, license_path, mapping_path 
 
 def write_metadata_csv_header(metadata_csv_path):
     """Write the header columns to the Hyrax import metadata CSV file."""
@@ -133,7 +221,7 @@ def write_metadata_csv_header(metadata_csv_path):
         "dc.language.iso",
         "dc.rights",
         "dc.title",
-        "dc.subject.lcsh"
+        "dc.subject.lcsh",
     ]
 
     with open(
@@ -142,7 +230,6 @@ def write_metadata_csv_header(metadata_csv_path):
         csv_writer = csv.writer(metadata_csv_file)
 
         csv_writer.writerow(header_columns)
-
 
 def process_subjects(subject_elements, mappings):
     subjects = []
@@ -155,7 +242,9 @@ def process_subjects(subject_elements, mappings):
     for subject in subjects:
         if subject not in deduplicated_subjects:
             deduplicated_subjects.append(subject)
-    return deduplicated_subjects
+
+    subject_values = [entry[1] for entry in deduplicated_subjects if len(entry) > 1]
+    return subject_values
 
 def process_description(description):
     return description.replace("\n", " ").replace("\r", "").strip()
@@ -224,11 +313,15 @@ def process_degree_level(level):
     if level == "0":
         raise MetadataError("received undergraduate work, degree level is 0")
     if level != "1" and level != "2":
-        raise MetadataError("invalid degree level")
+        raise MetadataError("invalid degree level")    
+    if level == "1":
+        level = "Master's"
+    elif level == "2":
+        level = "Doctoral"
     return level
 
 def create_package_data(
-    package_metadata_xml, name, doi_ident, agreements, package_path, mappings
+    package_metadata_xml, student_id, doi_ident, agreements, package_path, mappings
 ):
     """Extract the package data from the package XML."""
 
@@ -275,7 +368,8 @@ def create_package_data(
     )
     degree = process_degree(degree)
 
-    abbreviation = process_degree_abbreviation(degree, mappings)
+    #TODO: I think you need this still for the marc subject problem
+    #abbreviation = process_degree_abbreviation(degree, mappings)
 
     rights_notes = root.findtext(
         "dc:rights_notes", default="", namespaces=NAMESPACES
@@ -325,6 +419,9 @@ def create_package_data(
         degree=degree,
         degree_discipline=discipline,
         degree_level=level,
+        url="",
+        student_id=student_id,
+
     )
 
 def process_value(value):
@@ -362,8 +459,7 @@ def add_to_csv(metadata_csv_path, package_data):
         process_value(package_data.language),
         process_value(package_data.rights_notes),
         process_value(package_data.title),
-        #TODO: come back later as it will need special handling
-        #process_value(package_data.subjects)
+        process_value(package_data.subjects)
     ]
 
     with open(
@@ -394,7 +490,7 @@ def copy_thesis_pdf(package_data, package_path, files_path):
     # The first part is the creator name, simplified.
     dest_file_name = (
         package_data.creator.lower().replace(" ", "-").replace(",", "-")
-    )
+    ) 
 
     # Add the double hyphen delimiter.
     dest_file_name += "--"
@@ -534,13 +630,12 @@ def create_agreements(package_data, item_output_dir, license_path):
 
     return True
         
-    
 
 def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, mappings, dspace_saf_path, license_path):
 
-
     output_path = "/home/manfred/etddepositor/dspace-csv-archive/output/"
     
+    dspace_import_packages = []
     # A list of packages which failed during processing.
     failure_log: List[str] = []
 
@@ -549,15 +644,15 @@ def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, map
     
     click.echo(f"Processing {len(packages)} packages to create Hyrax import.")
     for index, package_path in enumerate(packages):
-        name = os.path.basename(package_path)
+        student_id = os.path.basename(package_path)
         
-        click.echo(f"{name}: ", nl=False)
+        click.echo(f"{student_id}: ", nl=False)
 
         # Is the BagIt container valid? This will catch bit-rot errors early.
         if not bagit.Bag(package_path).is_valid() and not invalid_ok:
             err_msg = "Invalid BagIt."
             click.echo(err_msg)
-            #failure_log.append(f"{name}: {err_msg}")
+            failure_log.append(f"{student_id}: {err_msg}")
             continue
         try:
             
@@ -565,7 +660,7 @@ def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, map
                 package_path,
                 "data",
                 "meta",
-                f"{name}_permissions_meta.txt",
+                f"{student_id}_permissions_meta.txt",
             )
             with open(
                 permissions_path, "r", encoding="utf-8"
@@ -586,13 +681,13 @@ def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, map
             #os.makedirs(dspace_path, mode=0o770, exist_ok=True)
 
             package_metadata_xml_path = os.path.join(
-                package_path, "data", "meta", f"{name}_etdms_meta.xml"
+                package_path, "data", "meta", f"{student_id}_etdms_meta.xml"
             )
 
             package_metadata_xml = ElementTree.parse(package_metadata_xml_path)
             
 
-            package_data = create_package_data(package_metadata_xml, name, doi_ident, agreements, package_path, mappings)
+            package_data = create_package_data(package_metadata_xml, student_id, doi_ident, agreements, package_path, mappings)
             package_data.package_files = copy_package_files(package_data, package_path, dspace_saf_path)
 
             add_to_csv(metadata_csv_path, package_data)
@@ -600,9 +695,8 @@ def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, map
             create_local_metadata_xml(package_data, item_output_dir)
             create_agreements(package_data, item_output_dir, license_path)
 
+            
 
-            
-            
         except ElementTree.ParseError as e:
             err_msg = f"Error parsing XML, {e}."
             click.echo(err_msg)
@@ -615,8 +709,617 @@ def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, map
             click.echo(err_msg)
         else:
             doi_ident += 1
-            #hyrax_import_packages.append(package_data)
+            dspace_import_packages.append(package_data)
             click.echo("Done")
+
+    return dspace_import_packages, failure_log
+
+def create_crossref_etree():
+    doi_batch = ElementTree.Element(
+        "doi_batch",
+        attrib={
+            "version": "4.4.1",
+            "xmlns": "http://www.crossref.org/schema/4.4.1",
+            "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+            "xsi:schemaLocation": (
+                "http://www.crossref.org/schema/4.4.1 "
+                "http://www.crossref.org/schemas/crossref4.4.1.xsd"
+            ),
+        },
+    )
+
+    head = ElementTree.SubElement(doi_batch, "head")
+    doi_batch_id = ElementTree.SubElement(head, "doi_batch_id")
+    doi_batch_id.text = str(int(time.time()))
+    timestamp = ElementTree.SubElement(head, "timestamp")
+    timestamp.text = f"{time.time()*1e7:.0f}"
+
+    depositor = ElementTree.SubElement(head, "depositor")
+    depositor_name = ElementTree.SubElement(depositor, "depositor_name")
+    depositor_name.text = "Carleton University Library"
+    email_address = ElementTree.SubElement(depositor, "email_address")
+    email_address.text = "doi@library.carleton.ca"
+
+    registrant = ElementTree.SubElement(head, "registrant")
+    registrant.text = "Carleton University"
+    body = ElementTree.SubElement(doi_batch, "body")
+
+    tree = ElementTree.ElementTree(doi_batch)
+    return tree, body
+
+def create_marc_record(package_data, marc_path):
+    """
+    Create a MARC encoded record for an ETD package
+    """
+    subtitle = ""
+
+    if ":" in package_data.title:
+        split_title = package_data.title.split(":", 1)
+        processed_title = split_title[0].strip() + " :"
+        subtitle = split_title[1].strip()
+        if subtitle[-1] != ".":
+            subtitle = subtitle + "."
+    else:
+        processed_title = package_data.title.strip()
+        if processed_title[-1] != ".":
+            processed_title = processed_title + "."
+
+    title_field = pymarc.Field(
+        tag="245",
+        indicators=["1", "0"],
+        subfields=[
+            "a",
+            processed_title,
+        ],
+    )
+
+    if subtitle != "":
+        title_field.add_subfield("b", subtitle)
+
+    processed_author = package_data.creator.strip()
+    if processed_author[-1] != "-":
+        processed_author = processed_author + ","
+
+    today = datetime.date.today()
+
+    record = pymarc.Record(force_utf8=True, leader="     nam a22     4i 4500")
+    record.add_field(
+        pymarc.Field(
+            tag="006",
+            data="m     o  d        ",
+        )
+    )
+    record.add_field(
+        pymarc.Field(
+            tag="007",
+            data="cr || ||||||||",
+        )
+    )
+
+    #pub_year = str(package_data.year).ljust(4)[:4]
+    record.add_field(
+        pymarc.Field(
+            tag="008",
+            data="{}s{}    onca||||omb|| 000|0 eng d".format(
+                today.strftime("%y%m%d"), package_data.date
+            ),
+        )
+    )
+    record.add_field(
+        pymarc.Field(
+            tag="040",
+            indicators=[" ", " "],
+            subfields=[
+                "a",
+                "CaOOCC",
+                "b",
+                "eng",
+                "e",
+                "rda",
+                "c",
+                "CaOOCC",
+            ],
+        )
+    )
+    record.add_field(
+        pymarc.Field(
+            tag="100",
+            indicators=["1", " "],
+            subfields=[
+                "a",
+                processed_author,
+                "e",
+                "author.",
+            ],
+        )
+    )
+    record.add_field(title_field)
+    record.add_field(
+        pymarc.Field(
+            tag="264",
+            indicators=[" ", "1"],
+            subfields=["a", "Ottawa,", "c", package_data.date],
+        )
+    )
+    record.add_field(
+        pymarc.Field(
+            tag="264",
+            indicators=[" ", "4"],
+            subfields=["c", "\u00A9" + package_data.date],
+        )
+    )
+    record.add_field(
+        pymarc.Field(
+            tag="300",
+            indicators=[" ", " "],
+            subfields=["a", "1 online resource :", "b", "illustrations"],
+        )
+    )
+    record.add_field(
+        pymarc.Field(
+            tag="336",
+            indicators=[" ", " "],
+            subfields=[
+                "a",
+                "text",
+                "b",
+                "txt",
+                "2",
+                "rdacontent",
+            ],
+        )
+    )
+    record.add_field(
+        pymarc.Field(
+            tag="337",
+            indicators=[" ", " "],
+            subfields=[
+                "a",
+                "computer",
+                "b",
+                "c",
+                "2",
+                "rdamedia",
+            ],
+        )
+    )
+    record.add_field(
+        pymarc.Field(
+            tag="338",
+            indicators=[" ", " "],
+            subfields=[
+                "a",
+                "online resource",
+                "b",
+                "cr",
+                "2",
+                "rdacarrier",
+            ],
+        )
+    )
+    record.add_field(
+        pymarc.Field(
+            tag="500",
+            indicators=[" ", " "],
+            subfields=[
+                "a",
+                package_data.description
+            ],
+
+        )
+    )
+    record.add_field(
+        pymarc.Field(
+            tag="502",
+            indicators=[" ", " "],
+            subfields=[
+                "a",
+                "Thesis ("
+                + package_data.degree
+                + ") - Carleton University, "
+                + package_data.date
+                + ".",
+            ],
+        )
+    )
+    record.add_field(
+        pymarc.Field(
+            tag="504",
+            indicators=[" ", " "],
+            subfields=["a", "Includes bibliographical references."],
+        )
+    )
+    record.add_field(
+        pymarc.Field(
+            tag="540",
+            indicators=[" ", " "],
+            subfields=[
+                "a",
+                (
+                    "Licensed through author open access agreement. "
+                    "Commercial use prohibited without author's consent."
+                ),
+            ],
+        )
+    )
+    record.add_field(
+        pymarc.Field(
+            tag="591",
+            indicators=[" ", " "],
+            subfields=["a", "e-thesis deposit", "9", "LOCAL"],
+        )
+    )
+    for subject_tags in package_data.subjects:
+        if isinstance(subject_tags, list) and len(subject_tags) % 2 == 0:
+            record.add_field(
+                pymarc.Field(tag="650", indicators=[" ", "0"], subfields=subject_tags)
+            )
+        else:
+            print(f"Invalid subject_tags: {subject_tags}")
+    record.add_field(
+        pymarc.Field(
+            tag="710",
+            indicators=["2", " "],
+            subfields=[
+                "a",
+                "Carleton University.",
+                "k",
+                "Theses and Dissertations.",
+                "g",
+                package_data.degree_discipline + ".",
+            ],
+        )
+    )
+    record.add_field(
+        pymarc.Field(
+            tag="856",
+            indicators=["4", "0"],
+            subfields=[
+                "u",
+                f"{DOI_URL_PREFIX}{package_data.doi}",
+                "z",
+                (
+                    "Free Access "
+                    "(Carleton University Institutional Repository Full Text)"
+                ),
+            ],
+        )
+    )
+    record.add_field(
+        pymarc.Field(
+            tag="979",
+            indicators=[" ", " "],
+            subfields=[
+                "a",
+                "MARC file generated {} on ETD Depositor".format(
+                    today.isoformat()
+                ),
+                "9",
+                "LOCAL",
+            ],
+        )
+    )
+
+    with open(
+        os.path.join(marc_path, package_data.student_id + "_marc.mrc"), "wb"
+    ) as marc_file:
+        marc_file.write(record.as_marc())
+
+def resolve_handle_to_uuid(session, handle):
+    
+    handle_url = f"{session.api_base.replace('/server/api', '')}/handle/{handle}"
+    response = session.safe_request("GET", handle_url, allow_redirects=True)
+    response.raise_for_status()
+    if response.status_code == 200:
+        url = response.url
+        
+        if url:
+            return url
+        else:
+            raise ValueError(f"UUID not found in redirect for handle: {handle}")
+    else:
+        raise ValueError(f"Unexpected status code {response.status_code} for handle: {handle}")
+    
+def build_uuid_map(mapfile_path, session):
+    uuid_map = {}
+    with open(mapfile_path, "r") as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) == 2:
+                item_name, handle = parts
+                try:
+                    uuid = resolve_handle_to_uuid(session, handle)
+                    uuid_map[item_name] = uuid
+                except Exception as e:
+                    print(f"Failed to resolve {handle}: {e}")
+    return uuid_map
+
+def add_url(session, package_data, item_url_map):
+  
+
+    for item_key, item_url in list(item_url_map.items()):
+        try:
+            uuid = item_url.split("/")[-1]
+            item_metadata_endpoint = f"{API_BASE}/core/items/{uuid}"
+            response = session.safe_request("GET", item_metadata_endpoint)
+            response.raise_for_status()
+            metadata = response.json()
+
+            
+            title = metadata["name"]
+
+            if package_data.title in title:
+                
+                updated_data = dataclasses.replace(package_data, url=item_url)
+                
+                del item_url_map[item_key]
+                return updated_data
+
+        except requests.RequestException as e:
+            print(f"Error accessing {item_url}: {e}")
+            continue
+
+    raise Exception(f"No matching URL found for package: {package_data.title}")
+
+def post_import_processing(session, user_email, user_password, dspace_import_packages, post_import_path, marc_path, base_url="https://carleton-dev.scholaris.ca"):
+
+    session.authenticate(user_email, user_password)
+
+
+    mapfile_path = os.path.join(post_import_path, "mapfile")
+
+    click.echo("\nWaitin for mapfile to be ready")
+    click.prompt("Press Enter once DSpace ingest is complete and mapfile exists", default="", show_default=False)
+
+    if not os.path.exists(mapfile_path):
+        raise FileNotFoundError(f"Expected mapfile at {mapfile_path}, but it does not exist.")
+
+     # Load handle mappings from mapfile
+    uuid_map = build_uuid_map(mapfile_path, session)
+
+    for item, url in uuid_map.items():
+        print(f"{item} -> {url}")
+
+    click.echo(f"Found {len(mapfile_path)} handles in mapfile.")
+    
+    # Package data for packages which have been successfully imported
+    # into Hyrax.
+    completed_packages = []
+
+    # Create the ElementTree and body element which will be used to create the
+    # Crossref XML.
+    crossref_et, body_element = create_crossref_etree()
+
+    # A list of packages which failed during processing.
+    failure_log: List[str] = []
+
+    click.echo(
+        f"Post-import processing for {len(dspace_import_packages)} packages."
+    )
+
+    for package_data in dspace_import_packages:
+        click.echo(f"{package_data.title}: ")
+        try:
+            package_data_with_url = add_url(session, package_data, uuid_map)
+            create_marc_record(package_data_with_url, marc_path)
+            body_element.append(
+                create_dissertation_element(package_data_with_url)
+            )
+        except GetURLFailedError:
+            err_msg = "Link not found in Hyrax."
+            click.echo(err_msg)
+            failure_log.append(f"{package_data.student_id}: {err_msg}")
+        except pymarc.exceptions.PymarcException as e:
+            err_msg = f"MARC error {e}"
+            click.echo(err_msg)
+            failure_log.append(f"{package_data.student_id}: {err_msg}")
+        else:
+            completed_packages.append(package_data_with_url)
+            click.echo("Done")
+
+    return completed_packages, crossref_et, failure_log
+
+def create_dissertation_element(package_data):
+    dissertation = ElementTree.Element("dissertation")
+
+    person_name = ElementTree.SubElement(
+        dissertation,
+        "person_name",
+        attrib={"contributor_role": "author", "sequence": "first"},
+    )
+    # Unfortunately, Crossref still expects first and last name.
+    split_name = package_data.creator.split(",")
+    surname_text = split_name[0].strip()
+    if len(split_name) == 2:
+        given_name_text = split_name[1].strip()
+    else:
+        given_name_text = ""
+    given_name = ElementTree.SubElement(person_name, "given_name")
+    given_name.text = given_name_text
+    surname = ElementTree.SubElement(person_name, "surname")
+    surname.text = surname_text
+
+    titles = ElementTree.SubElement(dissertation, "titles")
+    title = ElementTree.SubElement(titles, "title")
+    title.text = package_data.title
+
+    approval_date = ElementTree.SubElement(
+        dissertation, "approval_date", attrib={"media_type": "online"}
+    )
+    year = ElementTree.SubElement(approval_date, "year")
+    year.text = package_data.date
+
+    institution = ElementTree.SubElement(dissertation, "institution")
+    institution_name = ElementTree.SubElement(institution, "institution_name")
+    institution_name.text = "Carleton University"
+    institution_place = ElementTree.SubElement(
+        institution, "institution_place"
+    )
+    institution_place.text = "Ottawa, Ontario"
+
+    degree = ElementTree.SubElement(dissertation, "degree")
+    degree.text = package_data.degree
+
+    doi_data = ElementTree.SubElement(dissertation, "doi_data")
+    doi = ElementTree.SubElement(doi_data, "doi")
+    doi.text = package_data.doi
+    resource = ElementTree.SubElement(doi_data, "resource")
+    resource.text = package_data.url
+
+    return dissertation
+
+def create_csv_list(package_data, csv_file_path):
+
+    with open(csv_file_path, mode="w", newline="") as file:
+        writer = csv.writer(file)
+
+        writer.writerow(
+            [
+                "Author Name",
+                "Package File Name",
+                "Date Processed",
+                "Link to Thesis in DSpace",
+                "PDF File",
+                "Supplemental File",
+                "Flagged Content",
+            ]
+        )
+
+        for data in package_data:
+            contents = ""
+            author_name = data.creator
+            abbreviation = data.degree
+            discipline = data.degree_discipline
+            package_file_name = data.student_id
+            abstract = data.description
+            creator = data.creator
+            title = data.title
+            contributors = data.contributors
+            date_processed = datetime.datetime.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            degree = data.degree
+            if degree is FLAG:
+                contents += " Degree is flagged."
+            if abbreviation is FLAG:
+                contents += " Degree abbreviation is flagged."
+            if discipline is FLAG:
+                contents += " Degree discipline is flagged."
+            if "$" in abstract:
+                contents += " Abstract contains '$', LaTeX codes?"
+            if "\\" in abstract:
+                contents += " Abstract contains '\\', LaTeX codes?"
+            if "\uFFFD" in title:
+                contents += " Title contains replacement character."
+            if "\uFFFD" in creator:
+                contents += " Creator contains replacement character."
+            if "\uFFFD" in abstract:
+                contents += " Abstract contains replacement character."
+            if "\uFFFD" in str(contributors):
+                contents += " Contributors contains replacement character."
+
+            link_to_thesis = data.url
+            package_files = data.package_files
+            pdf_files = ""
+            zip_files = ""
+            if len(package_files) > 0:
+                pdf_files = ", ".join(
+                    [file for file in package_files if file.endswith(".pdf")]
+                )
+                zip_files = ", ".join(
+                    [file for file in package_files if file.endswith(".zip")]
+                )
+
+            writer.writerow(
+                [
+                    author_name,
+                    package_file_name,
+                    date_processed,
+                    link_to_thesis,
+                    pdf_files,
+                    zip_files,
+                    contents,
+                ]
+            )
+
+    click.echo("Ingest list created successfully.")
+
+def send_email_report(
+    completed_packages,
+    failure_log,
+    marc_archive_path,
+    crossref_file_path,
+    csv_file_path,
+    smtp_host,
+    smtp_port,
+    email_from,
+    email_to,
+):
+    """Send the email report of completed and failed packages.
+
+    This function also attaches the MARC archive and Crossref file."""
+
+    from email.message import EmailMessage
+
+    msg = EmailMessage()
+
+    msg["From"] = email_from
+    msg["To"] = email_to
+    msg["Subject"] = (
+        f"ETD Depositor Report - {len(completed_packages)} processed, "
+        f"{len(failure_log)} failed"
+    )
+
+    contents = (
+        "ETD Depository Report - Run on "
+        f"{datetime.date.today().isoformat()}.\n\n"
+    )
+    contents += f"{len(completed_packages)} completed packages.\n"
+    for package_data in completed_packages:
+        short_title = textwrap.shorten(
+            package_data.title, 40, placeholder="..."
+        )
+        contents += (
+            f"{package_data.creator} - {short_title} {package_data.url}"
+        )
+        contents += "\n"
+    contents += "\n"
+    contents += f"{len(failure_log)} failed packages.\n"
+    for line in failure_log:
+        contents += f"{line}\n"
+
+    msg.set_content(contents)
+
+    with open(marc_archive_path, "rb") as marc_archive_file:
+        marc_archive_data = marc_archive_file.read()
+    msg.add_attachment(
+        marc_archive_data,
+        maintype="application",
+        subtype="zip",
+        filename=os.path.basename(marc_archive_path),
+    )
+
+    with open(crossref_file_path, "rb") as crossref_file:
+        crossref_file_data = crossref_file.read()
+    msg.add_attachment(
+        crossref_file_data,
+        maintype="application",
+        subtype="xml",
+        filename=os.path.basename(crossref_file_path),
+    )
+    with open(csv_file_path, "rb") as ingest_list_file:
+
+        ingest_list_data = ingest_list_file.read()
+    msg.add_attachment(
+        ingest_list_data,
+        maintype="application",
+        subtype="csv",
+        filename=os.path.basename(csv_file_path),
+    )
+
+    server = smtplib.SMTP(smtp_host, smtp_port)
+    server.send_message(msg)
+    server.quit()
 
 @click.command()
 @click.argument('base_directory')
@@ -629,7 +1332,16 @@ def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, map
     required=True,
     help="The starting number of the incrementing part of the generated DOIs.",
 )
-def process(base_directory, doi_start, invalid_ok, mapping_file):
+@click.option("--user-email", required=True, help=("The DSpace user email."))
+@click.option(
+    "--user-password",
+    prompt=True,
+    hide_input=True,
+    confirmation_prompt=True,
+    help=("The DSpace user password."),
+)
+@click.option("--smtp-port", type=int, default=25, required=True)
+def process(base_directory, doi_start, invalid_ok, mapping_file, user_email, user_password, smtp_port):
     
     click.echo("Starting ETD processing...")
 
@@ -638,11 +1350,17 @@ def process(base_directory, doi_start, invalid_ok, mapping_file):
     # Load mappings
     mappings = load_mappings(mapping_file)
     if not mappings:
-        return
+       return
+    
 
     # Validate subject mappings
     validate_subject_mappings(mappings)
-    done_path, marc_path, crossref_path, csv_report_path, dspace_saf_output_path, not_complete_path, license_path = create_output_directories(processing_directory)
+    (
+        done_path, marc_path, 
+        crossref_path, csv_report_path, dspace_saf_output_path, 
+        not_complete_path, license_path, mapping_path,) = create_output_directories(
+        processing_directory
+    )
 
     # Find packages in the ready directory
     packages = find_etd_packages(processing_directory)
@@ -651,18 +1369,92 @@ def process(base_directory, doi_start, invalid_ok, mapping_file):
     if not packages:
         click.echo("No packages found. Exiting.")
         return
-    
+     
     #click.echo(f"Outputting DSpace SAF to: {dspace_saf_output_path}")
 
-    #TODO: YOU ARE STEALING THIS FROM CSV_REPORT YOU'LL NEED TO MAKE ANOTHER
     metadata_csv_path = os.path.join(dspace_saf_output_path, "metadata.csv")
 
     write_metadata_csv_header(metadata_csv_path)
 
-    create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, mappings, dspace_saf_output_path, license_path)
+    dspace_import_packages, pre_import_failure_log = create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, mappings, dspace_saf_output_path, license_path)
  
 
     click.echo("ETD processing complete.")
 
+    click.echo("Starting post import processing")
+
+    session = DSpaceSession(API_BASE)
+    (
+        completed_packages,
+        crossref_et,
+        post_import_failure_log,
+    ) = post_import_processing(session, user_email, user_password, dspace_import_packages, mapping_path, marc_path)
+
+    click.echo("Writing complete CSV file: ", nl=False)
+    csv_file_path = os.path.join(
+        csv_report_path,
+        f"{ datetime.date.today().isoformat()}-ingest_list.csv",
+    )
+    create_csv_list(completed_packages, csv_file_path)
+
+    click.echo("Writing complete Crossref file: ", nl=False)
+    crossref_file_path = os.path.join(
+        crossref_path, f"{ datetime.date.today().isoformat()}-crossref.xml"
+    )
+    crossref_et.write(
+        crossref_file_path, encoding="utf-8", xml_declaration=True
+    )
+    click.echo("Done")
+
+    click.echo("Creating MARC archive: ", nl=False)
+    marc_archive_path = os.path.join(
+        processing_directory,
+        MARC_SUBDIR,
+        f"{ datetime.date.today().isoformat()}-marc-archive.zip",
+    )
+    # make_archive doesn't want the archive extension.
+    shutil.make_archive(marc_archive_path[:-4], "zip", marc_path)
+    click.echo("Done")
+    
+    click.echo("Writing postback files: ", nl=False)
+    for package in completed_packages:
+        try:
+            with open(
+                os.path.join(
+                    POSTBACK_TMP_SUBDIR_PATH, package.student_id + "_postback.txt"
+                ),
+                "w",
+            ) as postback:
+                time_now = (
+                    datetime.datetime.now()
+                    .replace(second=0, microsecond=0)
+                    .isoformat()
+                )
+                postback.write(
+                    "{}||{}||1||{}".format(package.student_id, time_now, package.url)
+                )
+        except Exception as e:
+            err_msg = f"Error writing postback file for {package.student_id}, {e}."
+            click.echo(err_msg)
+            post_import_failure_log.append(f"{err_msg}")
+    click.echo("Done")
+
+    click.echo("Sending report email: ", nl=False)
+    smtp_host = "smtp-server.carleton.ca"
+
+    email_from = "manfredraffelsieper@cunet.carleton.ca"
+    email_to = "manfredraffelsieper@cunet.carleton.ca"
+    send_email_report(
+        completed_packages,
+        pre_import_failure_log + post_import_failure_log,
+        marc_archive_path,
+        crossref_file_path,
+        csv_file_path,
+        smtp_host,
+        smtp_port,
+        email_from,
+        email_to,
+    )
+    click.echo("Done")
 if __name__ == '__main__':
     process()
