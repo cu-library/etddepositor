@@ -54,6 +54,7 @@ PackageData = dataclasses.make_dataclass(
         "rights_notes",
         "title",
         "subjects",
+        "deduped_subjects",
         "agreements",
         "degree",
         "degree_discipline",
@@ -244,7 +245,7 @@ def process_subjects(subject_elements, mappings):
             deduplicated_subjects.append(subject)
 
     subject_values = [entry[1] for entry in deduplicated_subjects if len(entry) > 1]
-    return subject_values
+    return deduplicated_subjects, subject_values
 
 def process_description(description):
     return description.replace("\n", " ").replace("\r", "").strip()
@@ -338,7 +339,7 @@ def create_package_data(
         raise MetadataError("creator tag is missing")
 
     subject_elements = root.findall("dc:subject", namespaces=NAMESPACES)
-    subjects = process_subjects(subject_elements, mappings)
+    deduped_subjects, subjects = process_subjects(subject_elements, mappings)
 
     description = root.findtext(
         "dc:description", default="", namespaces=NAMESPACES
@@ -415,6 +416,7 @@ def create_package_data(
         rights_notes=rights_notes,
         title=title,
         subjects=subjects,
+        deduped_subjects=deduped_subjects,
         agreements=agreements,
         degree=degree,
         degree_discipline=discipline,
@@ -949,7 +951,7 @@ def create_marc_record(package_data, marc_path):
             subfields=["a", "e-thesis deposit", "9", "LOCAL"],
         )
     )
-    for subject_tags in package_data.subjects:
+    for subject_tags in package_data.deduped_subjects:
         if isinstance(subject_tags, list) and len(subject_tags) % 2 == 0:
             record.add_field(
                 pymarc.Field(tag="650", indicators=[" ", "0"], subfields=subject_tags)
