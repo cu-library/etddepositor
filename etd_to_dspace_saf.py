@@ -54,6 +54,7 @@ PackageData = dataclasses.make_dataclass(
         "rights_notes",
         "title",
         "subjects",
+        "abbreviation",
         "deduped_subjects",
         "agreements",
         "degree",
@@ -61,6 +62,7 @@ PackageData = dataclasses.make_dataclass(
         "degree_level", 
         "url",
         "student_id",
+        "embargo_info",
     ],
 )
 class DSpaceSession(requests.Session):
@@ -236,6 +238,10 @@ def process_subjects(subject_elements, mappings):
     subjects = []
     for subject_element in subject_elements:
         subject_code = subject_element.text.strip()
+
+        if subject_code.endswith("."):
+            subject_code = subject_code[:-1]
+
         if subject_code in mappings["lc_subject"]:
             for subject_tags in mappings["lc_subject"][subject_code]:
                 subjects.append(subject_tags)
@@ -244,7 +250,7 @@ def process_subjects(subject_elements, mappings):
         if subject not in deduplicated_subjects:
             deduplicated_subjects.append(subject)
 
-    subject_values = [entry[1] for entry in deduplicated_subjects if len(entry) > 1]
+    subject_values = [entry[1].rstrip('.') for entry in deduplicated_subjects if len(entry) > 1]
     return deduplicated_subjects, subject_values
 
 def process_description(description):
@@ -322,7 +328,7 @@ def process_degree_level(level):
     return level
 
 def create_package_data(
-    package_metadata_xml, student_id, doi_ident, agreements, package_path, mappings
+    package_metadata_xml, student_id, doi_ident, agreements, embargo_info, mappings
 ):
     """Extract the package data from the package XML."""
 
@@ -369,8 +375,7 @@ def create_package_data(
     )
     degree = process_degree(degree)
 
-    #TODO: I think you need this still for the marc subject problem
-    #abbreviation = process_degree_abbreviation(degree, mappings)
+    abbreviation = process_degree_abbreviation(degree, mappings)
 
     rights_notes = root.findtext(
         "dc:rights_notes", default="", namespaces=NAMESPACES
@@ -416,6 +421,7 @@ def create_package_data(
         rights_notes=rights_notes,
         title=title,
         subjects=subjects,
+        abbreviation=abbreviation,
         deduped_subjects=deduped_subjects,
         agreements=agreements,
         degree=degree,
@@ -423,6 +429,7 @@ def create_package_data(
         degree_level=level,
         url="",
         student_id=student_id,
+        embargo_info=embargo_info,
 
     )
 
@@ -583,10 +590,13 @@ def process_agreements(content_lines, mappings):
 
     # The list of identifiers (term ids).
     agreements = []
-
+    embargo_dates = []
     for line in content_lines:
         line = line.strip()
         if line.startswith(("Student ID", "Thesis ID")):
+            continue
+        elif "Embargo Expiry" in line:
+            embargo_dates.append(line)  
             continue
         elif any(line.startswith(name) for name in mappings["agreements"]):
             line_split = line.split("||")
@@ -606,7 +616,7 @@ def process_agreements(content_lines, mappings):
             f"{line} was not expected in the permissions document"
         )
 
-    return agreements
+    return agreements, embargo_dates
 
 def create_agreements(package_data, item_output_dir, license_path):
     required_agreements = {
@@ -635,8 +645,9 @@ def create_agreements(package_data, item_output_dir, license_path):
 
 def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, mappings, dspace_saf_path, license_path):
 
+    SKIP_IDS = {"100310418"}
     output_path = "/home/manfred/etddepositor/dspace-csv-archive/output/"
-    
+    item_id = 1
     dspace_import_packages = []
     # A list of packages which failed during processing.
     failure_log: List[str] = []
@@ -647,7 +658,10 @@ def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, map
     click.echo(f"Processing {len(packages)} packages to create Hyrax import.")
     for index, package_path in enumerate(packages):
         student_id = os.path.basename(package_path)
-        
+        if student_id in SKIP_IDS:
+            failure_log.append(f"{student_id}: Skipped (manual processing)")
+            click.echo(f"{student_id}: Skipped (manual processing)")
+            continue
         click.echo(f"{student_id}: ", nl=False)
 
         # Is the BagIt container valid? This will catch bit-rot errors early.
@@ -669,18 +683,14 @@ def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, map
             ) as permissions_file:
                 permissions_file_content = permissions_file.readlines()
 
-            agreements = process_agreements(
+            agreements, embargo_info = process_agreements(
                 permissions_file_content, mappings
             )
                         
-            item_id = index + 1
+            
             item_dir_name = f"item_{item_id:03d}"
             item_output_dir = os.path.join(output_path, item_dir_name)
             os.makedirs(item_output_dir, mode=0o770, exist_ok=True)
-
-            # Maybe re use this for the non complete?
-            #dspace_path = os.path.join(dspace_saf_path, name)
-            #os.makedirs(dspace_path, mode=0o770, exist_ok=True)
 
             package_metadata_xml_path = os.path.join(
                 package_path, "data", "meta", f"{student_id}_etdms_meta.xml"
@@ -689,7 +699,7 @@ def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, map
             package_metadata_xml = ElementTree.parse(package_metadata_xml_path)
             
 
-            package_data = create_package_data(package_metadata_xml, student_id, doi_ident, agreements, package_path, mappings)
+            package_data = create_package_data(package_metadata_xml, student_id, doi_ident, agreements, embargo_info, mappings)
             package_data.package_files = copy_package_files(package_data, package_path, dspace_saf_path)
 
             add_to_csv(metadata_csv_path, package_data)
@@ -702,15 +712,22 @@ def create_dspace_import(packages, metadata_csv_path, invalid_ok, doi_start, map
         except ElementTree.ParseError as e:
             err_msg = f"Error parsing XML, {e}."
             click.echo(err_msg)
-            
+            failure_log.append(err_msg)
         except MissingFileError as e:
             err_msg = f"Required file is missing, {e}."
             click.echo(err_msg)
+            failure_log.append(err_msg)
         except MetadataError as e:
             err_msg = f"Metadata error, {e}."
             click.echo(err_msg)
+            failure_log.append(err_msg)
+        except FileNotFoundError as e:
+            err_msg = f"File Not Found, {e}."
+            click.echo(err_msg)
+            failure_log.append(err_msg)
         else:
             doi_ident += 1
+            item_id += 1
             dspace_import_packages.append(package_data)
             click.echo("Done")
 
@@ -917,7 +934,7 @@ def create_marc_record(package_data, marc_path):
             subfields=[
                 "a",
                 "Thesis ("
-                + package_data.degree
+                + package_data.abbreviation
                 + ") - Carleton University, "
                 + package_data.date
                 + ".",
@@ -1184,6 +1201,7 @@ def create_csv_list(package_data, csv_file_path):
                 "PDF File",
                 "Supplemental File",
                 "Flagged Content",
+                "Embargo Files",
             ]
         )
 
@@ -1232,6 +1250,9 @@ def create_csv_list(package_data, csv_file_path):
                     [file for file in package_files if file.endswith(".zip")]
                 )
 
+            embargo_info = data.embargo_info
+            embargo_info_str = ", ".join(embargo_info) if embargo_info else ""
+
             writer.writerow(
                 [
                     author_name,
@@ -1241,6 +1262,7 @@ def create_csv_list(package_data, csv_file_path):
                     pdf_files,
                     zip_files,
                     contents,
+                    embargo_info_str,
                 ]
             )
 
@@ -1408,6 +1430,8 @@ def process(base_directory, doi_start, invalid_ok, mapping_file, user_email, use
     )
     click.echo("Done")
 
+    #TODO: Bug here marc zip attempts to zip itself up point it at another dir or fix it
+    
     click.echo("Creating MARC archive: ", nl=False)
     marc_archive_path = os.path.join(
         processing_directory,
