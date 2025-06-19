@@ -23,7 +23,7 @@ YAML_PATH = "/home/manfred/hyrax-to-dspace-migrate/mapping_config.yaml"
 GEO_PATH = "/home/manfred/hyrax-to-dspace-migrate/geo_name.yaml"
 TMP_DIR = "/home/manfred/test_zone/tmp_files/"
 user = "manfredraffelsieper@cunet.carleton.ca"
-password = ""
+password = "88DD434846F8D7F51041A5A25C843BAD"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
@@ -165,82 +165,49 @@ def get_current_submission(session, submission_id):
     print("SUBMISSION DETAILS", submission_data)
     return submission_data
 
-def add_metadata_field(session, submission_id, metadata_key):
-
-# Step 1: Get the submission workspace item to find the correct section name
-    endpoint = f"{API_BASE}/submission/workspaceitems/{submission_id}"
-    try:
-        response = session.safe_request("GET", endpoint)
-        response.raise_for_status()
-        data = response.json()
-
-        # Extract section name (assumes there's only one, or uses the first if multiple)
-        sections = data.get("sections", {})
-        if not sections:
-            raise ValueError("No submission form sections found in the workspace item.")
-        metadata_section_name = next(
-            (name for name in sections.keys() if name.lower().startswith("traditionalpageone") or "dc." in str(sections[name])), 
-            None
-        )
-
-        if not metadata_section_name:
-            raise ValueError("Could not identify the metadata section. Available sections: " + ", ".join(sections.keys()))
-
-
-    except Exception as e:
-        print("Failed to retrieve workspace item or section name.")
-        print("Error:", str(e))
-        return
-
-    # Step 2: Construct JSON Patch payload
-    patch_payload = {
-        "value": "Hello from WSL",
-        "language": "en_CA"
-    }
-
-
-
-    # Step 3: Send PATCH to add metadata
-    try:
-        patch_endpoint = f"{API_BASE}/submission/workspaceitems/{submission_id}/sections/{metadata_section_name}/{metadata_key}"
-        headers = { "Content-Type" : "application/json"}
-        patch_response = session.safe_request("POST",  patch_endpoint, json=patch_payload, headers=headers)
-        patch_response.raise_for_status()
-        return patch_response
-    except requests.exceptions.HTTPError as e:
-        print("Failed to PATCH metadata.")
-        print("Status code:", patch_response.status_code)
-        print("Response body:", patch_response.text)
-    
-
-
 def add_metadata(session, submission_id):
     metadata_payload = [
         {
             "op": "add",
-            "path": "/sections/traditionalpageone-carleton/dc.title",
-            "value": {
-                "value": "Test Submission Title",
+            "path": "/sections/traditionalpageone-carleton/dc.contributor.author",
+            "value": [{
+                "value": "Gary",
                 "language": None,
                 "authority": None,
                 "confidence": 500
-            }
+            }]
+        },
+        {
+            "op": "add",
+            "path": "/sections/traditionalpageone-carleton/dc.contributor.other",
+            "value": [{
+                "value": "Spector",
+                "language": None,
+                "authority": None,
+                "confidence": 500
+            }]
         },
         {
             "op": "add",
             "path": "/sections/traditionalpageone-carleton/dc.date.issued",
-            "value": {
-                "value": "2025-06-12",
+            "value": [{
+                "value": "2025-06-19",
                 "language": None,
                 "authority": None,
                 "confidence": 500
-            }
+            }]
         },
         {
-            "op": "replace",
-            "path": "/sections/license/granted",
-            "value": True
+            "op": "add",
+            "path": "/sections/traditionalpageone-carleton/dc.title",
+            "value": [{
+                "value": "Test Submission Title",
+                "language": None,
+                "authority": None,
+                "confidence": 500
+            }]
         }
+    
     ]
     
     endpoint = f"{API_BASE}/submission/workspaceitems/{submission_id}"
@@ -253,15 +220,59 @@ def add_metadata(session, submission_id):
         print("Error adding metadata:", e)
         return None
     
-def submission_workflow(session, collection_id):
+def upload_files(session, submission_id, file_path, bundle="ORIGINAL", description=None):
+    endpoint = f"{API_BASE}/submission/workspaceitems/{submission_id}"
 
-    sub_id = 44067
-    #submission_id = submission_creation(session, collection_id)
-    response = get_current_submission(session, sub_id)
+    file_name = os.path.basename(file_path)
+
+    files = {
+        "file": (file_name, open(file_path, "rb")),
+        "bundleName": (None, bundle)
+    }
+
+    if description:
+        files["description"] = (None, description)
+
+
+    try:
+        
+        response = session.safe_request("POST", endpoint, files=files)
+        response.raise_for_status()
+        print(f"Uploaded {file_name} to bundle '{bundle}':", response.json())
+        return response.json()
+    except requests.exceptions.HTTPError as e:
+        print("Error adding metadata:", e)
+        return None
     
-    add_metadata(session, sub_id)
-    #add_metadata_field(session, sub_id, "dc.title")
-    print(json.dumps(response.json(), indent=2))
+def finalize_submission(session, submission_id):
+    endpoint = f"{API_BASE}/submission/workflowitems"
+    data = f"{API_BASE}/submission/workspaceitems/{submission_id}"
+
+    headers = {
+        "Content-Type": "text/uri-list"
+    }
+
+    try:
+        response = session.safe_request("POST", endpoint, headers=headers, data=data)
+        response.raise_for_status()
+        print("Submission finalized:", response.json())
+        return response.json()["id"]
+    except requests.exceptions.HTTPError as e:
+        print("Error finalizing submission:", e.response.text)
+        return None
+    
+def submission_workflow(session, collection_id):
+    file_path = "/home/manfredraffelsieper/etddepositor_project/processing_dir/ready/100775310_1839/data/100775310jullm.pdf"
+    zip_path = "/home/manfredraffelsieper/test.zip"
+    fippa_path = "/home/manfredraffelsieper/fippa_statement.txt"
+    submission_id = 44280
+    #submission_id = submission_creation(session, collection_id)
+    
+    add_metadata(session, submission_id)
+    upload_files(session, submission_id,  file_path, bundle="ORIGINAL")
+    upload_files(session, submission_id, zip_path, bundle="SUPPLEMENTAL")
+    upload_files(session, submission_id, fippa_path, bundle="LICENSE")
+    workflowitem_id = finalize_submission(session, submission_id)
     
     
 def transfer_dspace(session, user, password):
@@ -269,7 +280,7 @@ def transfer_dspace(session, user, password):
     try:
         session.authenticate(user, password)
 
-        submission_workflow(session, "e0dc7bb9-9a07-454a-befb-42a434591436")
+        submission_workflow(session, "69d095be-875d-4ee2-b3b8-4e11015d09be")
         
     except requests.exceptions.RequestException as req_err:
         logger.warning(f"Request error occurred: {req_err}")  
