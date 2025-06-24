@@ -206,6 +206,11 @@ def add_metadata(session, submission_id):
                 "authority": None,
                 "confidence": 500
             }]
+        },
+        {
+            "op": "replace",
+            "path": "/sections/license/granted",
+            "value": True
         }
     
     ]
@@ -220,14 +225,17 @@ def add_metadata(session, submission_id):
         print("Error adding metadata:", e)
         return None
     
-def upload_files(session, submission_id, file_path, bundle="ORIGINAL", description=None):
+def upload_files(session, submission_id, file_path, bundle="", description=None):
     endpoint = f"{API_BASE}/submission/workspaceitems/{submission_id}"
 
     file_name = os.path.basename(file_path)
 
     files = {
         "file": (file_name, open(file_path, "rb")),
-        "bundleName": (None, bundle)
+    }
+
+    data = {
+        "bundleName": bundle
     }
 
     if description:
@@ -236,7 +244,7 @@ def upload_files(session, submission_id, file_path, bundle="ORIGINAL", descripti
 
     try:
         
-        response = session.safe_request("POST", endpoint, files=files)
+        response = session.safe_request("POST", endpoint, files=files, data=data)
         response.raise_for_status()
         print(f"Uploaded {file_name} to bundle '{bundle}':", response.json())
         return response.json()
@@ -245,8 +253,8 @@ def upload_files(session, submission_id, file_path, bundle="ORIGINAL", descripti
         return None
     
 def finalize_submission(session, submission_id):
-    endpoint = f"{API_BASE}/submission/workflowitems"
-    data = f"{API_BASE}/submission/workspaceitems/{submission_id}"
+    endpoint = f"{API_BASE}/workflow/workflowitems"
+    data = f"/api/submission/workspaceitems/{submission_id}"
 
     headers = {
         "Content-Type": "text/uri-list"
@@ -265,14 +273,18 @@ def submission_workflow(session, collection_id):
     file_path = "/home/manfredraffelsieper/etddepositor_project/processing_dir/ready/100775310_1839/data/100775310jullm.pdf"
     zip_path = "/home/manfredraffelsieper/test.zip"
     fippa_path = "/home/manfredraffelsieper/fippa_statement.txt"
-    submission_id = 44280
-    #submission_id = submission_creation(session, collection_id)
+    #submission_id = 44280
+    submission_id = submission_creation(session, collection_id)
     
     add_metadata(session, submission_id)
     upload_files(session, submission_id,  file_path, bundle="ORIGINAL")
     upload_files(session, submission_id, zip_path, bundle="SUPPLEMENTAL")
     upload_files(session, submission_id, fippa_path, bundle="LICENSE")
     workflowitem_id = finalize_submission(session, submission_id)
+
+    id = get_current_submission(session, submission_id)
+
+    print(id)
     
     
 def transfer_dspace(session, user, password):
