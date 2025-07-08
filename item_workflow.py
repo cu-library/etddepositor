@@ -28,6 +28,8 @@ password = ""
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 
+
+
 #Add Error file handler
 file_handler = logging.FileHandler('my_application.log')
 file_handler.setLevel(logging.ERROR) 
@@ -42,13 +44,7 @@ all_logs_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)
 all_logs_file_handler.setFormatter(all_logs_formatter)
 logger.addHandler(all_logs_file_handler)
 
-og_bundle_metadata_payload = {
-    "name": "ORIGINAL"
-}
 
-license_bundle_metadata_payload = {
-    "name": "LICENSE"
-}
 
 og_bitstream_payload = { 
                 "name": "", 
@@ -304,9 +300,6 @@ def submission_workflow(session, collection_id):
     #zip_path = "/home/manfredraffelsieper/test.zip"
     #fippa_path = "/home/manfredraffelsieper/fippa_statement.txt"
 
-    file_path = "/home/garagar/Carleton_Repo/processing_dir/ready/101010101/test.pdf"
-    zip_path = "/home/garagar/Carleton_Repo/processing_dir/ready/101010101/test.zip"
-    fippa_path = "/home/garagar/Carleton_Repo/processing_dir/ready/101010101/fippa_agreement.txt"
     #submission_id = 44280
     submission_id = submission_creation(session, collection_id)
     
@@ -320,14 +313,123 @@ def submission_workflow(session, collection_id):
 
     print(id)
     
+def item_creation(session, collection_id, metadata_payload):
+
+    item_endpoint = f"{API_BASE}/core/items?owningCollection={collection_id}"
+    response = session.safe_request("POST", item_endpoint, json=metadata_payload)
+    response.raise_for_status()
+    item_uuid = response.json()["uuid"]  
+    return item_uuid
+
+def bundle_creations(session, item_uuid):
     
+    bundle_endpoint = f"{API_BASE}/core/items/{item_uuid}/bundles"
+    try:
+        response = session.safe_request("POST", bundle_endpoint, json={"name":"ORIGINAL"})
+        response.raise_for_status()
+        og_bundle_id = response.json()["uuid"]
+        
+        response = session.safe_request("POST", bundle_endpoint, json={"name": "LICENSE"})
+        response.raise_for_status()
+        license_bundle_id = response.json()["uuid"]
+        
+        return og_bundle_id, license_bundle_id
+    except requests.exceptions.RequestException as e:
+        print(f"Error creating bundles: {e}")
+        return None, None
+
+def original_bundle_creation(session, item_uuid, og_bundle_payload):
+    bundle_endpoint = f"{API_BASE}/core/items/{item_uuid}/bundles"
+    try:
+        response = session.safe_request("POST", bundle_endpoint, json=og_bundle_payload)
+        response.raise_for_status()
+        og_bundle_id = response.json()["uuid"]
+        return og_bundle_id
+    except:
+        print("Fix me")
+
+
+def license_bitstream_endpoint(session, license_bundle_uuid):
+    cu_license_path = ""
+    fippa_agreement_path = ""
+    license_endpoint = f"{API_BASE}/core/bundles/{license_bundle_uuid}/bitstreams"
+    path = ""
+    
+    if os.path.isfile(cu_license_path):
+        with open(cu_license_path, "rb") as file:
+            try:
+                license = {"file": ("license.txt", file, "text/plain")}
+                response = session.safe_request("POST", license_endpoint, files=license, data=license_bitstream_payload)
+                
+                if response:
+                    license_uuid = response.json()["id"]
+                    license_bitstream_endpoint = f"{API_BASE}/core/bitstreams/{license_uuid}/format"
+
+                    format_id = 2
+                    format_url = f"{API_BASE}/core/bitstreamformats/{format_id}"
+                    headers = {"Content-Type": "text/uri-list"}
+                    try:
+                        response = session.safe_request("PUT", license_bitstream_endpoint, headers=headers, data=format_url)
+                        response.raise_for_status()
+                        logger.info(f"Updated bitstream {license_uuid} to MIME type 'text/uri-list' (format ID {format_id})")
+                    except requests.exceptions.RequestException as e:
+                        logger.error(f"Error updating MIME type for bitstream {license_uuid}: {e}")
+    
+    if os.path.isfile(fippa_agreement_path):
+        with open(fippa_agreement_path, "rb") as file:
+            try:
+                license = {"file": ("fippa_agreement.txt", file, "text/plain")}
+                response = session.safe_request("POST", license_endpoint, files=license, data=license_bitstream_payload)
+                
+                if response:
+                    license_uuid = response.json()["id"]
+                    license_bitstream_endpoint = f"{API_BASE}/core/bitstreams/{license_uuid}/format"
+
+                    format_id = 2
+                    format_url = f"{API_BASE}/core/bitstreamformats/{format_id}"
+                    headers = {"Content-Type": "text/uri-list"}
+                    try:
+                        response = session.safe_request("PUT", license_bitstream_endpoint, headers=headers, data=format_url)
+                        response.raise_for_status()
+                        logger.info(f"Updated bitstream {license_uuid} to MIME type 'text/uri-list' (format ID {format_id})")
+                    except requests.exceptions.RequestException as e:
+                        logger.error(f"Error updating MIME type for bitstream {license_uuid}: {e}")
+
 def transfer_dspace(session, user, password):
     
+    metadata_payload = {
+    "name": "ETD Payload",
+    "metadata": {
+        "dc.title": [
+            {
+                "value": "On the otherside of the maze",
+                "language": "en"
+            }
+        ],
+        "dc.contributor.author": [
+            {
+                "value": "Hedge Runner",
+                "language": "en"
+            }
+        ],
+        "dc.identifier.doi": [
+            {
+                "value": "10.1234/example-doi.2025.001",
+                "language": None
+            }
+        ]
+    },
+    "inArchive": True,
+    "discoverable": True,
+    "withdrawn": False,
+    "type": "item"
+    }
     try:
         session.authenticate(user, password)
-
-        submission_workflow(session, "69d095be-875d-4ee2-b3b8-4e11015d09be")
-        
+        collection_id = "6500c3fd-86ef-4e24-aa40-7971ac850589"
+        item_uuid = item_creation(session, collection_id, metadata_payload)
+        og_bundle_uuid, license_bundle_uuid = bundle_creations(session, item_uuid)
+        license_bitstream_endpoint(session, license_bundle_uuid)
     except requests.exceptions.RequestException as req_err:
         logger.warning(f"Request error occurred: {req_err}")  
 
