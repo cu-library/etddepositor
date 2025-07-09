@@ -1,6 +1,6 @@
 import pprint
 import time
-import click
+#import click
 import requests
 import os
 from urllib.parse import urljoin
@@ -10,6 +10,7 @@ import mimetypes
 import shutil
 import random
 import datetime
+from requests_toolbelt.multipart import encoder
 
 # Configuration
 SOLR_URL = "http://localhost:8983/solr/blacklight-core"
@@ -23,7 +24,7 @@ YAML_PATH = "/home/manfred/hyrax-to-dspace-migrate/mapping_config.yaml"
 GEO_PATH = "/home/manfred/hyrax-to-dspace-migrate/geo_name.yaml"
 TMP_DIR = "/home/manfred/test_zone/tmp_files/"
 user = "manfredraffelsieper@cunet.carleton.ca"
-password = ""
+password = "88DD434846F8D7F51041A5A25C843BAD"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
@@ -140,27 +141,6 @@ class DSpaceSession(requests.Session):
     def safe_request(self, method, url, **kwargs):
         return self.request(method, url, **kwargs)
 
-
-def submission_creation(session, collection_id):
-    
-    submission_endpoint = f"{API_BASE}/submission/workspaceitems?owningCollection={collection_id}"
-    headers = {"Content-Type": "application/json"}
-    
-    response = session.safe_request("POST", submission_endpoint, headers=headers)
-    response.raise_for_status()
-    submission_id = response.json()["id"] 
-    print("created submission with id:", submission_id)
-    return submission_id
-
-def get_current_submission(session, submission_id):
-    endpoint = f"{API_BASE}/submission/workspaceitems/{submission_id}"
-    response = session.safe_request("GET", endpoint)
-    response.raise_for_status()
-
-    submission_data = response.json()
-    print("SUBMISSION DETAILS", submission_data)
-    return submission_data
-
 def add_metadata(session, submission_id):
     metadata_payload = [
         {
@@ -232,87 +212,7 @@ def add_metadata(session, submission_id):
         print("Error adding metadata:", e)
         return None
 
-def find_item_by_title(session, title):
-    endpoint = f"{API_BASE}/core/items/search/findByMetadata"
-    params = {
-        "metadataKey": "dc.title",
-        "metadataValue": title
-    }
-    r = session.safe_request("GET", endpoint, params=params)
-    return r.json()['_embedded']['items'][0]['uuid']
-
-def upload_files(session, submission_id, file_path, bundle="", description=None):
-    endpoint = f"{API_BASE}/submission/workspaceitems/{submission_id}"
-
-    file_name = os.path.basename(file_path)
-
-    files = {
-        "file": (file_name, open(file_path, "rb")),
-    }
-
-    data = {
-        "bundleName": bundle
-    }
-
-    if description:
-        files["description"] = (None, description)
-
-
-    try:
-        
-        response = session.safe_request("POST", endpoint, files=files, data=data)
-        response.raise_for_status()
-        print(f"Uploaded {file_name} to bundle '{bundle}':", response.json())
-        return response.json()
-    except requests.exceptions.HTTPError as e:
-        print("Error adding metadata:", e)
-        return None
-    
-def finalize_submission(session, submission_id):
-    endpoint = f"{API_BASE}/workflow/workflowitems"
-    data = f"/api/submission/workspaceitems/{submission_id}"
-
-    headers = {
-        "Content-Type": "text/uri-list"
-    }
-
-    try:
-        response = session.safe_request("POST", endpoint, headers=headers, data=data)
-        response.raise_for_status()
-
-        location = response.headers.get("Location")
-        if location:
-            workflow_id = location.rstrip("/").split("/")[-1]
-            print(workflow_id)
-        else:
-            print(response)
-        #endpoint = f"{API_BASE}/workflow/workflowitems/{submission_id}/item"
-    
-        #response = session.safe_request("GET", endpoint)
-        #response.raise_for_status()
-
-        #return response
-    except requests.exceptions.HTTPError as e:
-        print("Error finalizing submission:", e.response.text)
-    
-def submission_workflow(session, collection_id):
-    #file_path = "/home/manfredraffelsieper/etddepositor_project/processing_dir/ready/100775310_1839/data/100775310jullm.pdf"
-    #zip_path = "/home/manfredraffelsieper/test.zip"
-    #fippa_path = "/home/manfredraffelsieper/fippa_statement.txt"
-
-    #submission_id = 44280
-    submission_id = submission_creation(session, collection_id)
-    
-    #add_metadata(session, submission_id)
-    #upload_files(session, submission_id,  file_path, bundle="ORIGINAL")
-    #upload_files(session, submission_id, zip_path, bundle="SUPPLEMENTAL")
-    #upload_files(session, submission_id, fippa_path, bundle="LICENSE")
-    #finalize_submission(session, submission_id)
-    item_id = find_item_by_title(session, "New Test Submission")
-    
-
-    print(id)
-    
+      
 def item_creation(session, collection_id, metadata_payload):
 
     item_endpoint = f"{API_BASE}/core/items?owningCollection={collection_id}"
@@ -348,12 +248,14 @@ def original_bundle_creation(session, item_uuid, og_bundle_payload):
     except:
         print("Fix me")
 
+#TODO: Make a method or loop this together so we dont have repeated code
+#TODO: Make the paths passed in or static dont just keep add future problems for yourself
 
-def license_bitstream_endpoint(session, license_bundle_uuid):
-    cu_license_path = ""
-    fippa_agreement_path = ""
+def upload_licenses(session, license_bundle_uuid):
+    cu_license_path = "/home/manfredraffelsieper/etddepositor_project/processing_dir/license/license.txt"
+    fippa_agreement_path = "/home/manfredraffelsieper/etddepositor_project/processing_dir/license/fippa_agreement.txt"
     license_endpoint = f"{API_BASE}/core/bundles/{license_bundle_uuid}/bitstreams"
-    path = ""
+    path = "/home/manfredraffelsieper/etddepositor_project/processing_dir/license"
     
     if os.path.isfile(cu_license_path):
         with open(cu_license_path, "rb") as file:
@@ -374,7 +276,8 @@ def license_bitstream_endpoint(session, license_bundle_uuid):
                         logger.info(f"Updated bitstream {license_uuid} to MIME type 'text/uri-list' (format ID {format_id})")
                     except requests.exceptions.RequestException as e:
                         logger.error(f"Error updating MIME type for bitstream {license_uuid}: {e}")
-    
+            except:
+                print("wrong stuff just try")
     if os.path.isfile(fippa_agreement_path):
         with open(fippa_agreement_path, "rb") as file:
             try:
@@ -394,6 +297,64 @@ def license_bitstream_endpoint(session, license_bundle_uuid):
                         logger.info(f"Updated bitstream {license_uuid} to MIME type 'text/uri-list' (format ID {format_id})")
                     except requests.exceptions.RequestException as e:
                         logger.error(f"Error updating MIME type for bitstream {license_uuid}: {e}")
+            except:
+                print("put this in a method and fix later")
+
+def upload_files(session, og_bundle_uuid, metadata_payload):
+
+    original_endpoint = f"{API_BASE}/core/bundles/{og_bundle_uuid}/bitstreams"
+    bitstream_metadata = []
+    bitstream_path = "/home/manfredraffelsieper/etddepositor_project/processing_dir/ready/100775310_1839/data/"
+
+    for file_name in os.listdir(bitstream_path):
+        if file_name == "100775310jullm.pdf":
+
+            mime_type = mimetypes.guess_type(file_name)[0]
+            file_path = os.path.join(bitstream_path, file_name)  
+            
+            if os.path.isfile(file_path):   
+                with open(file_path, "rb") as file:
+
+                    if os.path.getsize(file_path) > 1048576000:
+
+                        multipart_data = {
+                            'file': (file_name, file),
+                            'og_bitstream_payload': (None, json.dumps(metadata_payload), 'application/json')
+                        }
+                    
+                        e = encoder.MultipartEncoder(multipart_data)
+                        m = encoder.MultipartEncoderMonitor(e, lambda a: print(a.bytes_read, end='\r'))
+
+                        def gen():
+                            a = m.read(16384)
+                            while a:
+                                yield a
+                                a = m.read(16384)
+                        try:
+
+                            response = session.safe_request("POST", original_endpoint, data=gen(), headers={"Content-Type": m.content_type})
+                            response.raise_for_status()
+                            data = json.loads(response.text)
+                        except requests.exceptions.RequestException as e:
+                            logger.error(f"Error with multipart upload of {file_path}: {e}")
+                            continue
+
+                    else:
+                        files = {"file": (file_name, file, mime_type)}
+                        try:
+                            response = session.safe_request("POST", original_endpoint, files=files, data=metadata_payload)
+                            response.raise_for_status()
+                            data = json.loads(response.text)
+                        except requests.exceptions.RequestException as e:
+                            logger.error(f"Error uploading {file_path}: {e}")
+                            continue
+                        print(data)
+                    logger.info(f"Successfully uploaded: {file_path}") 
+            else:
+                logger.info(f"Skipping directory: {file_path}")
+        else: 
+            continue
+        return data
 
 def transfer_dspace(session, user, password):
     
@@ -429,7 +390,8 @@ def transfer_dspace(session, user, password):
         collection_id = "6500c3fd-86ef-4e24-aa40-7971ac850589"
         item_uuid = item_creation(session, collection_id, metadata_payload)
         og_bundle_uuid, license_bundle_uuid = bundle_creations(session, item_uuid)
-        license_bitstream_endpoint(session, license_bundle_uuid)
+        upload_licenses(session, license_bundle_uuid)
+        upload_files(session, og_bundle_uuid, metadata_payload)
     except requests.exceptions.RequestException as req_err:
         logger.warning(f"Request error occurred: {req_err}")  
 
