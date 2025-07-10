@@ -12,10 +12,6 @@ import random
 import datetime
 from requests_toolbelt.multipart import encoder
 
-# Configuration
-SOLR_URL = "http://localhost:8983/solr/blacklight-core"
-FEDORA_BASE_URL = "http://localhost:8080/fcrepo/rest/prod/"
-DB_PATH = "migration.db"
 API_BASE = "https://carleton-dev.scholaris.ca/server/api"
 DSPACE_BASE_URL = "https://carleton-dev.scholaris.ca"
 
@@ -23,8 +19,7 @@ DSPACE_BASE_URL = "https://carleton-dev.scholaris.ca"
 YAML_PATH = "/home/manfred/hyrax-to-dspace-migrate/mapping_config.yaml"
 GEO_PATH = "/home/manfred/hyrax-to-dspace-migrate/geo_name.yaml"
 TMP_DIR = "/home/manfred/test_zone/tmp_files/"
-user = "manfredraffelsieper@cunet.carleton.ca"
-password = "88DD434846F8D7F51041A5A25C843BAD"
+
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
@@ -60,11 +55,6 @@ license_bitstream_payload = {
                 "type": "license",
                 "bundleName": "LICENSE" 
                 }
-
-
-def get_dspace_collection(fedora_id, mappings):
-    return mappings.get(fedora_id, None)
-
 
 # This class handles the the csrf token handling 
 class DSpaceSession(requests.Session):
@@ -141,78 +131,7 @@ class DSpaceSession(requests.Session):
     def safe_request(self, method, url, **kwargs):
         return self.request(method, url, **kwargs)
 
-def add_metadata(session, submission_id):
-    metadata_payload = [
-        {
-            "op": "add",
-            "path": "/sections/traditionalpageone-carleton/dc.contributor.author",
-            "value": [{
-                "value": "Gary",
-                "language": None,
-                "authority": None,
-                "confidence": 500
-            }]
-        },
-        {
-            "op": "add",
-            "path": "/sections/traditionalpageone-carleton/dc.contributor.other",
-            "value": [{
-                "value": "Spector",
-                "language": None,
-                "authority": None,
-                "confidence": 500
-            }]
-        },
-        {
-            "op": "add",
-            "path": "/sections/traditionalpageone-carleton/dc.date.issued",
-            "value": [{
-                "value": "2025-06-19",
-                "language": None,
-                "authority": None,
-                "confidence": 500
-            }]
-        },
-        {
-            "op": "add",
-            "path": "/sections/traditionalpageone-carleton/dc.title",
-            "value": [{
-                "value": "New Test Submission",
-                "language": None,
-                "authority": None,
-                "confidence": 500
-            }]
-        },
-        {
-            "op": "add",
-            "path": "/sections/traditionalpageone-carleton/dc.identifier.doi",
-            "value": [{
-                "value": "10.10.10",
-                "language": None,
-                "authority": None,
-                "confidence": 500
-            }]
-        },
-        {
-            "op": "replace",
-            "path": "/sections/license/granted",
-            "value": True
-        }
-    
-    ]
-    
-    endpoint = f"{API_BASE}/submission/workspaceitems/{submission_id}"
 
-    try:
-        response = session.safe_request("PATCH", endpoint, json=metadata_payload)
-        response.raise_for_status()
-        print("Metadata added successfully:", response.json())
-        return response.json()
-    except requests.exceptions.HTTPError as e:
-        print("Error adding metadata:", e)
-        return None
-
-      
 def item_creation(session, collection_id, metadata_payload):
 
     item_endpoint = f"{API_BASE}/core/items?owningCollection={collection_id}"
