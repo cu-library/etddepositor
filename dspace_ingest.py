@@ -11,7 +11,7 @@ import dataclasses
 import string
 from typing import List
 import smtplib
-from xml.etree import ElementTree
+from xml.etree import ElementTreee
 from xml.dom import minidom
 import time
 import pymarc
@@ -21,9 +21,11 @@ import mimetypes
 from requests_toolbelt.multipart import encoder
 import json
 
+# API_BASE & Base URL supplied as an argument through click to speicfy if were on Dev or Live
 API_BASE = "https://carleton-dev.scholaris.ca/server/api"
 DSPACE_BASE_URL = "https://carleton-dev.scholaris.ca"
 
+# These sub-directories are made where you specify the base dir.
 READY_SUBDIR = "ready"
 DONE_SUBDIR = "done"
 MARC_SUBDIR = "marc"
@@ -34,25 +36,28 @@ NOT_COMPLETE_SUBDIR = "not_complete"
 LICENSE_SUBDIR = "license"
 POSTBACK_SUBDIR = "postback_tmp"
 
+# NAMESPACES is used to help pull out the data from FGPA packages
 NAMESPACES = {
     "dc": "http://purl.org/dc/elements/1.1/",
     "etdms": "http://www.ndltd.org/standards/metadata/etdms/1.1/",
 }
 
-og_bitstream_payload = { 
+# Bitstream Payloads are blank payloads as we'll fill them out when we place it into dspace
+OG_BITSTREAM_PAYLOAD = { 
                 "name": "", 
                 "description": "",
                 "type": "bitstream",
                 "bundleName": "ORIGINAL" 
                 }
 
-license_bitstream_payload = {
+LICENSE_BITSTREAM_PAYLOAD = {
                 "name": "", 
                 "description": "",
                 "type": "license",
                 "bundleName": "LICENSE" 
                 }
 
+# PackageData create the template for this object and will be placing data from 
 PackageData = dataclasses.make_dataclass(
     "PackageData",
     [
@@ -79,6 +84,33 @@ PackageData = dataclasses.make_dataclass(
         "embargo_info",
     ],
 )
+
+
+
+# DOI_PREFIX is Carleton University Library's DOI prefix, used when minting new
+# DOIs for ETDs.
+DOI_PREFIX = "10.22215"
+
+# DOI_URL_PREFIX is the prefix to add to DOIs to make them resolvable.
+DOI_URL_PREFIX = "https://doi.org/"
+
+# FLAG is a string which we assign to some attributes of the package
+# if our mapping for that attribute is incomplete or unknowable.
+FLAG = "FLAG"
+
+class MissingFileError(Exception):
+    """Raised when a required file is missing."""
+
+
+class MetadataError(Exception):
+    """Raised when a problem with the package metadata is encountered."""
+
+
+class GetURLFailedError(Exception):
+    """Raised when the Hyrax URL for an imported package can't be found."""
+
+# DSpaceSession: This is the class itself that will handle all the DSpace API management 
+# All we need to do is make a session and uses the user/pass you pass in 
 class DSpaceSession(requests.Session):
     def __init__(self, api_base):
         super().__init__()
@@ -149,30 +181,8 @@ class DSpaceSession(requests.Session):
 
     def safe_request(self, method, url, **kwargs):
         return self.request(method, url, **kwargs)
-
-
-# DOI_PREFIX is Carleton University Library's DOI prefix, used when minting new
-# DOIs for ETDs.
-DOI_PREFIX = "10.22215"
-
-# DOI_URL_PREFIX is the prefix to add to DOIs to make them resolvable.
-DOI_URL_PREFIX = "https://doi.org/"
-
-# FLAG is a string which we assign to some attributes of the package
-# if our mapping for that attribute is incomplete or unknowable.
-FLAG = "FLAG"
-
-class MissingFileError(Exception):
-    """Raised when a required file is missing."""
-
-
-class MetadataError(Exception):
-    """Raised when a problem with the package metadata is encountered."""
-
-
-class GetURLFailedError(Exception):
-    """Raised when the Hyrax URL for an imported package can't be found."""
-
+    
+# load_mappings is a helper method that will load all the yaml files we use 
 def load_mappings(mapping_file):
     """Loads the mappings YAML file."""
     try:
@@ -185,6 +195,7 @@ def load_mappings(mapping_file):
     except yaml.YAMLError as e:
         click.echo(f"Error parsing mappings file: {e}")
         return None
+
 
 def validate_subject_mappings(mappings):
     """Ensures the subjects in the mappings file are properly formatted."""
@@ -668,7 +679,7 @@ def upload_licenses(session, license_bundle_uuid, license_dir):
             with open(full_path, "rb") as file:
                 try:
                     license_upload = {"file": (filename, file, "text/plain")}
-                    response = session.safe_request("POST", license_endpoint, files=license_upload, data=license_bitstream_payload)
+                    response = session.safe_request("POST", license_endpoint, files=license_upload, data=LICENSE_BITSTREAM_PAYLOAD)
                     
                     if response:
                         license_uuid = response.json()["id"]
@@ -704,7 +715,7 @@ def upload_files(session, package_data, og_bundle_uuid, file_path, metadata_payl
 
                 multipart_data = {
                     'file': (file_name, file),
-                    'og_bitstream_payload': (None, json.dumps(metadata_payload), 'application/json')
+                    'OG_BITSTREAM_PAYLOAD': (None, json.dumps(metadata_payload), 'application/json')
                 }
             
                 e = encoder.MultipartEncoder(multipart_data)
@@ -733,7 +744,7 @@ def upload_files(session, package_data, og_bundle_uuid, file_path, metadata_payl
                     continue
             print(f"Successfully uploaded: {file_path}") 
     
-def create_dspace_import(packages, invalid_ok, doi_start, mappings, files_path, parent_collection_id, user_email, user_password, license_path, file_path):
+def create_dspace_import(packages, invalid_ok, doi_start, mappings, files_path, parent_collection_id, user_email, user_password, license_path):
     session = DSpaceSession(API_BASE)
     session.authenticate(user_email, user_password)
     SKIP_IDS = {"100310418"}
@@ -795,7 +806,7 @@ def create_dspace_import(packages, invalid_ok, doi_start, mappings, files_path, 
             item_id, item_handle = item_creation(session, parent_collection_id, built_item_payload)
             og_bundle_uuid, license_bundle_uuid = bundle_creations(session, item_id)
             upload_licenses(session, license_bundle_uuid, license_path)
-            upload_files(session, package_data, og_bundle_uuid, file_path, og_bitstream_payload)
+            upload_files(session, package_data, og_bundle_uuid, files_path, OG_BITSTREAM_PAYLOAD)
             
         except ElementTree.ParseError as e:
             err_msg = f"Error parsing XML, {e}."
@@ -1451,8 +1462,7 @@ def process(base_directory, doi_start, invalid_ok, mapping_file, user_email, use
         parent_collection_id, 
         user_email, 
         user_password,
-        license_path,
-        file_path
+        license_path
     )
 
     click.echo("ETD processing complete.")
