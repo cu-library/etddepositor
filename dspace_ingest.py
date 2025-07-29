@@ -11,7 +11,7 @@ import dataclasses
 import string
 from typing import List
 import smtplib
-from xml.etree import ElementTreee
+from xml.etree import ElementTree
 from xml.dom import minidom
 import time
 import pymarc
@@ -80,8 +80,10 @@ PackageData = dataclasses.make_dataclass(
         "degree_discipline",
         "degree_level", 
         "url",
+        "handle", 
         "student_id",
         "embargo_info",
+
     ],
 )
 
@@ -450,6 +452,7 @@ def create_package_data(
         degree_discipline=discipline,
         degree_level=level,
         url="",
+        handle="",
         student_id=student_id,
         embargo_info=embargo_info,
 
@@ -613,7 +616,7 @@ def build_metadata_payload(package_data, agreements):
     add_metadata("dc.subject.lcsh", package_data.subjects)
     if "LAC Non-Exclusive License" in agreements:
         add_metadata("local.hasLACLicence", True)
-    add_metadata("thesis.degree.name", package_data.abbreviation)
+    add_metadata("thesis.degree.name", package_data.degree + " (" + package_data.abbreviation + ")")
     add_metadata("thesis.degree.discipline", package_data.degree_discipline)
     add_metadata("thesis.degree.level", package_data.degree_level)
 
@@ -826,7 +829,11 @@ def create_dspace_import(packages, invalid_ok, doi_start, mappings, files_path, 
             failure_log.append(err_msg)
         else:
             doi_ident += 1
-            dspace_item_info[item_id] = item_handle
+            if "carleton-dev.scholaris.ca" in DSPACE_BASE_URL:
+                package_data.handle = f"{DSPACE_BASE_URL}/handle/{item_handle}"
+            else:
+                package_data.handle = f"https://hdl.handle.net/20.500.14718/{item_handle}"
+
             package_data.url = f"{DSPACE_BASE_URL}/items/{item_id}"
             dspace_import_packages.append(package_data)
 
@@ -1237,7 +1244,7 @@ def create_dissertation_element(package_data):
     doi = ElementTree.SubElement(doi_data, "doi")
     doi.text = package_data.doi
     resource = ElementTree.SubElement(doi_data, "resource")
-    resource.text = package_data.url
+    resource.text = package_data.handle
 
     return dissertation
 
