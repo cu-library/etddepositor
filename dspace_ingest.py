@@ -22,7 +22,6 @@ from requests_toolbelt.multipart import encoder
 import json
 
 # API_BASE & Base URL supplied as an argument through click to speicfy if were on Dev or Live
-API_BASE = "https://carleton-dev.scholaris.ca/server/api"
 DSPACE_BASE_URL = "https://carleton-dev.scholaris.ca"
 
 # These sub-directories are made where you specify the base dir.
@@ -629,17 +628,17 @@ def build_metadata_payload(package_data, agreements):
         "type": "item"
     }
 
-def item_creation(session, collection_id, metadata_payload):
-    item_endpoint = f"{API_BASE}/core/items?owningCollection={collection_id}"
+def item_creation(session, api_base, collection_id, metadata_payload):
+    item_endpoint = f"{api_base}/core/items?owningCollection={collection_id}"
     response = session.safe_request("POST", item_endpoint, json=metadata_payload)
     response.raise_for_status()
     item_uuid = response.json()["uuid"]  
     item_handle = response.json()["handle"]
     return item_uuid, item_handle
 
-def bundle_creations(session, item_uuid):
+def bundle_creations(session, api_base, item_uuid):
     
-    bundle_endpoint = f"{API_BASE}/core/items/{item_uuid}/bundles"
+    bundle_endpoint = f"{api_base}/core/items/{item_uuid}/bundles"
     try:
         response = session.safe_request("POST", bundle_endpoint, json={"name":"ORIGINAL"})
         response.raise_for_status()
@@ -654,26 +653,16 @@ def bundle_creations(session, item_uuid):
         print(f"Error creating bundles: {e}")
         return None, None
     
-def original_bundle_creation(session, item_uuid, og_bundle_payload):
-    bundle_endpoint = f"{API_BASE}/core/items/{item_uuid}/bundles"
-    try:
-        response = session.safe_request("POST", bundle_endpoint, json=og_bundle_payload)
-        response.raise_for_status()
-        og_bundle_id = response.json()["uuid"]
-        return og_bundle_id
-    except:
-        print("Fix me")
-
-def upload_licenses(session, license_bundle_uuid, license_dir):
+def upload_licenses(session, api_base, license_bundle_uuid, license_dir):
     license_files = [
         ("license.txt", "Carleton University License"),
         ("fippa_statement.txt", "FIPPA Agreement"),
         ("academic_integrity_statement.txt", "Academic Integrity Statement"),
     ]
 
-    license_endpoint = f"{API_BASE}/core/bundles/{license_bundle_uuid}/bitstreams"
+    license_endpoint = f"{api_base}/core/bundles/{license_bundle_uuid}/bitstreams"
     format_id = 2
-    format_url = f"{API_BASE}/core/bitstreamformats/{format_id}"
+    format_url = f"{api_base}/core/bitstreamformats/{format_id}"
     headers = {"Content-Type": "text/uri-list"}
 
     for filename, description in license_files:
@@ -686,7 +675,7 @@ def upload_licenses(session, license_bundle_uuid, license_dir):
                     
                     if response:
                         license_uuid = response.json()["id"]
-                        bitstream_endpoint = f"{API_BASE}/core/bitstreams/{license_uuid}/format"
+                        bitstream_endpoint = f"{api_base}/core/bitstreams/{license_uuid}/format"
 
                         try:
                             response = session.safe_request("PUT", bitstream_endpoint, headers=headers, data=format_url)
@@ -698,10 +687,9 @@ def upload_licenses(session, license_bundle_uuid, license_dir):
         else:
             print(f"[{description}] File not found: {full_path}")
 
-def upload_files(session, package_data, og_bundle_uuid, file_path, metadata_payload):
+def upload_files(session, api_base, package_data, og_bundle_uuid, file_path, metadata_payload):
 
-    original_endpoint = f"{API_BASE}/core/bundles/{og_bundle_uuid}/bitstreams"
-    bitstream_metadata = []
+    original_endpoint = f"{api_base}/core/bundles/{og_bundle_uuid}/bitstreams"
 
     for file_name in package_data.package_files:
         full_path = os.path.join(file_path, file_name)
@@ -747,8 +735,8 @@ def upload_files(session, package_data, og_bundle_uuid, file_path, metadata_payl
                     continue
             print(f"Successfully uploaded: {file_path}") 
     
-def create_dspace_import(packages, invalid_ok, doi_start, mappings, files_path, parent_collection_id, user_email, user_password, license_path):
-    session = DSpaceSession(API_BASE)
+def create_dspace_import(api_base, packages, invalid_ok, doi_start, mappings, files_path, parent_collection_id, user_email, user_password, license_path):
+    session = DSpaceSession(api_base)
     session.authenticate(user_email, user_password)
     SKIP_IDS = {"100310418"}
     dspace_import_packages = []
@@ -806,10 +794,10 @@ def create_dspace_import(packages, invalid_ok, doi_start, mappings, files_path, 
             built_item_payload = build_metadata_payload(package_data, agreements)
 
             
-            item_id, item_handle = item_creation(session, parent_collection_id, built_item_payload)
-            og_bundle_uuid, license_bundle_uuid = bundle_creations(session, item_id)
-            upload_licenses(session, license_bundle_uuid, license_path)
-            upload_files(session, package_data, og_bundle_uuid, files_path, OG_BITSTREAM_PAYLOAD)
+            item_id, item_handle = item_creation(session, api_base, parent_collection_id, built_item_payload)
+            og_bundle_uuid, license_bundle_uuid = bundle_creations(session, api_base, item_id)
+            upload_licenses(session, api_base, license_bundle_uuid, license_path)
+            upload_files(session, api_base, package_data, og_bundle_uuid, files_path, OG_BITSTREAM_PAYLOAD)
             
         except ElementTree.ParseError as e:
             err_msg = f"Error parsing XML, {e}."
@@ -1408,8 +1396,15 @@ def send_email_report(
 
 @click.command()
 @click.argument('base_directory')
+@click.option('--api_base', default='https://carleton-dev.scholaris.ca/server/api', help='Base URL for the DSpace API.')
+@click.option('--skipped_mappings', default='etddepositor/skipped_mappings.yaml', help='Path to the skipped mappings YAML file.')
+@click.option('--outbox', default='etddepositor/outbox', help='Path to the out report directory.')
 @click.option('--mapping_file', default='etddepositor/mappings.yaml', help='Path to the mappings YAML file.')
 @click.option('--invalid_ok', is_flag=True, help='Continue processing even if BagIt is invalid.')
+@click.option('--email_from', required=True, help='Email address to send the report from.')
+@click.option('--email_to', required=True, default="smtp-server.carleton.ca", help='Email address to send the report to.')
+@click.option('--smtp-host', required=True, help='SMTP host for sending emails.')
+@click.option("--smtp-port", type=int, default=25, required=True)
 @click.option(
     "--doi-start",
     type=int,
@@ -1425,20 +1420,40 @@ def send_email_report(
     confirmation_prompt=True,
     help=("The DSpace user password."),
 )
-@click.option("--smtp-port", type=int, default=25, required=True)
 @click.option(
     "--parent-collection-id",
     required=True,
     help="The source ID for the parent collection in Dspace.",
 )
-def process(base_directory, doi_start, invalid_ok, mapping_file, user_email, user_password, smtp_port, parent_collection_id):
+def process(
+    base_directory, 
+    api_base, 
+    skipped_mappings, 
+    outbox, 
+    doi_start, 
+    invalid_ok, 
+    mapping_file, 
+    user_email, 
+    user_password, 
+    email_from,
+    email_to,
+    smtp_host,
+    smtp_port, 
+    parent_collection_id
+    ):
+
     
     click.echo("Starting ETD processing...")
 
     processing_directory = base_directory
 
+    API_BASE = api_base
+
+    
     # Load mappings
     mappings = load_mappings(mapping_file)
+    skipped_mappings = load_mappings(skipped_mappings)
+
     if not mappings:
        return
     
@@ -1448,7 +1463,7 @@ def process(base_directory, doi_start, invalid_ok, mapping_file, user_email, use
     (
         done_path, marc_path, 
         crossref_path, csv_report_path, file_path, 
-        not_complete_path, license_path, postback_path,) = create_output_directories(
+        not_complete_path, license_path, postback_path) = create_output_directories(
         processing_directory
     )
 
@@ -1461,6 +1476,7 @@ def process(base_directory, doi_start, invalid_ok, mapping_file, user_email, use
         return
      
     dspace_import_packages, dspace_item_info, pre_import_failure_log = create_dspace_import(
+        api_base,
         packages,
         invalid_ok, 
         doi_start, 
@@ -1516,6 +1532,25 @@ def process(base_directory, doi_start, invalid_ok, mapping_file, user_email, use
     click.echo("Writing postback files: ", nl=False)
     for package in completed_packages:
         try:
+            outbox_file = os.path.join(
+                outbox, package.student_id + "_postback.txt"
+            )
+            with open(outbox_file, "w") as postback:
+                time_now = (
+                    datetime.datetime.now()
+                    .replace(second=0, microsecond=0)
+                    .isoformat()
+                )
+                postback.write(
+                    "{}||{}||1||{}".format(package.student_id, time_now, package.url)
+                )
+            continue  
+        except Exception as e:
+            err_msg = f"Warning: Could not write to outbox path ({outbox}): {e}"
+            click.echo(err_msg)
+            
+        # Fallback to default postback path
+        try:
             with open(
                 os.path.join(
                     postback_path, package.student_id + "_postback.txt"
@@ -1531,16 +1566,13 @@ def process(base_directory, doi_start, invalid_ok, mapping_file, user_email, use
                     "{}||{}||1||{}".format(package.student_id, time_now, package.url)
                 )
         except Exception as e:
-            err_msg = f"Error writing postback file for {package.student_id}, {e}."
+            err_msg = f"Error: Failed to write postback file for {package.student_id} to both locations. {e}"
             click.echo(err_msg)
-            post_import_failure_log.append(f"{err_msg}")
+            post_import_failure_log.append(err_msg)
     click.echo("Done")
 
     click.echo("Sending report email: ", nl=False)
-    smtp_host = "smtp-server.carleton.ca"
-
-    email_from = "manfredraffelsieper@cunet.carleton.ca"
-    email_to = "manfredraffelsieper@cunet.carleton.ca"
+    
     send_email_report(
         completed_packages,
         pre_import_failure_log + post_import_failure_log,
