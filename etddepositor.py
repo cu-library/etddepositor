@@ -1,65 +1,92 @@
-import csv
-import dataclasses
-import datetime
-import glob
-import hashlib
 import os
-import shutil
-import smtplib
-import string
-import textwrap
-import time
-import warnings
-import xml.etree.ElementTree as ElementTree
-from typing import List
-
-from bs4 import BeautifulSoup
-import bagit
+import glob
+import datetime
+import yaml
 import click
+import xml.etree.ElementTree as ElementTree
+import shutil
+import csv
+import bagit
+import dataclasses
+import string
+from typing import List
+import smtplib
+from xml.etree import ElementTree
+from xml.dom import minidom
+import time
 import pymarc
 import requests
-import requests.packages.urllib3.exceptions
-import yaml
-from pysolr import Solr
+import textwrap
+import mimetypes
+from requests_toolbelt.multipart import encoder
+import json
 
-# Used in the add_url for solr access"
-SOLR_URL = os.environ.get("SOLR_URL")
+# API_BASE & Base URL supplied as an argument through click to speicfy if were on Dev or Live
 
-# SPLIT_PATTERN is used in the Hyrax CSV exports to delimit multiple values
-# in the same column.
-SPLIT_PATTERN = "|||"
-
-# CONTEXT_SETTINGS is a click-specific config dict which allows us to define a
-# prefix for the automatic environment variable option feature.
-CONTEXT_SETTINGS = {"auto_envvar_prefix": "ETD_DEPOSITOR"}
-
-# READY_SUBDIR is the name of the subdirectory under the provided processing
-# directory where ETD packages are moved before they are processed.
+# These sub-directories are made where you specify the base dir.
 READY_SUBDIR = "ready"
-
-# DONE_SUBDIR is the name of the subdirectory under the provided processing
-# directory where ETD packages are moved after they have been processed.
 DONE_SUBDIR = "done"
-
-# HYRAX_SUBDIR is the name of the subdirectory under the provided processing
-# directory where the Hyrax import CSVs and files are created.
-HYRAX_SUBDIR = "hyrax"
-
-# FILES_SUBDIR is the name of the subdirectory under the Hyrax subdirectory
-# where files are stored for Hyrax import.
-FILES_SUBDIR = "files"
-
-# MARC_SUBDIR is the name of the subdirectory under the provided processing
-# directory where the MARC records for ETDs are created.
 MARC_SUBDIR = "marc"
-
-# CROSSREF_SUBDIR is the name of the subdirectory under the provided processing
-# directory where the Crossref-ready metadata file is created.
 CROSSREF_SUBDIR = "crossref"
-
-# CSV_REPORT_SUBDIR is the name of the subdirectory under the provided
-# processing directory where the CSV report of the import for CMD is created.
 CSV_REPORT_SUBDIR = "csv_report"
+FILE_SUBDIR = "file"
+FAILED_SUBDIR = "failed"
+SKIPPED_SUBDIR = "skipped"
+LICENSE_SUBDIR = "license"
+POSTBACK_SUBDIR = "postback_tmp"
+
+# NAMESPACES is used to help pull out the data from FGPA packages
+NAMESPACES = {
+    "dc": "http://purl.org/dc/elements/1.1/",
+    "etdms": "http://www.ndltd.org/standards/metadata/etdms/1.1/",
+}
+
+# Bitstream Payloads are blank payloads as we'll fill them out when we place it into dspace
+OG_BITSTREAM_PAYLOAD = { 
+                "name": "", 
+                "description": "",
+                "type": "bitstream",
+                "bundleName": "ORIGINAL" 
+                }
+
+LICENSE_BITSTREAM_PAYLOAD = {
+                "name": "", 
+                "description": "",
+                "type": "license",
+                "bundleName": "LICENSE" 
+                }
+
+# PackageData create the template for this object and will be placing data from 
+PackageData = dataclasses.make_dataclass(
+    "PackageData",
+    [
+        "package_files", 
+        "creator", 
+        "contributors",
+        "date",
+        "type",
+        "description",
+        "publisher",
+        "doi",
+        "language",
+        "rights_notes",
+        "title",
+        "subjects",
+        "abbreviation",
+        "deduped_subjects",
+        "agreements",
+        "degree",
+        "degree_discipline",
+        "degree_level", 
+        "url",
+        "handle", 
+        "student_id",
+        "embargo_info",
+
+    ],
+)
+
+
 
 # DOI_PREFIX is Carleton University Library's DOI prefix, used when minting new
 # DOIs for ETDs.
@@ -68,46 +95,9 @@ DOI_PREFIX = "10.22215"
 # DOI_URL_PREFIX is the prefix to add to DOIs to make them resolvable.
 DOI_URL_PREFIX = "https://doi.org/"
 
-# NAMESPACES is a dictionary of namespace prefixes to URIs, used when
-# processing the FGPA provided metadata, which is in XML format.
-NAMESPACES = {
-    "dc": "http://purl.org/dc/elements/1.1/",
-    "etdms": "http://www.ndltd.org/standards/metadata/etdms/1.1/",
-}
-
 # FLAG is a string which we assign to some attributes of the package
 # if our mapping for that attribute is incomplete or unknowable.
 FLAG = "FLAG"
-
-# PackageData is a container for package data, used to create the Hyrax
-# import, MARC record, and Crossref records for an ETD.
-PackageData = dataclasses.make_dataclass(
-    "PackageData",
-    [
-        "name",
-        "source_identifier",
-        "title",
-        "creator",
-        "subjects",
-        "abstract",
-        "publisher",
-        "contributors",
-        "date",
-        "year",
-        "language",
-        "agreements",
-        "degree",
-        "abbreviation",
-        "discipline",
-        "level",
-        "url",
-        "doi",
-        "path",
-        "rights_notes",
-        "package_files",
-    ],
-)
-
 
 class MissingFileError(Exception):
     """Raised when a required file is missing."""
@@ -120,422 +110,147 @@ class MetadataError(Exception):
 class GetURLFailedError(Exception):
     """Raised when the Hyrax URL for an imported package can't be found."""
 
+# DSpaceSession: This is the class itself that will handle all the DSpace API management 
+# All we need to do is make a session and uses the user/pass you pass in 
+class DSpaceSession(requests.Session):
+    def __init__(self, api_base):
+        super().__init__()
+        self.api_base = api_base
+        self.auth_token = None
+        self.last_auth_time = None
+        self.csrf_token = None
+        self.fetch_initial_csrf_token()
 
-@click.group(context_settings=CONTEXT_SETTINGS)
-@click.pass_context
-@click.option(
-    "--processing-directory",
-    type=click.Path(
-        exists=True,
-        dir_okay=True,
-        file_okay=False,
-        resolve_path=True,
-        readable=True,
-        writable=True,
-    ),
-    required=True,
-    help=(
-        "The directory under which the tool will store ETD packages, "
-        "MARC records, and Crossref-ready metadata."
-    ),
-)
-def etddepositor(ctx, processing_directory):
-    """
-    Carleton University Library - ETD Deposit Tool
-    """
-    # ensure that ctx.obj exists and is a dict (in case `cli()` is called
-    # by means other than the `if` block below)
-    ctx.ensure_object(dict)
+    def fetch_initial_csrf_token(self):
+        response = super().get(f"{self.api_base}/security/csrf")
+        response.raise_for_status()
+        self.headers.update(response)
 
-    ctx.obj["processing_directory"] = processing_directory
-
-
-@etddepositor.command()
-@click.pass_context
-@click.option(
-    "--inbox",
-    "inbox_directory_path",
-    type=click.Path(
-        exists=True,
-        dir_okay=True,
-        file_okay=False,
-        resolve_path=True,
-        readable=True,
-    ),
-    required=True,
-    help="The directory containing the ITS copies of the thesis packages.",
-)
-def copy(ctx, inbox_directory_path):
-    """
-    Copy and extract ETD packages.
-
-    Packages in the inbox directory will be moved and unpacked into the
-    processing directory.
-    Packages which are already in the processing directory will be ignored.
-    """
-
-    # Copy the processing location out of the context object.
-    processing_directory = ctx.obj["processing_directory"]
-
-    # Build the package storage directories.
-    ready_path = os.path.join(processing_directory, READY_SUBDIR)
-    done_path = os.path.join(processing_directory, DONE_SUBDIR)
-
-    # Does the ready subdirectory exist?
-    if not os.path.isdir(ready_path):
-        os.mkdir(ready_path, mode=0o770)
-
-    # Find the packages that are already in the processing directory.
-    existing_packages = [
-        os.path.basename(x) for x in glob.glob(os.path.join(ready_path, "*"))
-    ]
-    existing_packages.extend(
-        [
-            os.path.basename(x)
-            for x in glob.glob(os.path.join(done_path, "*", "*"))
-        ]
-    )
-
-    # Find the zip archives in the inbox directory,
-    # filtering out the already processed packages.
-    new_package_paths = [
-        path
-        for path in glob.glob(os.path.join(inbox_directory_path, "*.zip"))
-        if os.path.splitext(os.path.basename(path))[0] not in existing_packages
-    ]
-
-    # Extract the files from the inbox to the ready subdirectory.
-    click.echo(
-        f"Moving and unpacking {len(new_package_paths)} packages.",
-    )
-    for path in new_package_paths:
-        click.echo(f"{os.path.basename(path)}: ", nl=False)
+    def authenticate(self, user, password):
+        login_payload = {"user": user, "password": password}
         try:
-            shutil.unpack_archive(path, ready_path)
+            response = self.post(f"{self.api_base}/authn/login", data=login_payload)
+            response.raise_for_status()
+            self.update_csrf_token(response)
+
+            self.auth_token = response.headers.get("Authorization")
+            if self.auth_token:
+                self.headers.update({"Authorization": self.auth_token})
+                self.last_auth_time = time.time()
+
+        except requests.exceptions.HTTPError as e:
+            print(f"HTTP error during authentication for user {user}: {e}")
+            print(f"Response content: {response.text}")
+
+        except requests.exceptions.RequestException as e:
+            print(f"Request error during authentication for user {user}: {e}")
+
         except Exception as e:
-            click.echo(f"Unable to extract {path}, {e}")
-        else:
-            click.echo("Done")
+            print(f"Unexpected error during authentication for user {user}: {e}")
+
+    def refresh_csrf_token(self):
+        response = super().get(f"{self.api_base}/security/csrf")
+        response.raise_for_status()
+        self.update_csrf_token(response)
+
+    def ensure_auth_valid(self, user, password):
+        if self.auth_token and (time.time() - self.last_auth_time > 1800):
+            self.authenticate(user, password)        
+
+    def update_csrf_token(self, response):
+        if "dspace-xsrf-token" in response.headers:
+            self.csrf_token = response.headers["DSPACE-XSRF-TOKEN"]
+            self.headers.update({"X-XSRF-TOKEN": self.csrf_token})
+
+    def request(self, method, url, **kwargs):
+        try:
+            response = super().request(method, url, **kwargs)
+            response.raise_for_status()
+            self.update_csrf_token(response)
+            print(f"Successful {method} request to {url}")  
+            return response
+
+        except requests.exceptions.HTTPError as e:
+            print(f"HTTP error during {method} request to {url}: {e}")
+            print(f"Response content: {response.text}")  
+
+        except requests.exceptions.RequestException as e:
+            print(f"Request error during {method} request to {url}: {e}")
+
+        except Exception as e:
+            print(f"Unexpected error during {method} request to {url}: {e}")
+
+    def safe_request(self, method, url, **kwargs):
+        return self.request(method, url, **kwargs)
+    
+# load_mappings is a helper method that will load all the yaml files we use 
+def load_mappings(mapping_file):
+    """Loads the mappings YAML file."""
+    try:
+        with open(mapping_file, encoding="utf-8") as mappings_file:
+            mappings = yaml.load(mappings_file, Loader=yaml.FullLoader)
+        return mappings
+    except FileNotFoundError:
+        click.echo(f"Error: Mappings file not found at {mapping_file}")
+        return None
+    except yaml.YAMLError as e:
+        click.echo(f"Error parsing mappings file: {e}")
+        return None
 
 
-@etddepositor.command()
-@click.pass_context
-@click.option(
-    "--mapping",
-    "mapping_file_path",
-    type=click.Path(
-        exists=True,
-        dir_okay=False,
-        file_okay=True,
-        resolve_path=True,
-        readable=True,
-    ),
-    required=True,
-)
-@click.option(
-    "--invalid-ok/--invalid-not-ok",
-    default=False,
-    help=(
-        "Process packages that are not valid BagIt containers. "
-        "This can be used to process packages which needed manual fixes."
-    ),
-)
-@click.option("--user-email", required=True, help=("The Hyrax user email."))
-@click.option(
-    "--user-password",
-    prompt=True,
-    hide_input=True,
-    confirmation_prompt=True,
-    help=("The Hyrax user password."),
-)
-@click.option(
-    "--user-id",
-    required=True,
-    help="Passed as the user_id option when running the Hyrax importer.",
-)
-@click.option(
-    "--auth-token",
-    required=True,
-    help="Passed as the auth_token option when running the Hyrax importer.",
-)
-@click.option(
-    "--parent-collection-id",
-    required=True,
-    help="The source ID for the parent collection in Hyrax.",
-)
-@click.option(
-    "--doi-start",
-    type=int,
-    default=1,
-    required=True,
-    help="The starting number of the incrementing part of the generated DOIs.",
-)
-@click.option(
-    "--hyrax-host",
-    required=True,
-    help=(
-        "The scheme and domain name of the Hyrax instance we are importing "
-        "into. No trailing slash! Passed as the url option when running the "
-        "Hyrax importer and used to find the Hyrax URLs for imported works."
-    ),
-)
-@click.option(
-    "--public-hyrax-host",
-    required=True,
-    help=(
-        "The scheme and domain name which the public uses to access the "
-        "Hyrax instance we are importing into. Used to create the resource "
-        "links in the Crossref and MARC metadata."
-    ),
-)
-@click.option(
-    "--smtp-host",
-    required=True,
-    help="The SMTP server to use when sending the email report.",
-)
-@click.option("--smtp-port", type=int, default=25, required=True)
-@click.option(
-    "--email-from",
-    required=True,
-    help="The 'from' address for the report email.",
-)
-@click.option(
-    "--email-to", required=True, help="The 'to' address for the report email."
-)
-@click.option(
-    "--outbox",
-    "outbox_directory_path",
-    type=click.Path(
-        exists=True,
-        dir_okay=True,
-        file_okay=False,
-        resolve_path=True,
-        readable=True,
-        writable=True,
-    ),
-    required=True,
-    help="The directory where postback files for ITS will be written.",
-)
-def process(
-    ctx,
-    mapping_file_path,
-    invalid_ok,
-    user_email,
-    user_password,
-    user_id,
-    auth_token,
-    parent_collection_id,
-    doi_start,
-    hyrax_host,
-    public_hyrax_host,
-    smtp_host,
-    smtp_port,
-    email_from,
-    email_to,
-    outbox_directory_path,
-):
-    """
-    Process all packages which are awaiting work.
+def validate_subject_mappings(mappings):
+    """Ensures the subjects in the mappings file are properly formatted."""
+    if mappings and "lc_subject" in mappings:
+        for code, subject in mappings["lc_subject"].items():
+            for subject_tags in subject:
+                if len(subject_tags) not in [2, 4]:
+                    click.echo(f"Warning: The subject {code} in the mappings file is not formatted correctly.")
 
-    Add the metadata and files to the Hyrax import, run the import,
-    create MARC and Crossref ready metadata files, and send the email report.
-    """
-
-    click.echo("Logging into Hyrax: ", nl=False)
-    session = requests.Session()
-    # We need the CSRF token, which is stored in the csrf-token meta tag.
-    sign_in_form_request = session.get(f"{hyrax_host}/users/sign_in")
-    sign_in_form_request.raise_for_status()
-    # TODO: Better error checks for finding the CSRF token.
-    csrf_token = BeautifulSoup(sign_in_form_request.text, "html.parser").find(
-        name="meta", attrs={"name": "csrf-token"}
-    )["content"]
-    sign_in_data = {
-        "authenticity_token": csrf_token,
-        "user[email]": user_email,
-        "user[password]": user_password,
-        "user[remember_me]": "0",
-        "commit": "Log+in",
-    }
-    sign_in_request = session.post(
-        f"{hyrax_host}/users/sign_in", data=sign_in_data
-    )
-    sign_in_request.raise_for_status()
-    click.echo("Done")
-
-    # Copy the processing location out of the context object.
-    processing_directory = ctx.obj["processing_directory"]
-
-    # Load the mappings file.
-    with open(mapping_file_path, encoding="utf-8") as mappings_file:
-        mappings = yaml.load(mappings_file, Loader=yaml.FullLoader)
-
-    # Ensure the subjects in the mappings file are properly formatted.
-    for code, subject in mappings["lc_subject"].items():
-        for subject_tags in subject:
-            if len(subject_tags) not in [2, 4]:
-                click.echo(f"The subject {code} is not formatted correctly.")
-                ctx.exit(1)
-
-    # Get a list of the package directories in the ready subdirectory.
+def find_etd_packages(processing_directory):
+    """Finds the package directories in the ready subdirectory."""
     ready_path = os.path.join(processing_directory, READY_SUBDIR)
     packages = glob.glob(os.path.join(ready_path, "*"))
+    return packages
 
-    # If there are no packages, exit early.
-    if not packages:
-        click.echo(f"No packages in {READY_SUBDIR} to process.")
-        ctx.exit()
+def create_output_directories(processing_directory):
+    """Creates the timestamped output directories."""
+    done_path = os.path.join(processing_directory, DONE_SUBDIR)
+    file_path = os.path.join(processing_directory, FILE_SUBDIR)
+    marc_path = os.path.join(processing_directory, MARC_SUBDIR)
+    crossref_path = os.path.join(processing_directory, CROSSREF_SUBDIR)
+    csv_report_path = os.path.join(processing_directory, CSV_REPORT_SUBDIR)
+    failed_path = os.path.join(processing_directory, FAILED_SUBDIR)
+    skipped_path = os.path.join(processing_directory, SKIPPED_SUBDIR)
+    license_path = os.path.join(processing_directory, LICENSE_SUBDIR)
+    postback_path = os.path.join(processing_directory, POSTBACK_SUBDIR)
 
-    # Build the timestamp, used to name subdirectories under the done, Hyrax,
-    # MARC, and Crossref subdirectories to compartmentalize each import.
-    ts = f"{datetime.datetime.now():%Y-%m-%d_%H-%M-%S}"
-
-    # Build the processing location subdirectories.
-    done_path = os.path.join(processing_directory, DONE_SUBDIR, ts)
-    hyrax_path = os.path.join(processing_directory, HYRAX_SUBDIR, ts)
-    files_path = os.path.join(hyrax_path, FILES_SUBDIR)
-    marc_path = os.path.join(processing_directory, MARC_SUBDIR, ts)
-    crossref_path = os.path.join(processing_directory, CROSSREF_SUBDIR, ts)
-    csv_report_path = os.path.join(processing_directory, CSV_REPORT_SUBDIR, ts)
-
-    # Create the subdirectories if they don't exist.
     os.makedirs(done_path, mode=0o770, exist_ok=True)
-    for path in [files_path, marc_path, crossref_path, csv_report_path]:
-        os.makedirs(path, mode=0o775, exist_ok=True)
+    os.makedirs(marc_path, mode=0o775, exist_ok=True)
+    os.makedirs(crossref_path, mode=0o775, exist_ok=True)
+    os.makedirs(csv_report_path, mode=0o775, exist_ok=True)
+    os.makedirs(file_path, mode=0o775, exist_ok=True)
+    os.makedirs(failed_path, mode=0o775, exist_ok=True)
+    os.makedirs(license_path, mode=0o775, exist_ok=True)
+    os.makedirs(postback_path, mode=0o775, exist_ok=True)
 
-    # Create the Hyrax import metadata.csv file and add the header.
-    metadata_csv_path = os.path.join(hyrax_path, "metadata.csv")
-    write_metadata_csv_header(metadata_csv_path)
 
-    hyrax_import_packages, pre_import_failure_log = create_hyrax_import(
-        packages,
-        metadata_csv_path,
-        files_path,
-        invalid_ok,
-        parent_collection_id,
-        doi_start,
-        mappings,
-    )
-    click.echo("Submitting Bulkrax import job:", nl=False)
-    import_job_data = {
-        "commit": "Create and Import",
-        "importer": {
-            "name": f"ETD-Deposit-{ts}",
-            "parser_klass": "Bulkrax::CsvParser",
-            "user_id": user_id,
-            "parser_fields": {
-                "import_file_path": metadata_csv_path,
-            },
-        },
-    }
-    import_job_request = session.post(
-        f"{hyrax_host}/importers",
-        json=import_job_data,
-        headers={
-            "Authorization": f"Token: {auth_token}",
-        },
-    )
-    import_job_request.raise_for_status()
-    click.echo("Done")
-    (
-        completed_packages,
-        crossref_et,
-        post_import_failure_log,
-    ) = post_import_processing(
-        hyrax_import_packages, hyrax_host, public_hyrax_host, marc_path
-    )
-
-    click.echo("Writing complete CSV file: ", nl=False)
-    csv_file_path = os.path.join(
-        csv_report_path,
-        f"{ datetime.date.today().isoformat()}-ingest_list.csv",
-    )
-    create_csv_list(completed_packages, csv_file_path)
-
-    click.echo("Writing complete Crossref file: ", nl=False)
-    crossref_file_path = os.path.join(
-        crossref_path, f"{ datetime.date.today().isoformat()}-crossref.xml"
-    )
-    crossref_et.write(
-        crossref_file_path, encoding="utf-8", xml_declaration=True
-    )
-    click.echo("Done")
-
-    click.echo("Creating MARC archive: ", nl=False)
-    marc_archive_path = os.path.join(
-        processing_directory,
-        MARC_SUBDIR,
-        f"{ datetime.date.today().isoformat()}-marc-archive.zip",
-    )
-    # make_archive doesn't want the archive extension.
-    shutil.make_archive(marc_archive_path[:-4], "zip", marc_path)
-    click.echo("Done")
-
-    click.echo("Writing postback files: ", nl=False)
-    for package in completed_packages:
-        try:
-            with open(
-                os.path.join(
-                    outbox_directory_path, package.name + "_postback.txt"
-                ),
-                "w",
-            ) as postback:
-                time_now = (
-                    datetime.datetime.now()
-                    .replace(second=0, microsecond=0)
-                    .isoformat()
-                )
-                postback.write(
-                    "{}||{}||1||{}".format(package.name, time_now, package.url)
-                )
-        except Exception as e:
-            err_msg = f"Error writing postback file for {package.name}, {e}."
-            click.echo(err_msg)
-            post_import_failure_log.append(f"{err_msg}")
-    click.echo("Done")
-
-    click.echo("Sending report email: ", nl=False)
-    send_email_report(
-        completed_packages,
-        pre_import_failure_log + post_import_failure_log,
-        marc_archive_path,
-        crossref_file_path,
-        csv_file_path,
-        smtp_host,
-        smtp_port,
-        email_from,
-        email_to,
-    )
-    click.echo("Done")
-
-    click.echo("Moving processed packages to done subdirectory: ", nl=False)
-    for package in completed_packages:
-        shutil.move(package.path, done_path)
-    click.echo("Done")
-
+    return done_path, marc_path, crossref_path, csv_report_path, file_path, failed_path, skipped_path, license_path, postback_path 
 
 def write_metadata_csv_header(metadata_csv_path):
     """Write the header columns to the Hyrax import metadata CSV file."""
     header_columns = [
-        "source_identifier",
-        "model",
-        "title",
-        "creator",
-        "identifier",
-        "subject",
-        "abstract",
-        "publisher",
-        "contributor",
-        "date_created",
-        "language",
-        "agreement",
-        "degree",
-        "degree_discipline",
-        "degree_level",
-        "resource_type",
-        "parents",
-        "file",
-        "rights_notes",
+        "files", 
+        "dc.contributor.author", 
+        "dc.contributor.other",
+        "dc.date.issued",
+        "dc.type",
+        "dc.description.abstract",
+        "dc.publisher",
+        "dc.identifier.doi",
+        "dc.language.iso",
+        "dc.rights",
+        "dc.title",
+        "dc.subject.lcsh",
     ]
 
     with open(
@@ -545,172 +260,101 @@ def write_metadata_csv_header(metadata_csv_path):
 
         csv_writer.writerow(header_columns)
 
+def process_subjects(subject_elements, mappings):
+    subjects = []
+    for subject_element in subject_elements:
+        subject_code = subject_element.text.strip()
 
-def create_hyrax_import(
-    packages,
-    metadata_csv_path,
-    files_path,
-    invalid_ok,
-    parent_collection_id,
-    doi_start,
-    mappings,
-):
-    """Process each package to create the Hyrax import."""
+        if subject_code.endswith("."):
+            subject_code = subject_code[:-1]
 
-    # Package data for packages which have been added to Hyrax import.
-    hyrax_import_packages = []
+        if subject_code in mappings["lc_subject"]:
+            for subject_tags in mappings["lc_subject"][subject_code]:
+                subjects.append(subject_tags)
+    deduplicated_subjects = []
+    for subject in subjects:
+        if subject not in deduplicated_subjects:
+            deduplicated_subjects.append(subject)
 
-    # A list of packages which failed during processing.
-    failure_log: List[str] = []
+    subject_values = [entry[1].rstrip('.') for entry in deduplicated_subjects if len(entry) > 1]
+    return deduplicated_subjects, subject_values
 
-    # Start the doi_ident counter at the provided doi_start number.
-    doi_ident = doi_start
+def process_description(description):
+    return description.replace("\n", " ").replace("\r", "").strip()
 
-    click.echo(f"Processing {len(packages)} packages to create Hyrax import.")
-    for package_path in packages:
-        name = os.path.basename(package_path)
-        click.echo(f"{name}: ", nl=False)
-
-        # Is the BagIt container valid? This will catch bit-rot errors early.
-        if not bagit.Bag(package_path).is_valid() and not invalid_ok:
-            err_msg = "Invalid BagIt."
-            click.echo(err_msg)
-            failure_log.append(f"{name}: {err_msg}")
-            continue
-
-        try:
-            permissions_path = os.path.join(
-                package_path,
-                "data",
-                "meta",
-                f"{name}_permissions_meta.txt",
-            )
-            with open(
-                permissions_path, "r", encoding="utf-8"
-            ) as permissions_file:
-                permissions_file_content = permissions_file.readlines()
-            # We pass a list of lines here instead of a file handle to
-            # make unit testing easier.
-            agreements = process_embargo_and_agreements(
-                permissions_file_content, mappings
-            )
-
-            package_metadata_xml_path = os.path.join(
-                package_path, "data", "meta", f"{name}_etdms_meta.xml"
-            )
-            package_metadata_xml = ElementTree.parse(package_metadata_xml_path)
-            package_data = create_package_data(
-                package_metadata_xml,
-                name,
-                doi_ident,
-                agreements,
-                package_path,
-                mappings,
-            )
-
-            package_data.package_files = copy_package_files(
-                package_data, package_path, files_path
-            )
-
-            add_to_csv(metadata_csv_path, package_data, parent_collection_id)
-
-        except ElementTree.ParseError as e:
-            err_msg = f"Error parsing XML, {e}."
-            click.echo(err_msg)
-            failure_log.append(f"{name}: {err_msg}")
-        except MissingFileError as e:
-            err_msg = f"Required file is missing, {e}."
-            click.echo(err_msg)
-            failure_log.append(f"{name}: {err_msg}")
-        except MetadataError as e:
-            err_msg = f"Metadata error, {e}."
-            click.echo(err_msg)
-            failure_log.append(f"{name}: {err_msg}")
+def process_contributors(contributor_elements):
+    contributors = []
+    for contributor_element in contributor_elements:
+        name = contributor_element.text.strip()
+        role = contributor_element.get("role", "")
+        if role:
+            # Uppercase the first character of the role.
+            role = role[0].upper() + role[1:]
+            contributors.append(f"{name} ({role})")
         else:
-            doi_ident += 1
-            hyrax_import_packages.append(package_data)
-            click.echo("Done")
+            contributors.append(name)
+    return contributors
 
-    return hyrax_import_packages, failure_log
+def process_date(date):
+    """Check date is properly formatted, return the date and year as strings"""
 
-
-def process_embargo_and_agreements(content_lines, mappings):
-    """Process the embargo and agreements metadata file.
-
-    The package's permissions metadata must state that the embargo period has
-    passed and that the student has signed the required agreements.
-
-    Return a list of identifiers to signed agreements.
-    """
-
-    # The list of identifiers (term ids).
-    agreements = []
-
-    for line in content_lines:
-        line = line.strip()
-        if line.startswith(("Student ID", "Thesis ID")):
-            continue
-        elif line.startswith("Embargo Expiry"):
-            current_date = datetime.date.today()
-            expiry_date = line.split(" ")[2]
-            embargo_date = embargo_string_to_datetime(expiry_date)
-            if current_date < embargo_date:
-                raise MetadataError(
-                    f"the embargo date of {embargo_date} has not passed"
-                )
-            continue
-        elif any(line.startswith(name) for name in mappings["agreements"]):
-            line_split = line.split("||")
-            if line_split[0] not in mappings["agreements"]:
-                raise MetadataError(f"{line} is invalid")
-            agreement = mappings["agreements"][line_split[0]]
-            signed = line_split[2] == "Y"
-            if agreement["required"] and not signed:
-                raise MetadataError(f"{line} is required but not signed")
-            if signed:
-                agreements.append(agreement["identifier"])
-            continue
-        raise MetadataError(
-            f"{line} was not expected in the permissions document"
-        )
-
-    return agreements
-
-
-def embargo_string_to_datetime(embargo):
-    """Return the date representation of the embargo."""
-
-    month_to_int = {
-        "JAN": "1",
-        "FEB": "2",
-        "MAR": "3",
-        "APR": "4",
-        "MAY": "5",
-        "JUN": "6",
-        "JUL": "7",
-        "AUG": "8",
-        "SEP": "9",
-        "OCT": "10",
-        "NOV": "11",
-        "DEC": "12",
-    }
-    embargo_split = embargo.split("-")
+    date = date.strip()
+    if not date:
+        raise MetadataError("date tag is missing")
     try:
-        month_number = month_to_int[embargo_split[1]]
-        formatted_date = (
-            f"{embargo_split[0]}/{month_number}/20{embargo_split[2]}"
-        )
-        return datetime.datetime.strptime(formatted_date, "%d/%m/%Y").date()
-    except (IndexError, ValueError):
-        raise MetadataError(f"embargo date {embargo} could not be processed")
+        year = str(datetime.datetime.strptime(date, "%Y-%m-%d").year)
+    except ValueError:
+        raise MetadataError(f"date value {date} is not properly formatted")
+    return date, year
 
+def process_language(language):
+    language = language.strip()
+    if language == "fre" or language == "fra":
+        return "fr"
+    elif language == "ger" or language == "deu":
+        return "de"
+    elif language == "spa":
+        return "sp"
+    elif language == "eng" or language == "":
+        return "en"
+    else:
+        raise MetadataError(f"unexpected language {language} found.")
+
+def process_degree(degree):
+    degree = degree.strip()
+    if degree == "Master of Architectural Stud":
+        return "Master of Architectural Studies"
+    elif degree == "Master of Information Tech":
+        return "Master of Information Technology"
+    elif degree == "":
+        return FLAG
+    return degree
+
+def process_degree_abbreviation(degree, mappings):
+    return mappings["abbreviation"].get(degree, FLAG)
+
+def process_degree_discipline(discipline, mappings):
+    discipline = discipline.strip()
+    return mappings["discipline"].get(discipline, FLAG)
+
+def process_degree_level(level):
+    level = level.strip()
+    if not level:
+        raise MetadataError("degree level is missing")
+    if level == "0":
+        raise MetadataError("received undergraduate work, degree level is 0")
+    if level != "1" and level != "2":
+        raise MetadataError("invalid degree level")    
+    if level == "1":
+        level = "Master's"
+    elif level == "2":
+        level = "Doctoral"
+    return level
 
 def create_package_data(
-    package_metadata_xml, name, doi_ident, agreements, package_path, mappings
+    package_metadata_xml, student_id, doi_ident, agreements, embargo_info, mappings
 ):
     """Extract the package data from the package XML."""
-
-    source_identifier = hashlib.sha256(name.encode("utf-8")).hexdigest()
 
     root = package_metadata_xml.getroot()
 
@@ -725,7 +369,7 @@ def create_package_data(
         raise MetadataError("creator tag is missing")
 
     subject_elements = root.findall("dc:subject", namespaces=NAMESPACES)
-    subjects = process_subjects(subject_elements, mappings)
+    deduped_subjects, subjects = process_subjects(subject_elements, mappings)
 
     description = root.findtext(
         "dc:description", default="", namespaces=NAMESPACES
@@ -789,132 +433,40 @@ def create_package_data(
     doi = f"{DOI_PREFIX}/etd/{year}-{doi_ident}"
 
     return PackageData(
-        name=name,
-        source_identifier=source_identifier,
-        title=title,
+        package_files=[],        
         creator=creator,
-        subjects=subjects,
-        abstract=description,
-        publisher=publisher,
         contributors=contributors,
-        date=date,
-        year=year,
-        agreements=agreements,
-        language=language,
-        degree=degree,
-        abbreviation=abbreviation,
-        discipline=discipline,
-        level=level,
-        url="",
+        date=year,
+        type="thesis",
+        description=description,
+        publisher=publisher,
         doi=doi,
-        path=package_path,
+        language=language,
         rights_notes=rights_notes,
-        package_files=[],
+        title=title,
+        subjects=subjects,
+        abbreviation=abbreviation,
+        deduped_subjects=deduped_subjects,
+        agreements=agreements,
+        degree=degree,
+        degree_discipline=discipline,
+        degree_level=level,
+        url="",
+        handle="",
+        student_id=student_id,
+        embargo_info=embargo_info,
+
     )
 
-
-def process_subjects(subject_elements, mappings):
-    subjects = []
-    for subject_element in subject_elements:
-        subject_code = subject_element.text.strip()
-        if subject_code in mappings["lc_subject"]:
-            for subject_tags in mappings["lc_subject"][subject_code]:
-                subjects.append(subject_tags)
-    deduplicated_subjects = []
-    for subject in subjects:
-        if subject not in deduplicated_subjects:
-            deduplicated_subjects.append(subject)
-    return deduplicated_subjects
-
-
-def process_description(description):
-    return description.replace("\n", " ").replace("\r", "").strip()
-
-
-def process_contributors(contributor_elements):
-    contributors = []
-    for contributor_element in contributor_elements:
-        name = contributor_element.text.strip()
-        role = contributor_element.get("role", "")
-        if role:
-            # Uppercase the first character of the role.
-            role = role[0].upper() + role[1:]
-            contributors.append(f"{name} ({role})")
-        else:
-            contributors.append(name)
-    return contributors
-
-
-def process_date(date):
-    """Check date is properly formatted, return the date and year as strings"""
-
-    date = date.strip()
-    if not date:
-        raise MetadataError("date tag is missing")
-    try:
-        # This strptime call validates the date, and we can pull out the year.
-        year = str(datetime.datetime.strptime(date, "%Y-%m-%d").year)
-    except ValueError:
-        raise MetadataError(f"date value {date} is not properly formatted")
-    return date, year
-
-
-def process_language(language):
-    language = language.strip()
-    if language == "fre" or language == "fra":
-        return "fra"
-    elif language == "ger" or language == "deu":
-        return "deu"
-    elif language == "spa":
-        return "spa"
-    elif language == "eng" or language == "":
-        return "eng"
+def process_value(value):
+    
+    if isinstance(value, list):
+        return '||'.join(map(str, value))
+    elif isinstance(value, str):
+        return value.strip()
     else:
-        raise MetadataError(f"unexpected language {language} found.")
-
-
-def process_degree(degree):
-    degree = degree.strip()
-    if degree == "Master of Architectural Stud":
-        return "Master of Architectural Studies"
-    elif degree == "Master of Information Tech":
-        return "Master of Information Technology"
-    elif degree == "":
-        return FLAG
-    return degree
-
-
-def process_degree_abbreviation(degree, mappings):
-    return mappings["abbreviation"].get(degree, FLAG)
-
-
-def process_degree_discipline(discipline, mappings):
-    discipline = discipline.strip()
-    return mappings["discipline"].get(discipline, FLAG)
-
-
-def process_degree_level(level):
-    level = level.strip()
-    if not level:
-        raise MetadataError("degree level is missing")
-    if level == "0":
-        raise MetadataError("received undergraduate work, degree level is 0")
-    if level != "1" and level != "2":
-        raise MetadataError("invalid degree level")
-    return level
-
-
-def copy_package_files(package_data, package_path, files_path):
-    thesis_file_name = copy_thesis_pdf(package_data, package_path, files_path)
-    supplemental_path = os.path.join(package_path, "data", "supplemental")
-    if os.path.isdir(supplemental_path):
-        archive_file_name = f"{thesis_file_name[:-4]}-supplemental.zip"
-        archive_path = os.path.join(files_path, archive_file_name)
-        shutil.make_archive(archive_path[:-4], "zip", supplemental_path)
-        return thesis_file_name, archive_file_name
-    return (thesis_file_name,)
-
-
+        return str(value)
+        
 def copy_thesis_pdf(package_data, package_path, files_path):
     # ASSUMPTION: The file main thesis will always be a .pdf file.
     file_paths_in_data = glob.glob(os.path.join(package_path, "data", "*pdf"))
@@ -937,7 +489,7 @@ def copy_thesis_pdf(package_data, package_path, files_path):
     # The first part is the creator name, simplified.
     dest_file_name = (
         package_data.creator.lower().replace(" ", "-").replace(",", "-")
-    )
+    ) 
 
     # Add the double hyphen delimiter.
     dest_file_name += "--"
@@ -966,143 +518,376 @@ def copy_thesis_pdf(package_data, package_path, files_path):
     shutil.copy2(thesis_file_path, dest_path)
     return dest_file_name
 
+def copy_package_files(package_data, package_path, files_path):
+    thesis_file_name = copy_thesis_pdf(package_data, package_path, files_path)
+    supplemental_path = os.path.join(package_path, "data", "supplemental")
+    if os.path.isdir(supplemental_path):
+        archive_file_name = f"{thesis_file_name[:-4]}-supplemental.zip"
+        archive_path = os.path.join(files_path, archive_file_name)
+        shutil.make_archive(archive_path[:-4], "zip", supplemental_path)
+        return thesis_file_name, archive_file_name
+    return (thesis_file_name,)
+  
+def process_agreements(content_lines, mappings):
+    """Process the agreements metadata file.
 
-def add_to_csv(metadata_csv_path, package_data, parent_collection_id):
-    """Writes the package metadata to the Hyrax import CSV."""
+    The package's permissions metadata must state that the embargo period has
+    passed and that the student has signed the required agreements.
 
-    row = [
-        package_data.source_identifier,
-        "Etd",
-        package_data.title,
-        package_data.creator,
-        f"DOI: {DOI_URL_PREFIX}{package_data.doi}",
-        create_csv_subject(package_data.subjects),
-        package_data.abstract,
-        package_data.publisher,
-        SPLIT_PATTERN.join(package_data.contributors),
-        package_data.date,
-        package_data.language,
-        SPLIT_PATTERN.join(package_data.agreements),
-        f"{package_data.degree} ({package_data.abbreviation})",
-        package_data.discipline,
-        package_data.level,
-        "Thesis",
-        parent_collection_id,
-        SPLIT_PATTERN.join(package_data.package_files),
-        package_data.rights_notes,
+    Return a list of identifiers to signed agreements.
+    """
+
+    # The list of identifiers (term ids).
+    agreements = []
+    embargo_dates = []
+    for line in content_lines:
+        line = line.strip()
+        if line.startswith(("Student ID", "Thesis ID")):
+            continue
+        elif "Embargo Expiry" in line:
+            embargo_dates.append(line)  
+            continue
+        elif any(line.startswith(name) for name in mappings["agreements"]):
+            line_split = line.split("||")
+            if line_split[0] not in mappings["agreements"]:
+                raise MetadataError(f"{line} is invalid")
+            agreement = mappings["agreements"][line_split[0]]
+            signed = line_split[2] == "Y"
+            if agreement["required"] and not signed:
+                raise MetadataError(f"{line} is required but not signed")
+            if signed:
+                agreements.append(agreement["identifier"])
+                continue
+            else:
+                print(f"LAC agreement not signed")
+                continue
+        raise MetadataError(
+            f"{line} was not expected in the permissions document"
+        )
+
+    return agreements, embargo_dates
+
+def create_agreements(package_data, item_output_dir, license_path):
+    required_agreements = {
+        "Carleton University Thesis License Agreement": "license.txt",
+        "FIPPA": "fippa_statement.txt",
+        "Academic Integrity Statement": "academic_integrity_statement.txt"
+    }
+
+    missing = [
+        name for name in required_agreements
+        if name not in package_data.agreements
     ]
 
-    with open(
-        metadata_csv_path, "a", newline="", encoding="utf-8"
-    ) as metadata_csv_file:
-        csv_writer = csv.writer(metadata_csv_file)
-        csv_writer.writerow(row)
+    if missing:
+        print(f"Skipping item: missing required agreement(s): {', '.join(missing)}")
+        return False  
 
+    # All required agreements are signed, copy their respective files
+    for agreement_name, filename in required_agreements.items():
+        src = os.path.join(license_path, filename)  
+        dst = os.path.join(item_output_dir, filename)
+        shutil.copyfile(src, dst)
 
-def create_csv_subject(subjects):
-    csv_subjects = []
-    for subject_tags in subjects:
-        a_text = subject_tags[1]
-        a_text = a_text.replace(".", "")
-        csv_subject = a_text
-        if len(subject_tags) == 4:
-            x_text = subject_tags[3]
-            x_text = x_text.replace(".", "")
-            csv_subject = f"{csv_subject} -- {x_text}"
-        csv_subjects.append(csv_subject)
-    return SPLIT_PATTERN.join(csv_subjects)
+    return True
+        
+def build_metadata_payload(package_data, agreements):
+    
+    def add_metadata(dc_key, value):
+        if not value:
+            return
+        if isinstance(value, (list, tuple)):
+            metadata[f"{dc_key}"] = [{"value": v, } for v in value]
+        else:
+            metadata[f"{dc_key}"] = [{"value": value, }]
 
+    metadata = {}
 
-def post_import_processing(
-    hyrax_import_packages, hyrax_host, public_hyrax_host, marc_path
-):
+    add_metadata("dc.title", package_data.title)
+    add_metadata("dc.contributor.author", package_data.creator)
+    add_metadata("dc.contributor.other", package_data.contributors)
+    add_metadata("dc.date.issued", package_data.date)
+    add_metadata("dc.type", package_data.type)
+    add_metadata("dc.description.abstract", package_data.description)
+    add_metadata("dc.publisher", package_data.publisher)
+    add_metadata("dc.identifier.doi", package_data.doi)
+    add_metadata("dc.language.iso", package_data.language)
+    add_metadata("dc.rights", package_data.rights_notes)
+    add_metadata("dc.subject.lcsh", package_data.subjects)
+    if "LAC Non-Exclusive License" in agreements:
+        add_metadata("local.hasLACLicence", True)
+    add_metadata("thesis.degree.name", package_data.degree + " (" + package_data.abbreviation + ")")
+    add_metadata("thesis.degree.discipline", package_data.degree_discipline)
+    add_metadata("thesis.degree.level", package_data.degree_level)
 
-    # Package data for packages which have been successfully imported
-    # into Hyrax.
-    completed_packages = []
+    return {
+        "name": package_data.title,
+        "metadata": metadata,
+        "inArchive": True,
+        "discoverable": True,
+        "withdrawn": False,
+        "type": "item"
+    }
 
-    # Create the ElementTree and body element which will be used to create the
-    # Crossref XML.
-    crossref_et, body_element = create_crossref_etree()
+def item_creation(session, api_base, collection_id, metadata_payload):
+    item_endpoint = f"{api_base}/core/items?owningCollection={collection_id}"
+    response = session.safe_request("POST", item_endpoint, json=metadata_payload)
+    response.raise_for_status()
+    item_uuid = response.json()["uuid"]  
+    item_handle = response.json()["handle"]
+    return item_uuid, item_handle
 
+def bundle_creations(session, api_base, item_uuid):
+    
+    bundle_endpoint = f"{api_base}/core/items/{item_uuid}/bundles"
+    try:
+        response = session.safe_request("POST", bundle_endpoint, json={"name":"ORIGINAL"})
+        response.raise_for_status()
+        og_bundle_id = response.json()["uuid"]
+        
+        response = session.safe_request("POST", bundle_endpoint, json={"name": "LICENSE"})
+        response.raise_for_status()
+        license_bundle_id = response.json()["uuid"]
+        
+        return og_bundle_id, license_bundle_id
+    except requests.exceptions.RequestException as e:
+        print(f"Error creating bundles: {e}")
+        return None, None
+    
+def upload_licenses(session, api_base, license_bundle_uuid, license_dir):
+    license_files = [
+        ("license.txt", "Carleton University License"),
+        ("fippa_statement.txt", "FIPPA Agreement"),
+        ("academic_integrity_statement.txt", "Academic Integrity Statement"),
+    ]
+
+    license_endpoint = f"{api_base}/core/bundles/{license_bundle_uuid}/bitstreams"
+    format_id = 2
+    format_url = f"{api_base}/core/bitstreamformats/{format_id}"
+    headers = {"Content-Type": "text/uri-list"}
+
+    for filename, description in license_files:
+        full_path = os.path.join(license_dir, filename)
+        if os.path.isfile(full_path):
+            with open(full_path, "rb") as file:
+                try:
+                    license_upload = {"file": (filename, file, "text/plain")}
+                    response = session.safe_request("POST", license_endpoint, files=license_upload, data=LICENSE_BITSTREAM_PAYLOAD)
+                    
+                    if response:
+                        license_uuid = response.json()["id"]
+                        bitstream_endpoint = f"{api_base}/core/bitstreams/{license_uuid}/format"
+
+                        try:
+                            response = session.safe_request("PUT", bitstream_endpoint, headers=headers, data=format_url)
+                            response.raise_for_status()
+                        except requests.exceptions.RequestException as e:
+                            print(f"[{description}] Failed to update MIME type: {e}")
+                except Exception as e:
+                    print(f"[{description}] Failed to upload license: {e}")
+        else:
+            print(f"[{description}] File not found: {full_path}")
+
+def upload_files(session, api_base, package_data, og_bundle_uuid, file_path, metadata_payload):
+
+    original_endpoint = f"{api_base}/core/bundles/{og_bundle_uuid}/bitstreams"
+
+    for file_name in package_data.package_files:
+        full_path = os.path.join(file_path, file_name)
+
+        if not os.path.isfile(full_path): 
+            print(f"File not found: {full_path}, skipping")
+            continue
+
+        mime_type = mimetypes.guess_type(file_name)[0]
+        
+        with open(full_path, "rb") as file:
+
+            if os.path.getsize(full_path) > 1048576000:
+
+                multipart_data = {
+                    'file': (file_name, file),
+                    'OG_BITSTREAM_PAYLOAD': (None, json.dumps(metadata_payload), 'application/json')
+                }
+            
+                e = encoder.MultipartEncoder(multipart_data)
+                m = encoder.MultipartEncoderMonitor(e, lambda a: print(a.bytes_read, end='\r'))
+
+                def gen():
+                    a = m.read(16384)
+                    while a:
+                        yield a
+                        a = m.read(16384)
+                try:
+
+                    response = session.safe_request("POST", original_endpoint, data=gen(), headers={"Content-Type": m.content_type})
+                    response.raise_for_status()
+                except requests.exceptions.RequestException as e:
+                    print(f"Error with multipart upload of {file_path}: {e}")
+                    continue
+
+            else:
+                files = {"file": (file_name, file, mime_type)}
+                try:
+                    response = session.safe_request("POST", original_endpoint, files=files, data=metadata_payload)
+                    response.raise_for_status()
+                except requests.exceptions.RequestException as e:
+                    print(f"Error uploading {file_path}: {e}")
+                    continue
+            print(f"Successfully uploaded: {file_path}") 
+    
+def create_dspace_import(
+        api_base, 
+        packages, 
+        invalid_ok, 
+        doi_start, 
+        mappings, 
+        files_path, 
+        parent_collection_id, 
+        user_email, 
+        user_password, 
+        license_path, 
+        skipped_path, 
+        skipped_ids,
+        dspace_base_url
+    ):
+    
+    session = DSpaceSession(api_base)
+    session.authenticate(user_email, user_password)
+    
+    dspace_import_packages = []
+    skipped_import_packages = []
+
+    dspace_item_info = {}
     # A list of packages which failed during processing.
     failure_log: List[str] = []
+    skipped_log: List[str] = []
 
-    click.echo(
-        f"Post-import processing for {len(hyrax_import_packages)} packages."
+    # Start the doi_ident counter at the provided doi_start number.
+    doi_ident = doi_start
+    
+    click.echo(f"Processing {len(packages)} packages to create Dspace import.")
+    for index, package_path in enumerate(packages):
+        student_id = os.path.basename(package_path)
+        
+
+        # Is the BagIt container valid? This will catch bit-rot errors early.
+        if not bagit.Bag(package_path).is_valid() and not invalid_ok:
+            err_msg = "Invalid BagIt."
+            click.echo(err_msg)
+            failure_log.append(f"{student_id}: {err_msg}")
+            continue
+        try:
+            
+            permissions_path = os.path.join(
+                package_path,
+                "data",
+                "meta",
+                f"{student_id}_permissions_meta.txt",
+            )
+            with open(
+                permissions_path, "r", encoding="utf-8"
+            ) as permissions_file:
+                permissions_file_content = permissions_file.readlines()
+
+            # Note we track all agreements but the only one that matters for metadata purposes is LAC the rest get auto applied if this returns
+            agreements, embargo_info = process_agreements(
+                permissions_file_content, mappings
+            )
+                        
+
+            package_metadata_xml_path = os.path.join(
+                package_path, "data", "meta", f"{student_id}_etdms_meta.xml"
+            )
+
+            package_metadata_xml = ElementTree.parse(package_metadata_xml_path)
+            
+
+            package_data = create_package_data(package_metadata_xml, student_id, doi_ident, agreements, embargo_info, mappings)
+            package_data.package_files = copy_package_files(package_data, package_path, files_path)
+
+            built_item_payload = build_metadata_payload(package_data, agreements)
+
+            if student_id in skipped_ids:
+                skipped_log.append(f"{student_id}: Skipped (manual processing)")
+                click.echo(f"{student_id}: Skipped (manual processing)")
+
+                dest_path = os.path.join(skipped_path, student_id)
+
+                try:
+                    skipped_import_packages.append(package_data)
+                    shutil.move(package_path, dest_path)
+                except shutil.Error as e:
+                    click.echo(f"Error moving package {package_path} to skipped directory: {e}")
+
+                continue
+            click.echo(f"{student_id}: ", nl=False)
+            
+            item_id, item_handle = item_creation(session, api_base, parent_collection_id, built_item_payload)
+            og_bundle_uuid, license_bundle_uuid = bundle_creations(session, api_base, item_id)
+            upload_licenses(session, api_base, license_bundle_uuid, license_path)
+            upload_files(session, api_base, package_data, og_bundle_uuid, files_path, OG_BITSTREAM_PAYLOAD)
+            
+        except ElementTree.ParseError as e:
+            err_msg = f"Error parsing XML, {e}."
+            click.echo(err_msg)
+            failure_log.append(err_msg)
+        except MissingFileError as e:
+            err_msg = f"Required file is missing, {e}."
+            click.echo(err_msg)
+            failure_log.append(err_msg)
+        except MetadataError as e:
+            err_msg = f"Metadata error, {e}."
+            click.echo(err_msg)
+            failure_log.append(err_msg)
+        except FileNotFoundError as e:
+            err_msg = f"File Not Found, {e}."
+            click.echo(err_msg)
+            failure_log.append(err_msg)
+        else:
+            doi_ident += 1
+            if "carleton-dev.scholaris.ca" in dspace_base_url:
+                package_data.handle = f"{dspace_base_url}/handle/{item_handle}"
+            else:
+                package_data.handle = f"https://hdl.handle.net/20.500.14718/{item_handle}"
+
+            package_data.url = f"{dspace_base_url}/items/{item_id}"
+            dspace_import_packages.append(package_data)
+
+    return dspace_import_packages, dspace_item_info, failure_log, skipped_log, skipped_import_packages
+
+def create_crossref_etree():
+    doi_batch = ElementTree.Element(
+        "doi_batch",
+        attrib={
+            "version": "4.4.1",
+            "xmlns": "http://www.crossref.org/schema/4.4.1",
+            "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+            "xsi:schemaLocation": (
+                "http://www.crossref.org/schema/4.4.1 "
+                "http://www.crossref.org/schemas/crossref4.4.1.xsd"
+            ),
+        },
     )
 
-    for package_data in hyrax_import_packages:
-        click.echo(f"{package_data.name}: ")
-        try:
-            package_data_with_url = add_url(package_data, public_hyrax_host)
-            create_marc_record(package_data_with_url, marc_path)
-            body_element.append(
-                create_dissertation_element(package_data_with_url)
-            )
-        except GetURLFailedError:
-            err_msg = "Link not found in Hyrax."
-            click.echo(err_msg)
-            failure_log.append(f"{package_data.name}: {err_msg}")
-        except pymarc.exceptions.PymarcException as e:
-            err_msg = f"MARC error {e}"
-            click.echo(err_msg)
-            failure_log.append(f"{package_data.name}: {err_msg}")
-        else:
-            completed_packages.append(package_data_with_url)
-            click.echo("Done")
+    head = ElementTree.SubElement(doi_batch, "head")
+    doi_batch_id = ElementTree.SubElement(head, "doi_batch_id")
+    doi_batch_id.text = str(int(time.time()))
+    timestamp = ElementTree.SubElement(head, "timestamp")
+    timestamp.text = f"{time.time()*1e7:.0f}"
 
-    return completed_packages, crossref_et, failure_log
+    depositor = ElementTree.SubElement(head, "depositor")
+    depositor_name = ElementTree.SubElement(depositor, "depositor_name")
+    depositor_name.text = "Carleton University Library"
+    email_address = ElementTree.SubElement(depositor, "email_address")
+    email_address.text = "doi@library.carleton.ca"
 
+    registrant = ElementTree.SubElement(head, "registrant")
+    registrant.text = "Carleton University"
+    body = ElementTree.SubElement(doi_batch, "body")
 
-def add_url(package_data, public_hyrax_host):
-    for wait in range(30):
-        sleep_time = wait * wait
-        if sleep_time > 0:
-            click.echo(f"Waiting {sleep_time} seconds.")
-        time.sleep(sleep_time)
-        with warnings.catch_warnings():
-            warnings.simplefilter(
-                "ignore", requests.packages.urllib3.exceptions.SecurityWarning
-            )
-            search_url = (
-                f"{public_hyrax_host}/catalog.json"
-                f"?q=source_tesim:{package_data.source_identifier}"
-            )
-            click.echo(f"Checking {search_url} for ETD in Hyrax.")
-            resp = requests.get(search_url)
-
-        if resp.status_code == 200:
-            json_data = resp.json()
-            data = json_data.get("data", {})
-            if data:
-                for item in data:
-                    item_id = item.get("id")
-                    solr = Solr(SOLR_URL)
-                    solr_response = solr.search(f"id:{item_id}")
-                    if solr_response:
-                        for doc in solr_response.docs:
-                            source_tesim = doc.get("source_tesim", [])
-                            if package_data.source_identifier in source_tesim:
-                                package_data = dataclasses.replace(
-                                    package_data,
-                                    url=f"{public_hyrax_host}"
-                                    f"concern/etds/{item_id}",
-                                )
-                    else:
-                        break
-            else:
-                print("Data not found yet retrying...")
-                continue
-            return package_data
-
-        else:
-            click.echo(
-                f"{package_data.source_identifier}"
-                " not found in catalog.json, retrying."
-            )
-    raise GetURLFailedError
-
+    tree = ElementTree.ElementTree(doi_batch)
+    return tree, body
 
 def create_marc_record(package_data, marc_path):
     """
@@ -1152,11 +937,13 @@ def create_marc_record(package_data, marc_path):
             data="cr || ||||||||",
         )
     )
+
+    #pub_year = str(package_data.year).ljust(4)[:4]
     record.add_field(
         pymarc.Field(
             tag="008",
             data="{}s{}    onca||||omb|| 000|0 eng d".format(
-                today.strftime("%y%m%d"), package_data.year
+                today.strftime("%y%m%d"), package_data.date
             ),
         )
     )
@@ -1193,14 +980,14 @@ def create_marc_record(package_data, marc_path):
         pymarc.Field(
             tag="264",
             indicators=[" ", "1"],
-            subfields=["a", "Ottawa,", "c", package_data.year],
+            subfields=["a", "Ottawa,", "c", package_data.date],
         )
     )
     record.add_field(
         pymarc.Field(
             tag="264",
             indicators=[" ", "4"],
-            subfields=["c", "\u00A9" + package_data.year],
+            subfields=["c", "\u00A9" + package_data.date],
         )
     )
     record.add_field(
@@ -1258,7 +1045,7 @@ def create_marc_record(package_data, marc_path):
             indicators=[" ", " "],
             subfields=[
                 "a",
-                package_data.abstract
+                package_data.description
             ],
 
         )
@@ -1272,7 +1059,7 @@ def create_marc_record(package_data, marc_path):
                 "Thesis ("
                 + package_data.abbreviation
                 + ") - Carleton University, "
-                + package_data.year
+                + package_data.date
                 + ".",
             ],
         )
@@ -1304,12 +1091,13 @@ def create_marc_record(package_data, marc_path):
             subfields=["a", "e-thesis deposit", "9", "LOCAL"],
         )
     )
-    for subject_tags in package_data.subjects:
-        record.add_field(
-            pymarc.Field(
-                tag="650", indicators=[" ", "0"], subfields=subject_tags
+    for subject_tags in package_data.deduped_subjects:
+        if isinstance(subject_tags, list) and len(subject_tags) % 2 == 0:
+            record.add_field(
+                pymarc.Field(tag="650", indicators=[" ", "0"], subfields=subject_tags)
             )
-        )
+        else:
+            print(f"Invalid subject_tags: {subject_tags}")
     record.add_field(
         pymarc.Field(
             tag="710",
@@ -1320,7 +1108,7 @@ def create_marc_record(package_data, marc_path):
                 "k",
                 "Theses and Dissertations.",
                 "g",
-                package_data.discipline + ".",
+                package_data.degree_discipline + ".",
             ],
         )
     )
@@ -1355,10 +1143,127 @@ def create_marc_record(package_data, marc_path):
     )
 
     with open(
-        os.path.join(marc_path, package_data.name + "_marc.mrc"), "wb"
+        os.path.join(marc_path, package_data.student_id + "_marc.mrc"), "wb"
     ) as marc_file:
         marc_file.write(record.as_marc())
 
+def resolve_handle_to_uuid(session, handle):
+    
+    handle_url = f"{session.api_base.replace('/server/api', '')}/handle/{handle}"
+    response = session.safe_request("GET", handle_url, allow_redirects=True)
+    response.raise_for_status()
+    if response.status_code == 200:
+        url = response.url
+        
+        if url:
+            return url
+        else:
+            raise ValueError(f"UUID not found in redirect for handle: {handle}")
+    else:
+        raise ValueError(f"Unexpected status code {response.status_code} for handle: {handle}")
+    
+def build_uuid_map(mapfile_path, session):
+    uuid_map = {}
+    with open(mapfile_path, "r") as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) == 2:
+                item_name, handle = parts
+                try:
+                    uuid = resolve_handle_to_uuid(session, handle)
+                    uuid_map[item_name] = uuid
+                except Exception as e:
+                    print(f"Failed to resolve {handle}: {e}")
+    return uuid_map
+
+def post_import_processing(session, user_email, user_password, dspace_import_packages, dspace_item_info, marc_path):
+
+    session.authenticate(user_email, user_password)
+   
+    # Package data for packages which have been successfully imported
+    # into Dspace.
+    completed_packages = []
+
+    # Create the ElementTree and body element which will be used to create the
+    # Crossref XML.
+    crossref_et, body_element = create_crossref_etree()
+
+    # A list of packages which failed during processing.
+    failure_log: List[str] = []
+
+    click.echo(
+        f"Post-import processing for {len(dspace_import_packages)} packages."
+    )
+
+    for package_data in dspace_import_packages:
+        click.echo(f"{package_data.title}: ")
+        try:
+            create_marc_record(package_data, marc_path)
+            body_element.append(
+                create_dissertation_element(package_data)
+            )
+        except GetURLFailedError:
+            err_msg = "Link not found in Dspace."
+            click.echo(err_msg)
+            failure_log.append(f"{package_data.student_id}: {err_msg}")
+        except pymarc.exceptions.PymarcException as e:
+            err_msg = f"MARC error {e}"
+            click.echo(err_msg)
+            failure_log.append(f"{package_data.student_id}: {err_msg}")
+        else:
+            completed_packages.append(package_data)
+            click.echo("Done")
+
+    return completed_packages, crossref_et, failure_log
+
+def create_dissertation_element(package_data):
+    dissertation = ElementTree.Element("dissertation")
+
+    person_name = ElementTree.SubElement(
+        dissertation,
+        "person_name",
+        attrib={"contributor_role": "author", "sequence": "first"},
+    )
+    # Unfortunately, Crossref still expects first and last name.
+    split_name = package_data.creator.split(",")
+    surname_text = split_name[0].strip()
+    if len(split_name) == 2:
+        given_name_text = split_name[1].strip()
+    else:
+        given_name_text = ""
+    given_name = ElementTree.SubElement(person_name, "given_name")
+    given_name.text = given_name_text
+    surname = ElementTree.SubElement(person_name, "surname")
+    surname.text = surname_text
+
+    titles = ElementTree.SubElement(dissertation, "titles")
+    title = ElementTree.SubElement(titles, "title")
+    title.text = package_data.title
+
+    approval_date = ElementTree.SubElement(
+        dissertation, "approval_date", attrib={"media_type": "online"}
+    )
+    year = ElementTree.SubElement(approval_date, "year")
+    year.text = package_data.date
+
+    institution = ElementTree.SubElement(dissertation, "institution")
+    institution_name = ElementTree.SubElement(institution, "institution_name")
+    institution_name.text = "Carleton University"
+    institution_place = ElementTree.SubElement(
+        institution, "institution_place"
+    )
+    institution_place.text = "Ottawa, Ontario"
+
+    degree = ElementTree.SubElement(dissertation, "degree")
+    degree.text = package_data.degree
+
+    doi_data = ElementTree.SubElement(dissertation, "doi_data")
+    doi = ElementTree.SubElement(doi_data, "doi")
+    doi.text = package_data.doi
+    resource = ElementTree.SubElement(doi_data, "resource")
+    resource.text = package_data.handle
+
+    return dissertation
 
 def create_csv_list(package_data, csv_file_path):
 
@@ -1370,20 +1275,21 @@ def create_csv_list(package_data, csv_file_path):
                 "Author Name",
                 "Package File Name",
                 "Date Processed",
-                "Link to Thesis in Hyrax",
+                "Link to Thesis in DSpace",
                 "PDF File",
                 "Supplemental File",
                 "Flagged Content",
+                "Embargo Files",
             ]
         )
 
         for data in package_data:
             contents = ""
             author_name = data.creator
-            abbreviation = data.abbreviation
-            discipline = data.discipline
-            package_file_name = data.name
-            abstract = data.abstract
+            abbreviation = data.degree
+            discipline = data.degree_discipline
+            package_file_name = data.student_id
+            abstract = data.description
             creator = data.creator
             title = data.title
             contributors = data.contributors
@@ -1422,6 +1328,9 @@ def create_csv_list(package_data, csv_file_path):
                     [file for file in package_files if file.endswith(".zip")]
                 )
 
+            embargo_info = data.embargo_info
+            embargo_info_str = ", ".join(embargo_info) if embargo_info else ""
+
             writer.writerow(
                 [
                     author_name,
@@ -1431,96 +1340,56 @@ def create_csv_list(package_data, csv_file_path):
                     pdf_files,
                     zip_files,
                     contents,
+                    embargo_info_str,
                 ]
             )
 
     click.echo("Ingest list created successfully.")
 
+def create_postback_files(completed_packages, outbox, postback_path, post_import_failure_log):
 
-def create_crossref_etree():
-    doi_batch = ElementTree.Element(
-        "doi_batch",
-        attrib={
-            "version": "4.4.1",
-            "xmlns": "http://www.crossref.org/schema/4.4.1",
-            "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
-            "xsi:schemaLocation": (
-                "http://www.crossref.org/schema/4.4.1 "
-                "http://www.crossref.org/schemas/crossref4.4.1.xsd"
-            ),
-        },
-    )
-
-    head = ElementTree.SubElement(doi_batch, "head")
-    doi_batch_id = ElementTree.SubElement(head, "doi_batch_id")
-    doi_batch_id.text = str(int(time.time()))
-    timestamp = ElementTree.SubElement(head, "timestamp")
-    timestamp.text = f"{time.time()*1e7:.0f}"
-
-    depositor = ElementTree.SubElement(head, "depositor")
-    depositor_name = ElementTree.SubElement(depositor, "depositor_name")
-    depositor_name.text = "Carleton University Library"
-    email_address = ElementTree.SubElement(depositor, "email_address")
-    email_address.text = "doi@library.carleton.ca"
-
-    registrant = ElementTree.SubElement(head, "registrant")
-    registrant.text = "Carleton University"
-    body = ElementTree.SubElement(doi_batch, "body")
-
-    tree = ElementTree.ElementTree(doi_batch)
-    return tree, body
-
-
-def create_dissertation_element(package_data):
-    dissertation = ElementTree.Element("dissertation")
-
-    person_name = ElementTree.SubElement(
-        dissertation,
-        "person_name",
-        attrib={"contributor_role": "author", "sequence": "first"},
-    )
-    # Unfortunately, Crossref still expects first and last name.
-    split_name = package_data.creator.split(",")
-    surname_text = split_name[0].strip()
-    if len(split_name) == 2:
-        given_name_text = split_name[1].strip()
-    else:
-        given_name_text = ""
-    given_name = ElementTree.SubElement(person_name, "given_name")
-    given_name.text = given_name_text
-    surname = ElementTree.SubElement(person_name, "surname")
-    surname.text = surname_text
-
-    titles = ElementTree.SubElement(dissertation, "titles")
-    title = ElementTree.SubElement(titles, "title")
-    title.text = package_data.title
-
-    approval_date = ElementTree.SubElement(
-        dissertation, "approval_date", attrib={"media_type": "online"}
-    )
-    year = ElementTree.SubElement(approval_date, "year")
-    year.text = package_data.year
-
-    institution = ElementTree.SubElement(dissertation, "institution")
-    institution_name = ElementTree.SubElement(institution, "institution_name")
-    institution_name.text = "Carleton University"
-    institution_place = ElementTree.SubElement(
-        institution, "institution_place"
-    )
-    institution_place.text = "Ottawa, Ontario"
-
-    degree = ElementTree.SubElement(dissertation, "degree")
-    degree.text = package_data.degree
-
-    doi_data = ElementTree.SubElement(dissertation, "doi_data")
-    doi = ElementTree.SubElement(doi_data, "doi")
-    doi.text = package_data.doi
-    resource = ElementTree.SubElement(doi_data, "resource")
-    resource.text = package_data.url
-
-    return dissertation
-
-
+    click.echo("Writing postback files: ", nl=False)
+    for package in completed_packages:
+        try:
+            outbox_file = os.path.join(
+                outbox, package.student_id + "_postback.txt"
+            )
+            with open(outbox_file, "w") as postback:
+                time_now = (
+                    datetime.datetime.now()
+                    .replace(second=0, microsecond=0)
+                    .isoformat()
+                )
+                postback.write(
+                    "{}||{}||1||{}".format(package.student_id, time_now, package.url)
+                )
+            continue  
+        except Exception as e:
+            err_msg = f"Warning: Could not write to outbox path ({outbox}): {e}"
+            click.echo(err_msg)
+            
+        # Fallback to default postback path
+        try:
+            with open(
+                os.path.join(
+                    postback_path, package.student_id + "_postback.txt"
+                ),
+                "w",
+            ) as postback:
+                time_now = (
+                    datetime.datetime.now()
+                    .replace(second=0, microsecond=0)
+                    .isoformat()
+                )
+                postback.write(
+                    "{}||{}||1||{}".format(package.student_id, time_now, package.url)
+                )
+        except Exception as e:
+            err_msg = f"Error: Failed to write postback file for {package.student_id} to both locations. {e}"
+            click.echo(err_msg)
+            post_import_failure_log.append(err_msg)
+    click.echo("Done")
+    
 def send_email_report(
     completed_packages,
     failure_log,
@@ -1598,6 +1467,174 @@ def send_email_report(
     server.send_message(msg)
     server.quit()
 
+@click.command()
+@click.argument('base_directory')
+@click.option('--api-base', default='https://carleton-dev.scholaris.ca/server/api', help='Base URL for the DSpace API.')
+@click.option('--skipped-mappings', default='etddepositor/skipped_mappings.yaml', help='Path to the skipped mappings YAML file.')
+@click.option('--outbox', default='', help='Path to the out report directory.')
+@click.option('--mapping-file', default='', help='Path to the mappings YAML file.')
+@click.option('--invalid-ok', is_flag=True, help='Continue processing even if BagIt is invalid.')
+@click.option('--email-from', required=True, help='Email address to send the report from.')
+@click.option('--email-to', required=True, default="smtp-server.carleton.ca", help='Email address to send the report to.')
+@click.option('--smtp-host', required=True, help='SMTP host for sending emails.')
+@click.option("--smtp-port", type=int, default=25, required=True)
+@click.option("--dspace-base-url", default="https://carleton-dev.scholaris.ca", help="Base URL for DSpace.")
+@click.option(
+    "--doi-start",
+    type=int,
+    default=1,
+    required=True,
+    help="The starting number of the incrementing part of the generated DOIs.",
+)
+@click.option("--user-email", required=True, help=("The DSpace user email."))
+@click.option(
+    "--user-password",
+    prompt=True,
+    hide_input=True,
+    confirmation_prompt=True,
+    help=("The DSpace user password."),
+)
+@click.option(
+    "--parent-collection-id",
+    required=True,
+    help="The source ID for the parent collection in Dspace.",
+)
+def process(
+    base_directory, 
+    api_base, 
+    skipped_mappings, 
+    outbox, 
+    doi_start, 
+    invalid_ok, 
+    mapping_file, 
+    user_email, 
+    user_password, 
+    email_from,
+    email_to,
+    smtp_host,
+    smtp_port, 
+    parent_collection_id,
+    dspace_base_url
+    ):
 
-if __name__ == "__main__":
-    etddepositor(obj={})
+    
+    click.echo("Starting ETD processing...")
+
+    processing_directory = base_directory
+
+    API_BASE = api_base
+
+    
+    # Load mappings
+    mappings = load_mappings(mapping_file)
+    skipped_mappings = load_mappings(skipped_mappings)
+
+    
+    if not mappings:
+       return
+    
+    if not skipped_mappings:
+       return
+    skip_ids = skipped_mappings.get("skip_ids", [])
+    
+    # Validate subject mappings
+    validate_subject_mappings(mappings)
+    (
+        done_path, marc_path, 
+        crossref_path, csv_report_path, file_path, 
+        failed_path, skipped_path, license_path, postback_path) = create_output_directories(
+        processing_directory
+    )
+
+    # Find packages in the ready directory
+    packages = find_etd_packages(processing_directory)
+    click.echo(f"Found {len(packages)} packages to process.")
+
+    if not packages:
+        click.echo("No packages found. Exiting.")
+        return
+     
+    dspace_import_packages, dspace_item_info, pre_import_failure_log, pre_import_skipped_log, skipped_import_packages = create_dspace_import(
+        api_base,
+        packages,
+        invalid_ok, 
+        doi_start, 
+        mappings, 
+        file_path, 
+        parent_collection_id, 
+        user_email, 
+        user_password,
+        license_path,
+        skipped_path,
+        skip_ids,
+        dspace_base_url
+    )
+
+    click.echo("ETD processing complete.")
+
+    click.echo("Starting post import processing")
+
+    session = DSpaceSession(API_BASE)
+    
+    (
+        completed_packages,
+        crossref_et,
+        post_import_failure_log,
+    ) = post_import_processing(session, user_email, user_password, dspace_import_packages, dspace_item_info, marc_path)
+
+    click.echo("Writing complete CSV file: ", nl=False)
+    csv_file_path = os.path.join(
+        csv_report_path,
+        f"{ datetime.date.today().isoformat()}-ingest_list.csv",
+    )
+    create_csv_list(completed_packages, csv_file_path)
+
+    click.echo("Writing complete Crossref file: ", nl=False)
+    crossref_file_path = os.path.join(
+        crossref_path, f"{ datetime.date.today().isoformat()}-crossref.xml"
+    )
+    crossref_et.write(
+        crossref_file_path, encoding="utf-8", xml_declaration=True
+    )
+    click.echo("Done")
+
+    #TODO: Bug here marc zip attempts to zip itself up point it at another dir or fix it
+
+    click.echo("Creating MARC archive: ", nl=False)
+    marc_src_path = os.path.join(processing_directory, MARC_SUBDIR)
+    marc_archive_path = os.path.join(
+        processing_directory,
+        DONE_SUBDIR,
+        f"{ datetime.date.today().isoformat()}-marc-archive.zip",
+    )
+    # make_archive doesn't want the archive extension.
+    shutil.make_archive(marc_archive_path[:-4], "zip", marc_src_path)
+    click.echo("Done")
+    
+    click.echo("Writing postback files: ", nl=False)
+    create_postback_files(
+        completed_packages, outbox, postback_path, post_import_failure_log
+    )
+
+    # Skipped import packages are those that were moved to the skipped directory 
+    create_postback_files(
+        skipped_import_packages, outbox, postback_path, post_import_failure_log
+    
+    )
+
+    click.echo("Sending report email: ", nl=False)
+    
+    send_email_report(
+        completed_packages,
+        pre_import_failure_log + post_import_failure_log + pre_import_skipped_log,
+        marc_archive_path,
+        crossref_file_path,
+        csv_file_path,
+        smtp_host,
+        smtp_port,
+        email_from,
+        email_to,
+    )
+    click.echo("Done")
+if __name__ == '__main__':
+    process()
