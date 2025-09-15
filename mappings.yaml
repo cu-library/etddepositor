@@ -33,239 +33,627 @@ agreements:
     identifier: "LAC Non-Exclusive License"
     required: false
 discipline:
-  MA-07: Communication
-  MA-08A: Applied Linguistics and Discourse Studies
-  MA-08AAS: Applied Linguistics and Discourse Studies
-  MA-08ADH: Applied Linguistics and Discourse Studies
-  MA-10: Art History
-  MA-10DH: Art History
-  MA-11: Canadian Studies
-  MA-11DH: Canadian Studies
-  MA-15: English
-  MA-15AS: English
-  MA-15DH: English
-  MA-16B: French and Francophone Studies
-  MA-16BAS: French and Francophone Studies
-  MA-16BDH: French and Francophone Studies
-  MA-19: History
-  MA-19AS: History
-  MA-19DH: History
-  MA-19P: History
-  MA-19PDH: Public History
-  MA-231: Music and Culture
-  MA-231DH: Music and Culture
-  MA-24: Philosophy
-  MA-24DH: Philosophy
-  MA-251: Religion and Public Life
-  MA-28: Film Studies
-  MA-28A: Film Studies
-  MA-28AS: Film Studies
-  MA-28DH: Film Studies
-  MA-33: Political Economy
-  MA-33AS: Political Economy
-  MA-39: Legal Studies
-  MA-39AS: Legal Studies
-  MA-3M: Sociology
-  MA-3MC: Social Work
-  MA-40: Anthropology
-  MA-40AS: Anthropology
-  MA-40DH: Anthropology
-  MA-41: Economics
-  MA-41AS: Economics
-  MA-41F: Economics
-  MA-42: Geography
-  MA-43: International Affairs
-  MA-43/JD: International Affairs / Juris Doctor
-  MA-43AC: International Affairs
-  MA-43AC/JD: International Affairs / Juris Doctor
-  MA-43AR: International Affairs
-  MA-43AR/JD: International Affairs / Juris Doctor
-  MA-43AS: International Affairs / Juris Doctor
-  MA-43C: International Affairs
-  MA-43C/JD: International Affairs / Juris Doctor
-  MA-43CAS: International Affairs
-  MA-43DC: International Affairs
-  MA-43DC/JD: International Affairs / Juris Doctor
-  MA-43DP: International Affairs
-  MA-43DP/JD: International Affairs / Juris Doctor
-  MA-43EC: International Affairs
-  MA-43EC/JD: International Affairs / Juris Doctor
-  MA-43EP: International Affairs
-  MA-43EP/JD: International Affairs / Juris Doctor
-  MA-43GC: International Affairs
-  MA-43GC/JD: International Affairs / Juris Doctor
-  MA-43GP: International Affairs
-  MA-43GP/JD: International Affairs / Juris Doctor
-  MA-43IC: International Affairs
-  MA-43IC/JD: International Affairs / Juris Doctor
-  MA-43ID: International Affairs
-  MA-43ID/JD: International Affairs / Juris Doctor
-  MA-43IN: International Affairs
-  MA-43IN/JD: International Affairs / Juris Doctor
-  MA-43PC: International Affairs
-  MA-43PC/JD: International Affairs / Juris Doctor
-  MA-44A: Women's and Gender Studies
-  MA-44AAS: Women's and Gender Studies
-  MA-46: Political Science
-  MA-46AS: Political Science
-  MA-46C: Political Science
-  MA-46CAS: Political Science
-  MA-47: Psychology
-  MA-48: Public Administration
-  MA-48C: Public Administration
-  MA-50: Sociology
-  MA-50AS: Sociology
-  MA-50DH: Sociology
-  MA-531: European, Russian and Eurasian Studies
-  MA-531C: European, Russian and Eurasian Studies
-  MA-69A: Human-Computer Interaction
-  MA-SEC: Sustainable Energy
-  MA-SEP: Sustainable Energy
-  MARCH-31A: Architecture
-  MARCH-79: Architecture
-  MAS-31: Architectural Studies
-  MASC-69E: Engineering, Human-Computer Interaction
-  MASC-78: Engineering, Aerospace
-  MASC-81: Engineering, Civil
-  MASC-82E: Engineering, Electrical and Computer
-  MASC-82S: Engineering, Electrical and Computer
-  MASC-82SDS: Engineering, Electrical and Computer
-  MASC-83: Engineering, Materials
-  MASC-84: Engineering, Mechanical
-  MASC-95: Engineering, Environmental
-  MASC-BIOMED: Engineering, Biomedical
-  MASC-SE: Engineering, Sustainable Energy
-  MASC-TIM: Engineering , Technology Innovation Management
-  MBA-71: MBA (Business Administration)
-  MBA-71A: MBA (Business Administration)
-  MBA-71B: MBA (Business Administration)
-  MBA-71C: MBA (Business Administration)
-  MBA-71FM: MBA (Business Administration)
-  MBA-71FMA: MBA (Business Administration)
-  MBA-71I: MBA (Business Administration)
-  MBA-71IB: MBA (Business Administration)
-  MBA-71IBA: MBA (Business Administration)
-  MBA-71ID: MBA (Business Administration)
-  MBA-71IDA: MBA (Business Administration)
-  MBA-71MA: MBA (Business Administration)
-  MBA-71MC: MBA (Business Administration)
-  MBA-71MCA: MBA (Business Administration)
-  MBA-71TM: MBA (Business Administration)
-  MCOGSC-98: Cognitive Science
-  MCS-5M: Engineering, Electrical and Computer
-  MCS-69S: Human-Computer Interaction
-  MCS-77: Computer Science
-  MCS-77A: Computer Science
-  MCS-77B: Computer Science
-  MCS-77C: Computer Science
-  MDES-IDES: Industrial Design
-  MENG-5K: Engineering, Electrical and Computer
-  MENG-5L: Engineering, Electrical and Computer
-  MENG-77: Engineering, Telecommunications Technology Management
-  MENG-78: Engineering, Aerospace
-  MENG-81: Engineering, Civil
-  MENG-82E: Engineering, Electrical and Computer
-  MENG-82S: Engineering, Electrical and Computer
-  MENG-83: Engineering, Materials
-  MENG-84: Engineering, Mechanical
-  MENG-95: Engineering, Environmental
-  MENG-SE: Sustainable Energy
-  MENG-TIM: Engineering , Technology Innovation Management
-  MIPIS-43: Infrastructure Protection and International Security
-  MIPIS-43C: Infrastructure Protection and International Security
-  MIPIS-81: Infrastructure Protection and International Security
-  MIPIS-81C: Infrastructure Protection and International Security
-  MJ-4L-PR1: Journalism
-  MJ-4L-PR2: Journalism
-  MJ-4N-JS1: Journalism
-  MJ-4N-JS2: Journalism
-  MJ-4P-BJ1: Journalism
-  MJ-4P-BJ2: Journalism
-  MPM-PM: Political Management
-  MPNL-48P: Philanthropy and Nonprofit Leadership
-  MSC-42: Geography
-  MSC-5C: Pure Mathematics
-  MSC-5D: Mathematics
-  MSC-5E: Probability and Statistics
-  MSC-5EB: Mathematics
-  MSC-5F: Mathematics
-  MSC-5Y: Physics
-  MSC-60: Biology
-  MSC-60B: Biology
-  MSC-60H: "Health: Science, Technology and Policy"
-  MSC-60HL: "Health: Science, Technology and Policy"
-  MSC-62: Chemistry
-  MSC-6E: Neuroscience
-  MSC-6EG: Neuroscience
-  MSC-7A: FLAG
-  MSC-7B: FLAG
-  MSC-7C: FLAG
-  MSC-7D: Chemical and Environmental Toxicology
-  MSC-7E: Chemical and Environmental Toxicology
-  MSC-7G: FLAG
-  MSC-7GT: Chemical and Environmental Toxicology
-  MSC-96: Earth Sciences
-  MSC-9J: Physics
-  MSC-9K: Physics
-  MSC-9L: Mathematics
-  MSW-1YR-5CR: Social Work
-  MSW-1YR-6CR: Social Work
-  MSW-2YR-11CR: Social Work
-  MSW-49: Social Work
-  Mar-79: Architecture
-  PHD-07: Communication
-  PHD-08A: Applied Linguistics and Discourse Studies
-  PHD-11: Canadian Studies
-  PHD-11PE: FLAG
-  PHD-15: English
-  PHD-19: History
-  PHD-19PE: FLAG
-  PHD-31: Architecture
-  PHD-34: Public Policy
-  PHD-34PE: FLAG
-  PHD-39: Legal Studies
-  PHD-39PE: FLAG
-  PHD-40: Anthropology
-  PHD-40PE: FLAG
-  PHD-41: Economics
-  PHD-42: Geography
-  PHD-42PE: FLAG
-  PHD-43: International Affairs
-  PHD-46: Political Science
-  PHD-46PE: FLAG
-  PHD-47: Psychology
-  PHD-49A: Social Work
-  PHD-49PE: FLAG
-  PHD-50: Sociology
-  PHD-50PE: Sociology
-  PHD-5C: Mathematics
-  PHD-5D: Mathematics
-  PHD-5E: Probability and Statistics
-  PHD-60: Biology
-  PHD-62: Chemistry
-  PHD-6E: Neuroscience
-  PHD-6EG: Neuroscience
-  PHD-78: Engineering, Aerospace
-  PHD-7D: FLAG
-  PHD-7E: FLAG
-  PHD-7G: FLAG
-  PHD-7GT: FLAG
-  PHD-7M: Computer Science
-  PHD-7N: Management
-  PHD-81: Engineering, Civil
-  PHD-82E: Engineering, Electrical and Computer
-  PHD-82S: Engineering, Electrical and Computer
-  PHD-84: Engineering, Mechanical
-  PHD-95: Engineering, Environmental
-  PHD-96: Earth Sciences
-  PHD-97: FLAG
-  PHD-98: Cognitive Science
-  PHD-9J: Physics
-  PHD-9K: Physics
-  PHD-BA: Cultural Mediations
-  PHD-BB: Cultural Mediations
-  PHD-BC: Cultural Mediations
-  PHD-BD: Cultural Mediations
+  CCR-67: FLAG
+  DAC-31: FLAG
+  DCR-67: FLAG
+  DCUR-10A: FLAG
+  DEIS-65: FLAG
+  DEP-41: FLAG
+  DEPAF-24: FLAG
+  DERE-65: FLAG
+  DHSTP-60H: FLAG
+  DHSTP-60HL: FLAG
+  DIPA-48: FLAG
+  DIP-AC: FLAG
+  DIP-CURA: FLAG
+  DIP-DNS: FLAG
+  DIP-EP: FLAG
+  DIP-EPAF: FLAG
+  DIP-HP: FLAG
+  DIP-HSTP: FLAG
+  DIP-HSTPL: FLAG
+  DIP-IPA: FLAG
+  DIP-IPIS: FLAG
+  DIPIS-16: FLAG
+  DIP-MDS: FLAG
+  DIP-PM: FLAG
+  DIP-PNL: FLAG
+  DIP-PPPE: FLAG
+  DIP-SDEV: FLAG
+  DIP-SSDA: FLAG
+  DIP-WL: FLAG
+  DLING-22: FLAG
+  DMDS-75: FLAG
+  DNS-38: FLAG
+  DSSDA-50: FLAG
+  DWL-33WL: FLAG
+  MA-07:  Communication
+  MA-07AS: FLAG
+  MA-07CH: Communication
+  MA-07DS: FLAG
+  MA-07LC: FLAG
+  MA-08A:  Applied Linguistics and Discourse Studies
+  MA-08AAS:  Applied Linguistics and Discourse Studies
+  MA-08ADH:  Applied Linguistics and Discourse Studies
+  MA-08T: FLAG
+  MA-10:  Art History
+  MA-10A: FLAG
+  MA-10B:  Art and Architectural History
+  MA-10BDH:  Art and Architectural History
+  MA-10DH:  Art History
+  MA-11:  Canadian Studies
+  MA-11DH:  Canadian Studies
+  MA-11H: FLAG
+  MA-15:  English
+  MA-15AS:  English
+  MA-15CH: FLAG
+  MA-15DH:  English
+  MA-16B:  French and Francophone Studies
+  MA-16BAS:  French and Francophone Studies
+  MA-16BDH:  French and Francophone Studies
+  MA-19:  History
+  MA-19AS:  History
+  MA-19AY: FLAG
+  MA-19CH: FLAG
+  MA-19DH:  History
+  MA-19DS: FLAG
+  MA-19LC:  History
+  MA-19P:  History
+  MA-19PDH:  Public History
+  MA-22:  Linguistics
+  MA-231:  Music and Culture
+  MA-231AS:  Music and Culture
+  MA-231AY: FLAG
+  MA-231DH:  Music and Culture
+  MA-24:  Philosophy
+  MA-24DH:  Philosophy
+  MA-251:  Religion and Public Life
+  MA-251DH: FLAG
+  MA-28:  Film Studies
+  MA-28A:  Film Studies
+  MA-28AS:  Film Studies
+  MA-28DH:  Film Studies
+  MA-33:  Political Economy
+  MA-33AS:  Political Economy
+  MA-33AY: FLAG
+  MA-33CH:  Political Economy
+  MA-33LC:  Political Economy
+  MA-33WL:  Political Economy
+  MA-38: FLAG
+  MA-39:  Legal Studies
+  MA-39AS:  Legal Studies
+  MA-39AY: FLAG
+  MA-39LC: FLAG
+  MA-3M:  Sociology
+  MA-3MC:  Social Work
+  MA-40:  Anthropology
+  MA-40AS:  Anthropology
+  MA-40AY: FLAG
+  MA-40CH: FLAG
+  MA-40DH:  Anthropology
+  MA-40LC: FLAG
+  MA-41:  Economics
+  MA-41AS:  Economics
+  MA-41B: FLAG
+  MA-41CH: FLAG
+  MA-41DS: FLAG
+  MA-41F:  Economics
+  MA-42:  Geography
+  MA-42AS: FLAG
+  MA-42AY: FLAG
+  MA-42CH: FLAG
+  MA-42DS: FLAG
+  MA-42LC: FLAG
+  MA-43:  International Affairs
+  MA-43/JD:  International Affairs / Juris Doctor
+  MA-43AC:  International Affairs
+  MA-43AC/JD:  International Affairs / Juris Doctor
+  MA-43AR:  International Affairs
+  MA-43AR/JD:  International Affairs / Juris Doctor
+  MA-43AS:  International Affairs / Juris Doctor
+  MA-43C:  International Affairs
+  MA-43C/JD:  International Affairs / Juris Doctor
+  MA-43CAS:  International Affairs
+  MA-43CCH: FLAG
+  MA-43CDS: FLAG
+  MA-43CH: FLAG
+  MA-43CLC: FLAG
+  MA-43CY: FLAG
+  MA-43DC:  International Affairs
+  MA-43DC/JD:  International Affairs / Juris Doctor
+  MA-43DF: FLAG
+  MA-43DF/JD: FLAG
+  MA-43DFC: FLAG
+  MA-43DFC/JD: FLAG
+  MA-43DP:  International Affairs
+  MA-43DP/JD:  International Affairs / Juris Doctor
+  MA-43DS: FLAG
+  MA-43EC:  International Affairs
+  MA-43EC/JD:  International Affairs / Juris Doctor
+  MA-43EP:  International Affairs
+  MA-43EP/JD:  International Affairs / Juris Doctor
+  MA-43GC:  International Affairs
+  MA-43GC/JD:  International Affairs / Juris Doctor
+  MA-43GP:  International Affairs
+  MA-43GP/JD:  International Affairs / Juris Doctor
+  MA-43HC: FLAG
+  MA-43HC/JD: FLAG
+  MA-43HD: FLAG
+  MA-43HD/JD: FLAG
+  MA-43HDC: FLAG
+  MA-43HDC/JD: FLAG
+  MA-43IA: FLAG
+  MA-43IA/JD: FLAG
+  MA-43IAC: FLAG
+  MA-43IAC/JD: FLAG
+  MA-43IC:  International Affairs
+  MA-43IC/JD:  International Affairs / Juris Doctor
+  MA-43ID:  International Affairs
+  MA-43ID/JD:  International Affairs / Juris Doctor
+  MA-43IN:  International Affairs
+  MA-43IN/JD:  International Affairs / Juris Doctor
+  MA-43LC: FLAG
+  MA-43PC:  International Affairs
+  MA-43PC/JD:  International Affairs / Juris Doctor
+  MA-43PH: FLAG
+  MA-43PH/JD: FLAG
+  MA-43SC: FLAG
+  MA-43SC/JD: FLAG
+  MA-43SD: FLAG
+  MA-43SD/JD: FLAG
+  MA-44A:  Women's and Gender Studies
+  MA-44AAS:  Women's and Gender Studies
+  MA-44AY: FLAG
+  MA-44LC: FLAG
+  MA-46:  Political Science
+  MA-46AS:  Political Science
+  MA-46C:  Political Science
+  MA-46CAS:  Political Science
+  MA-46LC: FLAG
+  MA-47:  Psychology
+  MA-47CH: FLAG
+  MA-47DS:  Psychology
+  MA-47MH:  Psychology
+  MA-48:  Public Administration
+  MA-48C:  Public Administration
+  MA-50:  Sociology
+  MA-50AS:  Sociology
+  MA-50AY: FLAG
+  MA-50CH: FLAG
+  MA-50DH:  Sociology
+  MA-50DS: FLAG
+  MA-50LC: FLAG
+  MA-531:  European, Russian and Eurasian Studies
+  MA-531C:  European, Russian and Eurasian Studies
+  MA-5CCH: FLAG
+  MA-5CLC: FLAG
+  MA-69A:  Human-Computer Interaction
+  MA-75:  Migration and Diaspora Studies
+  MA-75AS: FLAG
+  MA-75C: FLAG
+  MA-75CH: FLAG
+  MA-75LC:  Migration and Diaspora Studies
+  MA-ANJ: FLAG
+  MA-ANJ : FLAG
+  MABA-ETIM: FLAG
+  MABA-TIMG: FLAG
+  MACC-73: FLAG
+  MARCH-31A:  Architecture
+  MARCH-31AAY: FLAG
+  MARCH-31ACH:  Architecture
+  MARCH-79:  Architecture
+  MARCH-79AY: FLAG
+  MARCH-79CH:  Architecture 
+  MAS-31:  Architectural Studies
+  MASC-69E:  Engineering, Human-Computer Interaction
+  MASC-72: Digital Media
+  MASC-72: Digital Media
+  MASC-72CY: FLAG
+  MASC-72CY: FLAG
+  MASC-72DS: FLAG
+  MASC-72DS: FLAG
+  MASC-72P: FLAG
+  MASC-72P: FLAG
+  MASC-73A: FLAG
+  MASC-73A: FLAG
+  MASC-73ACY: FLAG
+  MASC-73ACY: FLAG
+  MASC-78:  Engineering, Aerospace
+  MASC-78CH: FLAG
+  MASC-81:  Engineering, Civil
+  MASC-81B: FLAG
+  MASC-81CH: FLAG
+  MASC-81F:  Engineering, Building
+  MASC-81H:  Engineering, Building
+  MASC-81P:  Engineering, Building
+  MASC-82E:  Engineering, Electrical and Computer
+  MASC-82ECH: FLAG
+  MASC-82ECY: FLAG
+  MASC-82EDS:  Engineering, Electrical and Computer
+  MASC-82S:  Engineering, Electrical and Computer
+  MASC-82SCH: FLAG
+  MASC-82SCY: FLAG
+  MASC-82SDS:  Engineering, Electrical and Computer
+  MASC-82SK:  Engineering, Electrical and Computer 
+  MASC-82SM: FLAG
+  MASC-83:  Engineering, Materials
+  MASC-83CH: FLAG
+  MASC-84:  Engineering, Mechanical
+  MASC-84CH:  Engineering, Mechanical
+  MASC-95:  Engineering, Environmental
+  MASC-95CH:  Engineering, Environmental
+  MASC-BCAY: FLAG
+  MASC-BCDS: FLAG
+  MASC-BCSB: FLAG
+  MASC-BEDS: FLAG
+  MASC-BIOMDS: FLAG
+  MASC-BIOMED:  Engineering, Biomedical
+  MASC-BMAB: FLAG
+  MASC-BMAY: FLAG
+  MASC-BMCS: FLAG
+  MASC-BMDS: FLAG
+  MASC-BMEL: FLAG
+  MASC-BMMA:  Engineering, Biomedical
+  MASC-BMP: FLAG
+  MASC-BMSY:  Engineering, Biomedical
+  MASC-BPAY: FLAG
+  MASC-BPB: FLAG
+  MASC-BPDS: FLAG
+  MASC-BSAY: FLAG
+  MASC-BSDS:  Engineering, Biomedical
+  MASC-BSYB: FLAG
+  MASC-DAE: FLAG
+  MASC-DAEC: FLAG
+  MASC-DSE:  Data Science and Analytics
+  MASC-SE:  Engineering, Sustainable Energy
+  MASC-TIM:  Engineering , Technology Innovation Management
+  MA-SEC:  Sustainable Energy
+  MA-SEP:  Sustainable Energy
+  MA-SEPCH: FLAG
+  MBA-71:  MBA (Business Administration)
+  MBA-71A:  MBA (Business Administration)
+  MBA-71AAS: FLAG
+  MBA-71ACH: FLAG
+  MBA-71AM: FLAG
+  MBA-71AMA: FLAG
+  MBA-71AS: FLAG
+  MBA-71B:  MBA (Business Administration)
+  MBA-71BA: FLAG
+  MBA-71BAA: FLAG
+  MBA-71BACH: FLAG
+  MBA-71BF: FLAG
+  MBA-71BFA: FLAG
+  MBA-71C:  MBA (Business Administration)
+  MBA-71CH: FLAG
+  MBA-71DAAS: FLAG
+  MBA-71DAS: FLAG
+  MBA-71FE: FLAG
+  MBA-71FM:  MBA (Business Administration)
+  MBA-71FMA:  MBA (Business Administration)
+  MBA-71I:  MBA (Business Administration)
+  MBA-71IB:  MBA (Business Administration)
+  MBA-71IBA:  MBA (Business Administration)
+  MBA-71ID:  MBA (Business Administration)
+  MBA-71IDA:  MBA (Business Administration)
+  MBA-71IMA: FLAG
+  MBA-71IMC: FLAG
+  MBA-71MA:  MBA (Business Administration)
+  MBA-71MC:  MBA (Business Administration)
+  MBA-71MCA:  MBA (Business Administration)
+  MBA-71MCH: FLAG
+  MBA-71P: FLAG
+  MBA-71PK: FLAG
+  MBA-71TM:  MBA (Business Administration)
+  MBA-71V: FLAG
+  MBA-71VBA: FLAG
+  MBA-71VBF: FLAG
+  MBA-71VBM: FLAG
+  MBA-71VBM: FLAG
+  MBA-71VFM: FLAG
+  MBA-71VMC: FLAG
+  MBA-71VMF: FLAG
+  MBTECH-GBT: FLAG
+  MCOGSC-98:  Cognitive Science
+  MCOGSC-98DH: FLAG
+  MCOGSC-98DS:  Cognitive Science
+  MCS-5M:  Engineering, Electrical and Computer
+  MCS-69S:  Human-Computer Interaction
+  MCS-77:  Computer Science
+  MCS-77A:  Computer Science
+  MCS-77ADS: FLAG
+  MCS-77B:  Computer Science
+  MCS-77C:  Computer Science
+  MCS-77CY: FLAG
+  MCS-77DS:  Computer Science
+  MCS-7CCY: FLAG
+  MCS-7CDS:  Computer Science Co-op
+  MCS-DAS: FLAG
+  MCS-DASC: FLAG
+  MCS-DCS: FLAG
+  MCS-DCSC: FLAG
+  MCS-DSS: FLAG
+  MCS-GNCC: FLAG
+  MCS-GNCS: FLAG
+  MCS-GSCY: FLAG
+  MCS-NCCY: FLAG
+  MDES-IDAY: FLAG
+  MDES-IDES:  Industrial Design
+  MDTE-ETIM: FLAG
+  MDTE-TIMG: FLAG
+  MDTE-TIMG: FLAG
+  MENG-54: FLAG
+  MENG-54A: FLAG
+  MENG-54B: FLAG
+  MENG-54D: FLAG
+  MENG-54E: FLAG
+  MENG-54F: FLAG
+  MENG-5K:  Engineering, Electrical and Computer
+  MENG-5L:  Engineering, Electrical and Computer
+  MENG-77:  Engineering, Telecommunications Technology Management
+  MENG-78:  Engineering, Aerospace
+  MENG-81:  Engineering, Civil
+  MENG-81B: FLAG
+  MENG-81CH: FLAG
+  MENG-81F: FLAG
+  MENG-81H: FLAG
+  MENG-81IP: FLAG
+  MENG-81P: FLAG
+  MENG-81PC: FLAG
+  MENG-82E:  Engineering, Electrical and Computer
+  MENG-82ECH: FLAG
+  MENG-82ECY: FLAG
+  MENG-82EDS: FLAG
+  MENG-82S:  Engineering, Electrical and Computer
+  MENG-82SCH: FLAG
+  MENG-82SCY: FLAG
+  MENG-82SDS: FLAG
+  MENG-82SK: FLAG
+  MENG-82SM: FLAG
+  MENG-83:  Engineering, Materials
+  MENG-84:  Engineering, Mechanical
+  MENG-95:  Engineering, Environmental
+  MENG-95CH: FLAG
+  MENG-BCAY: FLAG
+  MENG-BCDS: FLAG
+  MENG-BMAY: FLAG
+  MENG-BMCL: FLAG
+  MENG-BMCS: FLAG
+  MENG-BMMA: FLAG
+  MENG-BMP: FLAG
+  MENG-BMSY: FLAG
+  MENG-BPAY: FLAG
+  MENG-BSAY: FLAG
+  MENG-BSCL: FLAG
+  MENG-BSDS: FLAG
+  MENG-DAE: FLAG
+  MENG-DAEC: FLAG
+  MENG-DSE: FLAG
+  MENG-IPCY: FLAG
+  MENG-PCCY: FLAG
+  MENG-SCCH: FLAG
+  MENG-SE:  Sustainable Energy
+  MENG-SECH: FLAG
+  MENG-SEEC: FLAG
+  MENG-TIM:  Engineering , Technology Innovation Management
+  MENT-ETAY: FLAG
+  MENT-ETIM: FLAG
+  MENT-TIAY: FLAG
+  MENT-TIAY: FLAG
+  MENT-TIMG: FLAG
+  MENT-TIMG: FLAG
+  MFIN-GMF: FLAG
+  MHCI-69: FLAG
+  MHCI-69A: Human-Computer Interaction
+  MHCI-69B: FLAG
+  MHCI-69E: Human-Computer Interaction
+  MHCI-69P: FLAG
+  MHCI-69S: Human-Computer Interaction
+  MHCI-HAAY: FLAG
+  MHCI-HBAY: FLAG
+  MHCI-HEAY: FLAG
+  MHCI-HPAY: FLAG
+  MHCI-HSAY: FLAG
+  MIPIS-43:  Infrastructure Protection and International Security
+  MIPIS-43C:  Infrastructure Protection and International Security
+  MIPIS-81:  Infrastructure Protection and International Security
+  MIPIS-81C:  Infrastructure Protection and International Security
+  MIPIS-ICCY: FLAG
+  MIPIS-IICY: FLAG
+  MIT-72: Digital Media
+  MIT-72CY: FLAG
+  MIT-72DS: Digital Media 
+  MIT-72P: FLAG
+  MIT-73: Network Technology
+  MIT-73CY: FLAG
+  MIT-DAE: FLAG
+  MIT-DAEC: FLAG
+  MIT-DSE: FLAG
+  MJ-4L-PR1:  Journalism
+  MJ-4L-PR2:  Journalism
+  MJ-4N-JS1:  Journalism
+  MJ-4N-JS2:  Journalism
+  MJ-4P-BJ1:  Journalism
+  MJ-4P-BJ2:  Journalism
+  MJ-JS1AS: FLAG
+  MJ-JS2AS: FLAG
+  MNET-GMNT: FLAG
+  MNET-GMNT: FLAG
+  MNET-GNCY: FLAG
+  MNET-GNCY: FLAG
+  MPM-PM:  Political Management
+  MPNL-48E: FLAG
+  MPNL-48P:  Philanthropy and Nonprofit Leadership
+  MPPA-48: FLAG
+  MPPA-48A: FLAG
+  MPPA-48AC:  Public Policy and Administration
+  MPPA-48ACCH: FLAG
+  MPPA-48ACDS: FLAG
+  MPPA-48ACH: FLAG
+  MPPA-48ADS: FLAG
+  MPPA-48C: FLAG
+  MPPA-48CCH: FLAG
+  MPPA-48CDS: FLAG
+  MPPA-48CH: FLAG
+  MPPA-48DS: FLAG
+  MPPA-IAAC: FLAG
+  MPPA-IPA: FLAG
+  MPPA-IPAA: FLAG
+  MPPA-IPAC: FLAG
+  MPP-SER: FLAG
+  MPP-SERC: FLAG
+  MPP-SRCH: FLAG
+  MSC-35:  Health Sciences
+  MSC-35AY: FLAG
+  MSC-35CT: 
+  MSC-35DS:  Health Sciences
+  MSC-38: FLAG
+  MSC-38S: FLAG
+  MSC-42:  Geography
+  MSC-42CH: FLAG
+  MSC-42DS:  Geography
+  MSC-5C:  Pure Mathematics
+  MSC-5D:  Mathematics
+  MSC-5E:  Probability and Statistics
+  MSC-5EB:  Mathematics
+  MSC-5F:  Mathematics
+  MSC-5Y:  Physics
+  MSC-60:  Biology
+  MSC-60B:  Biology
+  MSC-60BC:  Biology
+  MSC-60DS:  Biology
+  MSC-60H: Health: Science, Technology and Policy
+  MSC-60HL: Health: Science, Technology and Policy
+  MSC-62:  Chemistry
+  MSC-62BC:  Chemistry
+  MSC-62DS: FLAG
+  MSC-62F: FLAG
+  MSC-62FS:  Chemistry
+  MSC-65:  Mathematics
+  MSC-65B: FLAG
+  MSC-6E:  Neuroscience
+  MSC-6EAY: FLAG
+  MSC-6EG:  Neuroscience
+  MSC-7A:  ISS 
+  MSC-7B:  ISS 
+  MSC-7C:  ISS 
+  MSC-7D:  Chemical and Environmental Toxicology
+  MSC-7E:  Chemical and Environmental Toxicology
+  MSC-7G:  Biology
+  MSC-7GT:  Chemical and Environmental Toxicology
+  MSC-7N:  Management
+  MSC-7NCH: FLAG
+  MSC-90:  Statistics
+  MSC-90F:  Statistics
+  MSC-96:  Earth Sciences
+  MSC-9J:  Physics
+  MSC-9JDS: FLAG
+  MSC-9K:  Physics
+  MSC-9L:  Mathematics
+  MSC-9P:  Physics
+  MSC-9PDS: FLAG
+  MSC-DAS:  Data Science, Analytics, and Artificial Intelligence
+  MSC-DASC: FLAG
+  MSC-DSS: FLAG
+  MSC-ETIM: FLAG
+  MSC-HLAY: FLAG
+  MSC-TIMG: FLAG
+  MSC-TIMG: FLAG
+  MSW-1YR-5CR:  Social Work
+  MSW-1YR-6CR:  Social Work
+  MSW-2YR-11CR:  Social Work
+  MSW-49:  Social Work
+  MTECH-TIMG: FLAG
+  MTECH-TIMG: FLAG
+  PHD-07:  Communication
+  PHD-07PE: FLAG
+  PHD-08A:  Applied Linguistics and Discourse Studies
+  PHD-11:  Canadian Studies
+  PHD-11PE:  Canadian Studies
+  PHD-15:  English
+  PHD-15AS: FLAG
+  PHD-15AS: FLAG
+  PHD-19:  History
+  PHD-19PE:  History
+  PHD-19PH:  History
+  PHD-22: FLAG
+  PHD-22L:  Linguistics, Language Documentation and Revitalization
+  PHD-24E:  Ethics and Public Affairs
+  PHD-31:  Architecture
+  PHD-31AS: FLAG
+  PHD-31AS: FLAG
+  PHD-34:  Public Policy
+  PHD-34PE:  Public Policy
+  PHD-35:  Health Sciences
+  PHD-39:  Legal Studies
+  PHD-39PE:  Legal Studies
+  PHD-40:  Anthropology
+  PHD-40AS: FLAG
+  PHD-40PE:  Anthropology 
+  PHD-41:  Economics
+  PHD-42:  Geography
+  PHD-42PE:  Geography
+  PHD-43:  International Affairs
+  PHD-43AS: FLAG
+  PHD-46:  Political Science
+  PHD-46AS: FLAG
+  PHD-46AS: FLAG
+  PHD-46PE:  Political Science
+  PHD-47:  Psychology
+  PHD-47M:  Psychology
+  PHD-49A:  Social Work
+  PHD-49PE:  Social Work
+  PHD-50:  Sociology
+  PHD-50AS: FLAG
+  PHD-50PE:  Sociology
+  PHD-5C:  Mathematics
+  PHD-5D:  Mathematics
+  PHD-5E:  Probability and Statistics
+  PHD-60:  Biology
+  PHD-60BC: FLAG
+  PHD-62:  Chemistry
+  PHD-62BC:  Chemistry
+  PHD-62F: FLAG
+  PHD-62FS:  Chemistry
+  PHD-6E:  Neuroscience
+  PHD-6EG:  Neuroscience
+  PHD-74:  Information Technology
+  PHD-74A:  Information Technology
+  PHD-78:  Engineering, Aerospace
+  PHD-7D:  Chemical and Environmental Toxicology
+  PHD-7E:  Chemical and Environmental Toxicology
+  PHD-7G:  Biology
+  PHD-7GT:  Chemical and Environmental Toxicology
+  PHD-7M:  Computer Science
+  PHD-7N:  Management
+  PHD-81:  Engineering, Civil
+  PHD-81B:  Engineering, Building
+  PHD-81F: FLAG
+  PHD-81H: FLAG
+  PHD-81P:  Engineering, Building
+  PHD-82E:  Engineering, Electrical and Computer
+  PHD-82S:  Engineering, Electrical and Computer
+  PHD-82SK:  Engineering, Electrical and Computer
+  PHD-84:  Engineering, Mechanical
+  PHD-95:  Engineering, Environmental
+  PHD-96:  Earth Sciences
+  PHD-97:  Comparative Literary Studies
+  PHD-98:  Cognitive Science
+  PHD-9J:  Physics
+  PHD-9K:  Physics
+  PHD-9P:  Physics
+  PHD-BA:  Cultural Mediations
+  PHD-BB:  Cultural Mediations
+  PHD-BC:  Cultural Mediations
+  PHD-BD:  Cultural Mediations
+  PHD-BMCS: FLAG
+  PHD-BMEL: FLAG
+  PHD-BMMA: FLAG
+  PHD-BMP:  Engineering, Biomedical
+  PHD-BMSY: FLAG
+  PHD-DAE: FLAG
+  PHD-DAS: FLAG
+  PHD-DSE: FLAG
+  PHD-DSS: FLAG
 lc_subject:
   B001:
     - - a

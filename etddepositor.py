@@ -42,26 +42,26 @@ NAMESPACES = {
 }
 
 # Bitstream Payloads are blank payloads as we'll fill them out when we place it into dspace
-OG_BITSTREAM_PAYLOAD = { 
-                "name": "", 
-                "description": "",
-                "type": "bitstream",
-                "bundleName": "ORIGINAL" 
-                }
+OG_BITSTREAM_PAYLOAD = {
+    "name": "",
+    "description": "",
+    "type": "bitstream",
+    "bundleName": "ORIGINAL",
+}
 
 LICENSE_BITSTREAM_PAYLOAD = {
-                "name": "", 
-                "description": "",
-                "type": "license",
-                "bundleName": "LICENSE" 
-                }
+    "name": "",
+    "description": "",
+    "type": "license",
+    "bundleName": "LICENSE",
+}
 
-# PackageData create the template for this object and will be placing data from 
+# PackageData create the template for this object and will be placing data from
 PackageData = dataclasses.make_dataclass(
     "PackageData",
     [
-        "package_files", 
-        "creator", 
+        "package_files",
+        "creator",
         "contributors",
         "date",
         "type",
@@ -77,15 +77,13 @@ PackageData = dataclasses.make_dataclass(
         "agreements",
         "degree",
         "degree_discipline",
-        "degree_level", 
+        "degree_level",
         "url",
-        "handle", 
+        "handle",
         "student_id",
         "embargo_info",
-
     ],
 )
-
 
 
 # DOI_PREFIX is Carleton University Library's DOI prefix, used when minting new
@@ -99,6 +97,7 @@ DOI_URL_PREFIX = "https://doi.org/"
 # if our mapping for that attribute is incomplete or unknowable.
 FLAG = "FLAG"
 
+
 class MissingFileError(Exception):
     """Raised when a required file is missing."""
 
@@ -110,8 +109,9 @@ class MetadataError(Exception):
 class GetURLFailedError(Exception):
     """Raised when the Hyrax URL for an imported package can't be found."""
 
-# DSpaceSession: This is the class itself that will handle all the DSpace API management 
-# All we need to do is make a session and uses the user/pass you pass in 
+
+# DSpaceSession: This is the class itself that will handle all the DSpace API management
+# All we need to do is make a session and uses the user/pass you pass in
 class DSpaceSession(requests.Session):
     def __init__(self, api_base):
         super().__init__()
@@ -129,7 +129,9 @@ class DSpaceSession(requests.Session):
     def authenticate(self, user, password):
         login_payload = {"user": user, "password": password}
         try:
-            response = self.post(f"{self.api_base}/authn/login", data=login_payload)
+            response = self.post(
+                f"{self.api_base}/authn/login", data=login_payload
+            )
             response.raise_for_status()
             self.update_csrf_token(response)
 
@@ -146,7 +148,9 @@ class DSpaceSession(requests.Session):
             print(f"Request error during authentication for user {user}: {e}")
 
         except Exception as e:
-            print(f"Unexpected error during authentication for user {user}: {e}")
+            print(
+                f"Unexpected error during authentication for user {user}: {e}"
+            )
 
     def refresh_csrf_token(self):
         response = super().get(f"{self.api_base}/security/csrf")
@@ -155,7 +159,7 @@ class DSpaceSession(requests.Session):
 
     def ensure_auth_valid(self, user, password):
         if self.auth_token and (time.time() - self.last_auth_time > 1800):
-            self.authenticate(user, password)        
+            self.authenticate(user, password)
 
     def update_csrf_token(self, response):
         if "dspace-xsrf-token" in response.headers:
@@ -167,12 +171,12 @@ class DSpaceSession(requests.Session):
             response = super().request(method, url, **kwargs)
             response.raise_for_status()
             self.update_csrf_token(response)
-            print(f"Successful {method} request to {url}")  
+            print(f"Successful {method} request to {url}")
             return response
 
         except requests.exceptions.HTTPError as e:
             print(f"HTTP error during {method} request to {url}: {e}")
-            print(f"Response content: {response.text}")  
+            print(f"Response content: {response.text}")
 
         except requests.exceptions.RequestException as e:
             print(f"Request error during {method} request to {url}: {e}")
@@ -182,8 +186,9 @@ class DSpaceSession(requests.Session):
 
     def safe_request(self, method, url, **kwargs):
         return self.request(method, url, **kwargs)
-    
-# load_mappings is a helper method that will load all the yaml files we use 
+
+
+# load_mappings is a helper method that will load all the yaml files we use
 def load_mappings(mapping_file):
     """Loads the mappings YAML file."""
     try:
@@ -204,13 +209,17 @@ def validate_subject_mappings(mappings):
         for code, subject in mappings["lc_subject"].items():
             for subject_tags in subject:
                 if len(subject_tags) not in [2, 4]:
-                    click.echo(f"Warning: The subject {code} in the mappings file is not formatted correctly.")
+                    click.echo(
+                        f"Warning: The subject {code} in the mappings file is not formatted correctly."
+                    )
+
 
 def find_etd_packages(processing_directory):
     """Finds the package directories in the ready subdirectory."""
     ready_path = os.path.join(processing_directory, READY_SUBDIR)
     packages = glob.glob(os.path.join(ready_path, "*"))
     return packages
+
 
 def create_output_directories(processing_directory):
     """Creates the timestamped output directories."""
@@ -233,14 +242,24 @@ def create_output_directories(processing_directory):
     os.makedirs(license_path, mode=0o775, exist_ok=True)
     os.makedirs(postback_path, mode=0o775, exist_ok=True)
 
+    return (
+        done_path,
+        marc_path,
+        crossref_path,
+        csv_report_path,
+        file_path,
+        failed_path,
+        skipped_path,
+        license_path,
+        postback_path,
+    )
 
-    return done_path, marc_path, crossref_path, csv_report_path, file_path, failed_path, skipped_path, license_path, postback_path 
 
 def write_metadata_csv_header(metadata_csv_path):
     """Write the header columns to the Hyrax import metadata CSV file."""
     header_columns = [
-        "files", 
-        "dc.contributor.author", 
+        "files",
+        "dc.contributor.author",
         "dc.contributor.other",
         "dc.date.issued",
         "dc.type",
@@ -260,6 +279,7 @@ def write_metadata_csv_header(metadata_csv_path):
 
         csv_writer.writerow(header_columns)
 
+
 def process_subjects(subject_elements, mappings):
     subjects = []
     for subject_element in subject_elements:
@@ -276,11 +296,17 @@ def process_subjects(subject_elements, mappings):
         if subject not in deduplicated_subjects:
             deduplicated_subjects.append(subject)
 
-    subject_values = [entry[1].rstrip('.') for entry in deduplicated_subjects if len(entry) > 1]
+    subject_values = [
+        entry[1].rstrip(".")
+        for entry in deduplicated_subjects
+        if len(entry) > 1
+    ]
     return deduplicated_subjects, subject_values
+
 
 def process_description(description):
     return description.replace("\n", " ").replace("\r", "").strip()
+
 
 def process_contributors(contributor_elements):
     contributors = []
@@ -295,6 +321,7 @@ def process_contributors(contributor_elements):
             contributors.append(name)
     return contributors
 
+
 def process_date(date):
     """Check date is properly formatted, return the date and year as strings"""
 
@@ -306,6 +333,7 @@ def process_date(date):
     except ValueError:
         raise MetadataError(f"date value {date} is not properly formatted")
     return date, year
+
 
 def process_language(language):
     language = language.strip()
@@ -320,6 +348,7 @@ def process_language(language):
     else:
         raise MetadataError(f"unexpected language {language} found.")
 
+
 def process_degree(degree):
     degree = degree.strip()
     if degree == "Master of Architectural Stud":
@@ -330,12 +359,15 @@ def process_degree(degree):
         return FLAG
     return degree
 
+
 def process_degree_abbreviation(degree, mappings):
     return mappings["abbreviation"].get(degree, FLAG)
+
 
 def process_degree_discipline(discipline, mappings):
     discipline = discipline.strip()
     return mappings["discipline"].get(discipline, FLAG)
+
 
 def process_degree_level(level):
     level = level.strip()
@@ -344,15 +376,21 @@ def process_degree_level(level):
     if level == "0":
         raise MetadataError("received undergraduate work, degree level is 0")
     if level != "1" and level != "2":
-        raise MetadataError("invalid degree level")    
+        raise MetadataError("invalid degree level")
     if level == "1":
         level = "Master's"
     elif level == "2":
         level = "Doctoral"
     return level
 
+
 def create_package_data(
-    package_metadata_xml, student_id, doi_ident, agreements, embargo_info, mappings
+    package_metadata_xml,
+    student_id,
+    doi_ident,
+    agreements,
+    embargo_info,
+    mappings,
 ):
     """Extract the package data from the package XML."""
 
@@ -433,7 +471,7 @@ def create_package_data(
     doi = f"{DOI_PREFIX}/etd/{year}-{doi_ident}"
 
     return PackageData(
-        package_files=[],        
+        package_files=[],
         creator=creator,
         contributors=contributors,
         date=year,
@@ -455,18 +493,19 @@ def create_package_data(
         handle="",
         student_id=student_id,
         embargo_info=embargo_info,
-
     )
 
+
 def process_value(value):
-    
+
     if isinstance(value, list):
-        return '||'.join(map(str, value))
+        return "||".join(map(str, value))
     elif isinstance(value, str):
         return value.strip()
     else:
         return str(value)
-        
+
+
 def copy_thesis_pdf(package_data, package_path, files_path):
     # ASSUMPTION: The file main thesis will always be a .pdf file.
     file_paths_in_data = glob.glob(os.path.join(package_path, "data", "*pdf"))
@@ -489,7 +528,7 @@ def copy_thesis_pdf(package_data, package_path, files_path):
     # The first part is the creator name, simplified.
     dest_file_name = (
         package_data.creator.lower().replace(" ", "-").replace(",", "-")
-    ) 
+    )
 
     # Add the double hyphen delimiter.
     dest_file_name += "--"
@@ -518,6 +557,7 @@ def copy_thesis_pdf(package_data, package_path, files_path):
     shutil.copy2(thesis_file_path, dest_path)
     return dest_file_name
 
+
 def copy_package_files(package_data, package_path, files_path):
     thesis_file_name = copy_thesis_pdf(package_data, package_path, files_path)
     supplemental_path = os.path.join(package_path, "data", "supplemental")
@@ -527,7 +567,8 @@ def copy_package_files(package_data, package_path, files_path):
         shutil.make_archive(archive_path[:-4], "zip", supplemental_path)
         return thesis_file_name, archive_file_name
     return (thesis_file_name,)
-  
+
+
 def process_agreements(content_lines, mappings):
     """Process the agreements metadata file.
 
@@ -545,7 +586,7 @@ def process_agreements(content_lines, mappings):
         if line.startswith(("Student ID", "Thesis ID")):
             continue
         elif "Embargo Expiry" in line:
-            embargo_dates.append(line)  
+            embargo_dates.append(line)
             continue
         elif any(line.startswith(name) for name in mappings["agreements"]):
             line_split = line.split("||")
@@ -567,39 +608,52 @@ def process_agreements(content_lines, mappings):
 
     return agreements, embargo_dates
 
+
 def create_agreements(package_data, item_output_dir, license_path):
     required_agreements = {
         "Carleton University Thesis License Agreement": "license.txt",
         "FIPPA": "fippa_statement.txt",
-        "Academic Integrity Statement": "academic_integrity_statement.txt"
+        "Academic Integrity Statement": "academic_integrity_statement.txt",
     }
 
     missing = [
-        name for name in required_agreements
+        name
+        for name in required_agreements
         if name not in package_data.agreements
     ]
 
     if missing:
-        print(f"Skipping item: missing required agreement(s): {', '.join(missing)}")
-        return False  
+        print(
+            f"Skipping item: missing required agreement(s): {', '.join(missing)}"
+        )
+        return False
 
     # All required agreements are signed, copy their respective files
     for agreement_name, filename in required_agreements.items():
-        src = os.path.join(license_path, filename)  
+        src = os.path.join(license_path, filename)
         dst = os.path.join(item_output_dir, filename)
         shutil.copyfile(src, dst)
 
     return True
-        
+
+
 def build_metadata_payload(package_data, agreements):
-    
     def add_metadata(dc_key, value):
         if not value:
             return
         if isinstance(value, (list, tuple)):
-            metadata[f"{dc_key}"] = [{"value": v, } for v in value]
+            metadata[f"{dc_key}"] = [
+                {
+                    "value": v,
+                }
+                for v in value
+            ]
         else:
-            metadata[f"{dc_key}"] = [{"value": value, }]
+            metadata[f"{dc_key}"] = [
+                {
+                    "value": value,
+                }
+            ]
 
     metadata = {}
 
@@ -616,7 +670,10 @@ def build_metadata_payload(package_data, agreements):
     add_metadata("dc.subject.lcsh", package_data.subjects)
     if "LAC Non-Exclusive License" in agreements:
         add_metadata("local.hasLACLicence", True)
-    add_metadata("thesis.degree.name", package_data.degree + " (" + package_data.abbreviation + ")")
+    add_metadata(
+        "thesis.degree.name",
+        package_data.degree + " (" + package_data.abbreviation + ")",
+    )
     add_metadata("thesis.degree.discipline", package_data.degree_discipline)
     add_metadata("thesis.degree.level", package_data.degree_level)
 
@@ -626,34 +683,43 @@ def build_metadata_payload(package_data, agreements):
         "inArchive": True,
         "discoverable": True,
         "withdrawn": False,
-        "type": "item"
+        "type": "item",
     }
+
 
 def item_creation(session, api_base, collection_id, metadata_payload):
     item_endpoint = f"{api_base}/core/items?owningCollection={collection_id}"
-    response = session.safe_request("POST", item_endpoint, json=metadata_payload)
+    response = session.safe_request(
+        "POST", item_endpoint, json=metadata_payload
+    )
     response.raise_for_status()
-    item_uuid = response.json()["uuid"]  
+    item_uuid = response.json()["uuid"]
     item_handle = response.json()["handle"]
     return item_uuid, item_handle
 
+
 def bundle_creations(session, api_base, item_uuid):
-    
+
     bundle_endpoint = f"{api_base}/core/items/{item_uuid}/bundles"
     try:
-        response = session.safe_request("POST", bundle_endpoint, json={"name":"ORIGINAL"})
+        response = session.safe_request(
+            "POST", bundle_endpoint, json={"name": "ORIGINAL"}
+        )
         response.raise_for_status()
         og_bundle_id = response.json()["uuid"]
-        
-        response = session.safe_request("POST", bundle_endpoint, json={"name": "LICENSE"})
+
+        response = session.safe_request(
+            "POST", bundle_endpoint, json={"name": "LICENSE"}
+        )
         response.raise_for_status()
         license_bundle_id = response.json()["uuid"]
-        
+
         return og_bundle_id, license_bundle_id
     except requests.exceptions.RequestException as e:
         print(f"Error creating bundles: {e}")
         return None, None
-    
+
+
 def upload_licenses(session, api_base, license_bundle_uuid, license_dir):
     license_files = [
         ("license.txt", "Carleton University License"),
@@ -661,7 +727,9 @@ def upload_licenses(session, api_base, license_bundle_uuid, license_dir):
         ("academic_integrity_statement.txt", "Academic Integrity Statement"),
     ]
 
-    license_endpoint = f"{api_base}/core/bundles/{license_bundle_uuid}/bitstreams"
+    license_endpoint = (
+        f"{api_base}/core/bundles/{license_bundle_uuid}/bitstreams"
+    )
     format_id = 2
     format_url = f"{api_base}/core/bitstreamformats/{format_id}"
     headers = {"Content-Type": "text/uri-list"}
@@ -672,55 +740,89 @@ def upload_licenses(session, api_base, license_bundle_uuid, license_dir):
             with open(full_path, "rb") as file:
                 try:
                     license_upload = {"file": (filename, file, "text/plain")}
-                    response = session.safe_request("POST", license_endpoint, files=license_upload, data=LICENSE_BITSTREAM_PAYLOAD)
-                    
+                    response = session.safe_request(
+                        "POST",
+                        license_endpoint,
+                        files=license_upload,
+                        data=LICENSE_BITSTREAM_PAYLOAD,
+                    )
+
                     if response:
                         license_uuid = response.json()["id"]
-                        bitstream_endpoint = f"{api_base}/core/bitstreams/{license_uuid}/format"
+                        bitstream_endpoint = (
+                            f"{api_base}/core/bitstreams/{license_uuid}/format"
+                        )
 
                         try:
-                            response = session.safe_request("PUT", bitstream_endpoint, headers=headers, data=format_url)
+                            response = session.safe_request(
+                                "PUT",
+                                bitstream_endpoint,
+                                headers=headers,
+                                data=format_url,
+                            )
                             response.raise_for_status()
                         except requests.exceptions.RequestException as e:
-                            print(f"[{description}] Failed to update MIME type: {e}")
+                            print(
+                                f"[{description}] Failed to update MIME type: {e}"
+                            )
                 except Exception as e:
                     print(f"[{description}] Failed to upload license: {e}")
         else:
             print(f"[{description}] File not found: {full_path}")
 
-def upload_files(session, api_base, package_data, og_bundle_uuid, file_path, metadata_payload):
+
+def upload_files(
+    session,
+    api_base,
+    package_data,
+    og_bundle_uuid,
+    file_path,
+    metadata_payload,
+):
 
     original_endpoint = f"{api_base}/core/bundles/{og_bundle_uuid}/bitstreams"
 
     for file_name in package_data.package_files:
         full_path = os.path.join(file_path, file_name)
 
-        if not os.path.isfile(full_path): 
+        if not os.path.isfile(full_path):
             print(f"File not found: {full_path}, skipping")
             continue
 
         mime_type = mimetypes.guess_type(file_name)[0]
-        
+
         with open(full_path, "rb") as file:
 
             if os.path.getsize(full_path) > 1048576000:
 
                 multipart_data = {
-                    'file': (file_name, file),
-                    'OG_BITSTREAM_PAYLOAD': (None, json.dumps(metadata_payload), 'application/json')
+                    "file": (file_name, file),
+                    "OG_BITSTREAM_PAYLOAD": (
+                        None,
+                        json.dumps(metadata_payload),
+                        "application/json",
+                    ),
                 }
-            
+
                 e = encoder.MultipartEncoder(multipart_data)
-                m = encoder.MultipartEncoderMonitor(e, lambda a: print(a.bytes_read, end='\r'))
+                m = encoder.MultipartEncoderMonitor(
+                    e, lambda a: print(a.bytes_read, end="\r")
+                )
 
                 def gen():
                     a = m.read(16384)
                     while a:
                         yield a
                         a = m.read(16384)
+
                 try:
 
-                    response = session.safe_request("POST", original_endpoint, data=gen(), headers={"Content-Type": m.content_type})
+                    response = session.safe_request(
+                        "POST",
+                        original_endpoint,
+                        data=gen(),
+                        headers={"Content-Type": m.content_type},
+                    )
                     response.raise_for_status()
                 except requests.exceptions.RequestException as e:
                     print(f"Error with multipart upload of {file_path}: {e}")
@@ -729,32 +831,38 @@ def upload_files(session, api_base, package_data, og_bundle_uuid, file_path, met
             else:
                 files = {"file": (file_name, file, mime_type)}
                 try:
-                    response = session.safe_request("POST", original_endpoint, files=files, data=metadata_payload)
+                    response = session.safe_request(
+                        "POST",
+                        original_endpoint,
+                        files=files,
+                        data=metadata_payload,
+                    )
                     response.raise_for_status()
                 except requests.exceptions.RequestException as e:
                     print(f"Error uploading {file_path}: {e}")
                     continue
-            print(f"Successfully uploaded: {file_path}") 
-    
+            print(f"Successfully uploaded: {file_path}")
+
+
 def create_dspace_import(
-        api_base, 
-        packages, 
-        invalid_ok, 
-        doi_start, 
-        mappings, 
-        files_path, 
-        parent_collection_id, 
-        user_email, 
-        user_password, 
-        license_path, 
-        skipped_path, 
-        skipped_ids,
-        dspace_base_url
-    ):
-    
+    api_base,
+    packages,
+    invalid_ok,
+    doi_start,
+    mappings,
+    files_path,
+    parent_collection_id,
+    user_email,
+    user_password,
+    license_path,
+    skipped_path,
+    skipped_ids,
+    dspace_base_url,
+):
+
     session = DSpaceSession(api_base)
     session.authenticate(user_email, user_password)
-    
+
     dspace_import_packages = []
     skipped_import_packages = []
 
@@ -765,11 +873,10 @@ def create_dspace_import(
 
     # Start the doi_ident counter at the provided doi_start number.
     doi_ident = doi_start
-    
+
     click.echo(f"Processing {len(packages)} packages to create Dspace import.")
     for index, package_path in enumerate(packages):
         student_id = os.path.basename(package_path)
-        
 
         # Is the BagIt container valid? This will catch bit-rot errors early.
         if not bagit.Bag(package_path).is_valid() and not invalid_ok:
@@ -778,7 +885,7 @@ def create_dspace_import(
             failure_log.append(f"{student_id}: {err_msg}")
             continue
         try:
-            
+
             permissions_path = os.path.join(
                 package_path,
                 "data",
@@ -794,22 +901,33 @@ def create_dspace_import(
             agreements, embargo_info = process_agreements(
                 permissions_file_content, mappings
             )
-                        
 
             package_metadata_xml_path = os.path.join(
                 package_path, "data", "meta", f"{student_id}_etdms_meta.xml"
             )
 
             package_metadata_xml = ElementTree.parse(package_metadata_xml_path)
-            
 
-            package_data = create_package_data(package_metadata_xml, student_id, doi_ident, agreements, embargo_info, mappings)
-            package_data.package_files = copy_package_files(package_data, package_path, files_path)
+            package_data = create_package_data(
+                package_metadata_xml,
+                student_id,
+                doi_ident,
+                agreements,
+                embargo_info,
+                mappings,
+            )
+            package_data.package_files = copy_package_files(
+                package_data, package_path, files_path
+            )
 
-            built_item_payload = build_metadata_payload(package_data, agreements)
+            built_item_payload = build_metadata_payload(
+                package_data, agreements
+            )
 
             if student_id in skipped_ids:
-                skipped_log.append(f"{student_id}: Skipped (manual processing)")
+                skipped_log.append(
+                    f"{student_id}: Skipped (manual processing)"
+                )
                 click.echo(f"{student_id}: Skipped (manual processing)")
 
                 dest_path = os.path.join(skipped_path, student_id)
@@ -818,16 +936,31 @@ def create_dspace_import(
                     skipped_import_packages.append(package_data)
                     shutil.move(package_path, dest_path)
                 except shutil.Error as e:
-                    click.echo(f"Error moving package {package_path} to skipped directory: {e}")
+                    click.echo(
+                        f"Error moving package {package_path} to skipped directory: {e}"
+                    )
 
                 continue
             click.echo(f"{student_id}: ", nl=False)
-            
-            item_id, item_handle = item_creation(session, api_base, parent_collection_id, built_item_payload)
-            og_bundle_uuid, license_bundle_uuid = bundle_creations(session, api_base, item_id)
-            upload_licenses(session, api_base, license_bundle_uuid, license_path)
-            upload_files(session, api_base, package_data, og_bundle_uuid, files_path, OG_BITSTREAM_PAYLOAD)
-            
+
+            item_id, item_handle = item_creation(
+                session, api_base, parent_collection_id, built_item_payload
+            )
+            og_bundle_uuid, license_bundle_uuid = bundle_creations(
+                session, api_base, item_id
+            )
+            upload_licenses(
+                session, api_base, license_bundle_uuid, license_path
+            )
+            upload_files(
+                session,
+                api_base,
+                package_data,
+                og_bundle_uuid,
+                files_path,
+                OG_BITSTREAM_PAYLOAD,
+            )
+
         except ElementTree.ParseError as e:
             err_msg = f"Error parsing XML, {e}."
             click.echo(err_msg)
@@ -849,12 +982,21 @@ def create_dspace_import(
             if "carleton-dev.scholaris.ca" in dspace_base_url:
                 package_data.handle = f"{dspace_base_url}/handle/{item_handle}"
             else:
-                package_data.handle = f"https://hdl.handle.net/20.500.14718/{item_handle}"
+                package_data.handle = (
+                    f"https://hdl.handle.net/20.500.14718/{item_handle}"
+                )
 
             package_data.url = f"{dspace_base_url}/items/{item_id}"
             dspace_import_packages.append(package_data)
 
-    return dspace_import_packages, dspace_item_info, failure_log, skipped_log, skipped_import_packages
+    return (
+        dspace_import_packages,
+        dspace_item_info,
+        failure_log,
+        skipped_log,
+        skipped_import_packages,
+    )
+
 
 def create_crossref_etree():
     doi_batch = ElementTree.Element(
@@ -888,6 +1030,7 @@ def create_crossref_etree():
 
     tree = ElementTree.ElementTree(doi_batch)
     return tree, body
+
 
 def create_marc_record(package_data, marc_path):
     """
@@ -938,7 +1081,7 @@ def create_marc_record(package_data, marc_path):
         )
     )
 
-    #pub_year = str(package_data.year).ljust(4)[:4]
+    # pub_year = str(package_data.year).ljust(4)[:4]
     record.add_field(
         pymarc.Field(
             tag="008",
@@ -1043,11 +1186,7 @@ def create_marc_record(package_data, marc_path):
         pymarc.Field(
             tag="500",
             indicators=[" ", " "],
-            subfields=[
-                "a",
-                package_data.description
-            ],
-
+            subfields=["a", package_data.description],
         )
     )
     record.add_field(
@@ -1094,7 +1233,9 @@ def create_marc_record(package_data, marc_path):
     for subject_tags in package_data.deduped_subjects:
         if isinstance(subject_tags, list) and len(subject_tags) % 2 == 0:
             record.add_field(
-                pymarc.Field(tag="650", indicators=[" ", "0"], subfields=subject_tags)
+                pymarc.Field(
+                    tag="650", indicators=[" ", "0"], subfields=subject_tags
+                )
             )
         else:
             print(f"Invalid subject_tags: {subject_tags}")
@@ -1147,21 +1288,29 @@ def create_marc_record(package_data, marc_path):
     ) as marc_file:
         marc_file.write(record.as_marc())
 
+
 def resolve_handle_to_uuid(session, handle):
-    
-    handle_url = f"{session.api_base.replace('/server/api', '')}/handle/{handle}"
+
+    handle_url = (
+        f"{session.api_base.replace('/server/api', '')}/handle/{handle}"
+    )
     response = session.safe_request("GET", handle_url, allow_redirects=True)
     response.raise_for_status()
     if response.status_code == 200:
         url = response.url
-        
+
         if url:
             return url
         else:
-            raise ValueError(f"UUID not found in redirect for handle: {handle}")
+            raise ValueError(
+                f"UUID not found in redirect for handle: {handle}"
+            )
     else:
-        raise ValueError(f"Unexpected status code {response.status_code} for handle: {handle}")
-    
+        raise ValueError(
+            f"Unexpected status code {response.status_code} for handle: {handle}"
+        )
+
+
 def build_uuid_map(mapfile_path, session):
     uuid_map = {}
     with open(mapfile_path, "r") as f:
@@ -1176,10 +1325,18 @@ def build_uuid_map(mapfile_path, session):
                     print(f"Failed to resolve {handle}: {e}")
     return uuid_map
 
-def post_import_processing(session, user_email, user_password, dspace_import_packages, dspace_item_info, marc_path):
+
+def post_import_processing(
+    session,
+    user_email,
+    user_password,
+    dspace_import_packages,
+    dspace_item_info,
+    marc_path,
+):
 
     session.authenticate(user_email, user_password)
-   
+
     # Package data for packages which have been successfully imported
     # into Dspace.
     completed_packages = []
@@ -1199,9 +1356,7 @@ def post_import_processing(session, user_email, user_password, dspace_import_pac
         click.echo(f"{package_data.title}: ")
         try:
             create_marc_record(package_data, marc_path)
-            body_element.append(
-                create_dissertation_element(package_data)
-            )
+            body_element.append(create_dissertation_element(package_data))
         except GetURLFailedError:
             err_msg = "Link not found in Dspace."
             click.echo(err_msg)
@@ -1215,6 +1370,7 @@ def post_import_processing(session, user_email, user_password, dspace_import_pac
             click.echo("Done")
 
     return completed_packages, crossref_et, failure_log
+
 
 def create_dissertation_element(package_data):
     dissertation = ElementTree.Element("dissertation")
@@ -1264,6 +1420,7 @@ def create_dissertation_element(package_data):
     resource.text = package_data.handle
 
     return dissertation
+
 
 def create_csv_list(package_data, csv_file_path):
 
@@ -1346,7 +1503,10 @@ def create_csv_list(package_data, csv_file_path):
 
     click.echo("Ingest list created successfully.")
 
-def create_postback_files(completed_packages, outbox, postback_path, post_import_failure_log):
+
+def create_postback_files(
+    completed_packages, outbox, postback_path, post_import_failure_log
+):
 
     click.echo("Writing postback files: ", nl=False)
     for package in completed_packages:
@@ -1361,13 +1521,17 @@ def create_postback_files(completed_packages, outbox, postback_path, post_import
                     .isoformat()
                 )
                 postback.write(
-                    "{}||{}||1||{}".format(package.student_id, time_now, package.url)
+                    "{}||{}||1||{}".format(
+                        package.student_id, time_now, package.url
+                    )
                 )
-            continue  
+            continue
         except Exception as e:
-            err_msg = f"Warning: Could not write to outbox path ({outbox}): {e}"
+            err_msg = (
+                f"Warning: Could not write to outbox path ({outbox}): {e}"
+            )
             click.echo(err_msg)
-            
+
         # Fallback to default postback path
         try:
             with open(
@@ -1382,14 +1546,17 @@ def create_postback_files(completed_packages, outbox, postback_path, post_import
                     .isoformat()
                 )
                 postback.write(
-                    "{}||{}||1||{}".format(package.student_id, time_now, package.url)
+                    "{}||{}||1||{}".format(
+                        package.student_id, time_now, package.url
+                    )
                 )
         except Exception as e:
             err_msg = f"Error: Failed to write postback file for {package.student_id} to both locations. {e}"
             click.echo(err_msg)
             post_import_failure_log.append(err_msg)
     click.echo("Done")
-    
+
+
 def send_email_report(
     completed_packages,
     failure_log,
@@ -1467,18 +1634,48 @@ def send_email_report(
     server.send_message(msg)
     server.quit()
 
+
 @click.command()
-@click.argument('base_directory')
-@click.option('--api-base', default='https://carleton-dev.scholaris.ca/server/api', help='Base URL for the DSpace API.')
-@click.option('--skipped-mappings', default='etddepositor/skipped_mappings.yaml', help='Path to the skipped mappings YAML file.')
-@click.option('--outbox', default='', help='Path to the out report directory.')
-@click.option('--mapping-file', default='', help='Path to the mappings YAML file.')
-@click.option('--invalid-ok', is_flag=True, help='Continue processing even if BagIt is invalid.')
-@click.option('--email-from', required=True, help='Email address to send the report from.')
-@click.option('--email-to', required=True, default="smtp-server.carleton.ca", help='Email address to send the report to.')
-@click.option('--smtp-host', required=True, help='SMTP host for sending emails.')
+@click.argument("base_directory")
+@click.option(
+    "--api-base",
+    default="https://carleton-dev.scholaris.ca/server/api",
+    help="Base URL for the DSpace API.",
+)
+@click.option(
+    "--skipped-mappings",
+    default="etddepositor/skipped_mappings.yaml",
+    help="Path to the skipped mappings YAML file.",
+)
+@click.option("--outbox", default="", help="Path to the out report directory.")
+@click.option(
+    "--mapping-file", default="", help="Path to the mappings YAML file."
+)
+@click.option(
+    "--invalid-ok",
+    is_flag=True,
+    help="Continue processing even if BagIt is invalid.",
+)
+@click.option(
+    "--email-from",
+    required=True,
+    help="Email address to send the report from.",
+)
+@click.option(
+    "--email-to",
+    required=True,
+    default="smtp-server.carleton.ca",
+    help="Email address to send the report to.",
+)
+@click.option(
+    "--smtp-host", required=True, help="SMTP host for sending emails."
+)
 @click.option("--smtp-port", type=int, default=25, required=True)
-@click.option("--dspace-base-url", default="https://carleton-dev.scholaris.ca", help="Base URL for DSpace.")
+@click.option(
+    "--dspace-base-url",
+    default="https://carleton-dev.scholaris.ca",
+    help="Base URL for DSpace.",
+)
 @click.option(
     "--doi-start",
     type=int,
@@ -1500,51 +1697,53 @@ def send_email_report(
     help="The source ID for the parent collection in Dspace.",
 )
 def process(
-    base_directory, 
-    api_base, 
-    skipped_mappings, 
-    outbox, 
-    doi_start, 
-    invalid_ok, 
-    mapping_file, 
-    user_email, 
-    user_password, 
+    base_directory,
+    api_base,
+    skipped_mappings,
+    outbox,
+    doi_start,
+    invalid_ok,
+    mapping_file,
+    user_email,
+    user_password,
     email_from,
     email_to,
     smtp_host,
-    smtp_port, 
+    smtp_port,
     parent_collection_id,
-    dspace_base_url
-    ):
+    dspace_base_url,
+):
 
-    
     click.echo("Starting ETD processing...")
 
     processing_directory = base_directory
 
     API_BASE = api_base
 
-    
     # Load mappings
     mappings = load_mappings(mapping_file)
     skipped_mappings = load_mappings(skipped_mappings)
 
-    
     if not mappings:
-       return
-    
+        return
+
     if not skipped_mappings:
-       return
+        return
     skip_ids = skipped_mappings.get("skip_ids", [])
-    
+
     # Validate subject mappings
     validate_subject_mappings(mappings)
     (
-        done_path, marc_path, 
-        crossref_path, csv_report_path, file_path, 
-        failed_path, skipped_path, license_path, postback_path) = create_output_directories(
-        processing_directory
-    )
+        done_path,
+        marc_path,
+        crossref_path,
+        csv_report_path,
+        file_path,
+        failed_path,
+        skipped_path,
+        license_path,
+        postback_path,
+    ) = create_output_directories(processing_directory)
 
     # Find packages in the ready directory
     packages = find_etd_packages(processing_directory)
@@ -1553,21 +1752,27 @@ def process(
     if not packages:
         click.echo("No packages found. Exiting.")
         return
-     
-    dspace_import_packages, dspace_item_info, pre_import_failure_log, pre_import_skipped_log, skipped_import_packages = create_dspace_import(
+
+    (
+        dspace_import_packages,
+        dspace_item_info,
+        pre_import_failure_log,
+        pre_import_skipped_log,
+        skipped_import_packages,
+    ) = create_dspace_import(
         api_base,
         packages,
-        invalid_ok, 
-        doi_start, 
-        mappings, 
-        file_path, 
-        parent_collection_id, 
-        user_email, 
+        invalid_ok,
+        doi_start,
+        mappings,
+        file_path,
+        parent_collection_id,
+        user_email,
         user_password,
         license_path,
         skipped_path,
         skip_ids,
-        dspace_base_url
+        dspace_base_url,
     )
 
     click.echo("ETD processing complete.")
@@ -1575,12 +1780,19 @@ def process(
     click.echo("Starting post import processing")
 
     session = DSpaceSession(API_BASE)
-    
+
     (
         completed_packages,
         crossref_et,
         post_import_failure_log,
-    ) = post_import_processing(session, user_email, user_password, dspace_import_packages, dspace_item_info, marc_path)
+    ) = post_import_processing(
+        session,
+        user_email,
+        user_password,
+        dspace_import_packages,
+        dspace_item_info,
+        marc_path,
+    )
 
     click.echo("Writing complete CSV file: ", nl=False)
     csv_file_path = os.path.join(
@@ -1598,7 +1810,7 @@ def process(
     )
     click.echo("Done")
 
-    #TODO: Bug here marc zip attempts to zip itself up point it at another dir or fix it
+    # TODO: Bug here marc zip attempts to zip itself up point it at another dir or fix it
 
     click.echo("Creating MARC archive: ", nl=False)
     marc_src_path = os.path.join(processing_directory, MARC_SUBDIR)
@@ -1610,23 +1822,24 @@ def process(
     # make_archive doesn't want the archive extension.
     shutil.make_archive(marc_archive_path[:-4], "zip", marc_src_path)
     click.echo("Done")
-    
+
     click.echo("Writing postback files: ", nl=False)
     create_postback_files(
         completed_packages, outbox, postback_path, post_import_failure_log
     )
 
-    # Skipped import packages are those that were moved to the skipped directory 
+    # Skipped import packages are those that were moved to the skipped directory
     create_postback_files(
         skipped_import_packages, outbox, postback_path, post_import_failure_log
-    
     )
 
     click.echo("Sending report email: ", nl=False)
-    
+
     send_email_report(
         completed_packages,
-        pre_import_failure_log + post_import_failure_log + pre_import_skipped_log,
+        pre_import_failure_log
+        + post_import_failure_log
+        + pre_import_skipped_log,
         marc_archive_path,
         crossref_file_path,
         csv_file_path,
@@ -1636,5 +1849,7 @@ def process(
         email_to,
     )
     click.echo("Done")
-if __name__ == '__main__':
+
+
+if __name__ == "__main__":
     process()
