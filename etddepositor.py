@@ -20,6 +20,7 @@ import textwrap
 import mimetypes
 from requests_toolbelt.multipart import encoder
 import json
+import hashlib
 
 # API_BASE & Base URL supplied as an argument through click to speicfy if were on Dev or Live
 
@@ -560,13 +561,17 @@ def copy_thesis_pdf(package_data, package_path, files_path):
 
 def copy_package_files(package_data, package_path, files_path):
     thesis_file_name = copy_thesis_pdf(package_data, package_path, files_path)
+    thesis_file_path = os.path.join(files_path, thesis_file_name)
+
     supplemental_path = os.path.join(package_path, "data", "supplemental")
+    archive_path = None
+
     if os.path.isdir(supplemental_path):
         archive_file_name = f"{thesis_file_name[:-4]}-supplemental.zip"
         archive_path = os.path.join(files_path, archive_file_name)
         shutil.make_archive(archive_path[:-4], "zip", supplemental_path)
-        return thesis_file_name, archive_file_name
-    return (thesis_file_name,)
+        
+    return thesis_file_name, thesis_file_path, archive_path
 
 
 def process_agreements(content_lines, mappings):
@@ -637,7 +642,8 @@ def create_agreements(package_data, item_output_dir, license_path):
     return True
 
 
-def build_metadata_payload(package_data, agreements):
+def build_metadata_payload(package_data, agreements, thesis_file_path, supplemental_path):
+
     def add_metadata(dc_key, value):
         if not value:
             return
@@ -654,6 +660,27 @@ def build_metadata_payload(package_data, agreements):
                     "value": value,
                 }
             ]
+    def add_checksum(thesis_file_path, supplemental_path=None):
+
+        def calculate_md5(path):
+            hash_md5 = hashlib.md5()
+            total_bytes = 0
+
+            with open(path, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_md5.update(chunk)
+                    total_bytes += len(chunk)
+            return total_bytes, hash_md5.hexdigest()
+        
+        result = {"thesis": calculate_md5(thesis_file_path)}
+        if supplemental_path:
+            result["supplemental"] = calculate_md5(supplemental_path)
+        return result
+    
+    
+    test = add_checksum(thesis_file_path, supplemental_path)
+
+    print(test)
 
     metadata = {}
 
@@ -663,6 +690,7 @@ def build_metadata_payload(package_data, agreements):
     add_metadata("dc.date.issued", package_data.date)
     add_metadata("dc.type", package_data.type)
     add_metadata("dc.description.abstract", package_data.description)
+    #add_metadata("dc.description.provenance", )
     add_metadata("dc.publisher", package_data.publisher)
     add_metadata("dc.identifier.doi", package_data.doi)
     add_metadata("dc.language.iso", package_data.language)
@@ -676,7 +704,7 @@ def build_metadata_payload(package_data, agreements):
     )
     add_metadata("thesis.degree.discipline", package_data.degree_discipline)
     add_metadata("thesis.degree.level", package_data.degree_level)
-
+    
     return {
         "name": package_data.title,
         "metadata": metadata,
@@ -916,12 +944,12 @@ def create_dspace_import(
                 embargo_info,
                 mappings,
             )
-            package_data.package_files = copy_package_files(
+            package_data.package_files, thesis_file_path, supplemental_path = copy_package_files(
                 package_data, package_path, files_path
             )
 
             built_item_payload = build_metadata_payload(
-                package_data, agreements
+                package_data, agreements, thesis_file_path, supplemental_path
             )
 
             if student_id in skipped_ids:
