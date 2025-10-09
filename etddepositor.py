@@ -559,19 +559,29 @@ def copy_thesis_pdf(package_data, package_path, files_path):
     return dest_file_name
 
 
+
+
 def copy_package_files(package_data, package_path, files_path):
+
     thesis_file_name = copy_thesis_pdf(package_data, package_path, files_path)
     thesis_file_path = os.path.join(files_path, thesis_file_name)
 
     supplemental_path = os.path.join(package_path, "data", "supplemental")
-    archive_path = None
+    archive_file_name = None
+    archive_file_path = None
+
 
     if os.path.isdir(supplemental_path):
         archive_file_name = f"{thesis_file_name[:-4]}-supplemental.zip"
-        archive_path = os.path.join(files_path, archive_file_name)
-        shutil.make_archive(archive_path[:-4], "zip", supplemental_path)
-        
-    return thesis_file_name, thesis_file_path, archive_path
+        archive_file_path = os.path.join(files_path, archive_file_name)
+        shutil.make_archive(archive_file_path[:-4], "zip", supplemental_path)
+        package_data.package_files = [thesis_file_name, archive_file_name]
+    else:
+        package_data.package_files = [thesis_file_name]
+
+    return thesis_file_path, archive_file_path
+
+
 
 
 def process_agreements(content_lines, mappings):
@@ -661,7 +671,7 @@ def build_metadata_payload(package_data, agreements, thesis_file_path, supplemen
                 }
             ]
     def add_checksum(thesis_file_path, supplemental_path=None):
-
+        
         def calculate_md5(path):
             hash_md5 = hashlib.md5()
             total_bytes = 0
@@ -675,12 +685,13 @@ def build_metadata_payload(package_data, agreements, thesis_file_path, supplemen
         result = {"thesis": calculate_md5(thesis_file_path)}
         if supplemental_path:
             result["supplemental"] = calculate_md5(supplemental_path)
-        return result
+         
+        prov_field = f"Made available in Dspace on {datetime.datetime.now()}. No. of bitstreams: {len(package_data.package_files)} {result} "
+        return prov_field
     
     
-    test = add_checksum(thesis_file_path, supplemental_path)
+    prov_field = add_checksum(thesis_file_path, supplemental_path)
 
-    print(test)
 
     metadata = {}
 
@@ -690,7 +701,7 @@ def build_metadata_payload(package_data, agreements, thesis_file_path, supplemen
     add_metadata("dc.date.issued", package_data.date)
     add_metadata("dc.type", package_data.type)
     add_metadata("dc.description.abstract", package_data.description)
-    #add_metadata("dc.description.provenance", )
+    add_metadata("dc.description.provenance", prov_field)
     add_metadata("dc.publisher", package_data.publisher)
     add_metadata("dc.identifier.doi", package_data.doi)
     add_metadata("dc.language.iso", package_data.language)
@@ -944,7 +955,7 @@ def create_dspace_import(
                 embargo_info,
                 mappings,
             )
-            package_data.package_files, thesis_file_path, supplemental_path = copy_package_files(
+            thesis_file_path, supplemental_path = copy_package_files(
                 package_data, package_path, files_path
             )
 
