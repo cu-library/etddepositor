@@ -1,6 +1,6 @@
 import os
 import glob
-import datetime
+from datetime import datetime, timezone
 import yaml
 import click
 import xml.etree.ElementTree as ElementTree
@@ -21,6 +21,7 @@ import mimetypes
 from requests_toolbelt.multipart import encoder
 import json
 import hashlib
+
 
 # API_BASE & Base URL supplied as an argument through click to speicfy if were on Dev or Live
 
@@ -330,7 +331,7 @@ def process_date(date):
     if not date:
         raise MetadataError("date tag is missing")
     try:
-        year = str(datetime.datetime.strptime(date, "%Y-%m-%d").year)
+        year = str(datetime.strptime(date, "%Y-%m-%d").year)
     except ValueError:
         raise MetadataError(f"date value {date} is not properly formatted")
     return date, year
@@ -658,35 +659,43 @@ def build_metadata_payload(package_data, agreements, thesis_file_path, supplemen
         if not value:
             return
         if isinstance(value, (list, tuple)):
-            metadata[f"{dc_key}"] = [
-                {
-                    "value": v,
-                }
-                for v in value
-            ]
+            metadata[f"{dc_key}"] = [{"value": v} for v in value]
         else:
-            metadata[f"{dc_key}"] = [
-                {
-                    "value": value,
-                }
-            ]
+            metadata[f"{dc_key}"] = [{"value": value}]
+
     def add_checksum(thesis_file_path, supplemental_path=None):
-        
+
         def calculate_md5(path):
             hash_md5 = hashlib.md5()
             total_bytes = 0
-
             with open(path, "rb") as f:
                 for chunk in iter(lambda: f.read(4096), b""):
                     hash_md5.update(chunk)
                     total_bytes += len(chunk)
             return total_bytes, hash_md5.hexdigest()
-        
+
+        # Compute MD5s first
         result = {"thesis": calculate_md5(thesis_file_path)}
         if supplemental_path:
             result["supplemental"] = calculate_md5(supplemental_path)
-         
-        prov_field = f"Made available in Dspace on {datetime.datetime.now()}. No. of bitstreams: {len(package_data.package_files)} {result} "
+
+        # Build formatted bitstream info in order of package files
+        bitstream_info = []
+        for name in package_data.package_files:
+            if name.endswith(".pdf"):
+                key = "thesis"
+            else:
+                key = "supplemental"
+            size, checksum = result[key]
+            bitstream_info.append(f"{name}: {size} bytes, checksum: {checksum} (MD5)")
+
+        # Build final provenance string
+        prov_field = (
+            f"Made available in DSpace on {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')} (GMT). "
+            f"No. of bitstreams: {len(package_data.package_files)} "
+            + " ".join(bitstream_info)
+        )
+
         return prov_field
     
     
