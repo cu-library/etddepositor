@@ -994,6 +994,8 @@ def create_dspace_import(
             item_id, item_handle = item_creation(
                 session, api_base, parent_collection_id, built_item_payload
             )
+
+            provenance_delete(session, item_id)
             og_bundle_uuid, license_bundle_uuid = bundle_creations(
                 session, api_base, item_id
             )
@@ -1045,7 +1047,46 @@ def create_dspace_import(
         skipped_import_packages,
     )
 
+def provenance_delete(session, item_id):
+    
+    endpoint = session.api_base
+    
+    item_url = f"{endpoint}/core/items/{item_id}"
+    response = session.safe_request("GET", item_url)
+    response.raise_for_status()
+    results = response.json()
 
+    provenance_list = results["metadata"].get("dc.description.provenance", [])
+    print(f"Found {len(provenance_list)} provenance entries.")
+
+    updated_list = [
+        entry for entry in provenance_list
+        if "No. of bitstreams: 0" not in entry["value"]
+    ]
+
+    if len(updated_list) == len(provenance_list):
+        print("No matching provenance entry found.")
+        return
+
+    patch_payload = [
+        {
+            "op": "replace",
+            "path": "/metadata/dc.description.provenance",
+            "value": updated_list
+        }
+    ]
+
+    patch_data = json.dumps(patch_payload)
+    resp = session.safe_request(
+        "PATCH",
+        item_url,
+        data=patch_data,
+        headers={"Content-Type": "application/json"},
+    )
+
+    resp.raise_for_status()
+    print(f"Successfully deleted provenance entry from item {item_id}.")
+    
 def create_crossref_etree():
     doi_batch = ElementTree.Element(
         "doi_batch",
