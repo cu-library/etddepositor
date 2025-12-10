@@ -1,6 +1,8 @@
 import os
 import glob
 from datetime import datetime, timezone
+from zipfile import ZipFile
+from pathlib import Path
 import yaml
 import click
 import xml.etree.ElementTree as ElementTree
@@ -21,6 +23,8 @@ import mimetypes
 from requests_toolbelt.multipart import encoder
 import json
 import hashlib
+import dspace_requests_wrapper
+
 
 
 # API_BASE & Base URL supplied as an argument through click to speicfy if were on Dev or Live
@@ -35,7 +39,7 @@ FILE_SUBDIR = "file"
 FAILED_SUBDIR = "failed"
 SKIPPED_SUBDIR = "skipped"
 LICENSE_SUBDIR = "license"
-POSTBACK_SUBDIR = "postback_tmp"
+POSTBACK_SUBDIR = "postback"
 
 # NAMESPACES is used to help pull out the data from FGPA packages
 NAMESPACES = {
@@ -112,82 +116,7 @@ class GetURLFailedError(Exception):
     """Raised when the Hyrax URL for an imported package can't be found."""
 
 
-# DSpaceSession: This is the class itself that will handle all the DSpace API management
-# All we need to do is make a session and uses the user/pass you pass in
-class DSpaceSession(requests.Session):
-    def __init__(self, api_base):
-        super().__init__()
-        self.api_base = api_base
-        self.auth_token = None
-        self.last_auth_time = None
-        self.csrf_token = None
-        self.fetch_initial_csrf_token()
 
-    def fetch_initial_csrf_token(self):
-        response = super().get(f"{self.api_base}/security/csrf")
-        response.raise_for_status()
-        self.headers.update(response)
-
-    def authenticate(self, user, password):
-        login_payload = {"user": user, "password": password}
-        try:
-            response = self.post(
-                f"{self.api_base}/authn/login", data=login_payload
-            )
-            response.raise_for_status()
-            self.update_csrf_token(response)
-
-            self.auth_token = response.headers.get("Authorization")
-            if self.auth_token:
-                self.headers.update({"Authorization": self.auth_token})
-                self.last_auth_time = time.time()
-
-        except requests.exceptions.HTTPError as e:
-            print(f"HTTP error during authentication for user {user}: {e}")
-            print(f"Response content: {response.text}")
-
-        except requests.exceptions.RequestException as e:
-            print(f"Request error during authentication for user {user}: {e}")
-
-        except Exception as e:
-            print(
-                f"Unexpected error during authentication for user {user}: {e}"
-            )
-
-    def refresh_csrf_token(self):
-        response = super().get(f"{self.api_base}/security/csrf")
-        response.raise_for_status()
-        self.update_csrf_token(response)
-
-    def ensure_auth_valid(self, user, password):
-        if self.auth_token and (time.time() - self.last_auth_time > 1800):
-            self.authenticate(user, password)
-
-    def update_csrf_token(self, response):
-        if "dspace-xsrf-token" in response.headers:
-            self.csrf_token = response.headers["DSPACE-XSRF-TOKEN"]
-            self.headers.update({"X-XSRF-TOKEN": self.csrf_token})
-
-    def request(self, method, url, **kwargs):
-        try:
-            response = super().request(method, url, **kwargs)
-            response.raise_for_status()
-            self.update_csrf_token(response)
-            print(f"Successful {method} request to {url}")
-            return response
-
-        except requests.exceptions.HTTPError as e:
-            print(f"HTTP error during {method} request to {url}: {e}")
-            print(f"Response content: {response.text}")
-
-        except requests.exceptions.RequestException as e:
-            print(f"Request error during {method} request to {url}: {e}")
-
-        except Exception as e:
-            print(f"Unexpected error during {method} request to {url}: {e}")
-
-    def safe_request(self, method, url, **kwargs):
-        return self.request(method, url, **kwargs)
 
 
 # load_mappings is a helper method that will load all the yaml files we use
@@ -736,10 +665,8 @@ def build_metadata_payload(package_data, agreements, thesis_file_path, supplemen
 
 
 def item_creation(session, api_base, collection_id, metadata_payload):
-    item_endpoint = f"{api_base}/core/items?owningCollection={collection_id}"
-    response = session.safe_request(
-        "POST", item_endpoint, json=metadata_payload
-    )
+
+    response = session.post(f"{api_base}/core/items?owningCollection={collection_id}", json=metadata_payload)
     response.raise_for_status()
     item_uuid = response.json()["uuid"]
     item_handle = response.json()["handle"]
@@ -748,19 +675,24 @@ def item_creation(session, api_base, collection_id, metadata_payload):
 
 def bundle_creations(session, api_base, item_uuid):
 
+    
     bundle_endpoint = f"{api_base}/core/items/{item_uuid}/bundles"
     try:
-        response = session.safe_request(
-            "POST", bundle_endpoint, json={"name": "ORIGINAL"}
-        )
+
+        response = session.post(bundle_endpoint, json={"name": "ORIGINAL"})
         response.raise_for_status()
         og_bundle_id = response.json()["uuid"]
+       # response = session.safe_request(
+       #     "POST", bundle_endpoint, json={"name": "ORIGINAL"}
+       # )
 
-        response = session.safe_request(
-            "POST", bundle_endpoint, json={"name": "LICENSE"}
-        )
+        response = session.post(bundle_endpoint, json={"name": "LICENSE"})
         response.raise_for_status()
         license_bundle_id = response.json()["uuid"]
+
+        #response = session.safe_request(
+        #    "POST", bundle_endpoint, json={"name": "LICENSE"}
+        #)
 
         return og_bundle_id, license_bundle_id
     except requests.exceptions.RequestException as e:
@@ -788,12 +720,14 @@ def upload_licenses(session, api_base, license_bundle_uuid, license_dir):
             with open(full_path, "rb") as file:
                 try:
                     license_upload = {"file": (filename, file, "text/plain")}
-                    response = session.safe_request(
-                        "POST",
-                        license_endpoint,
-                        files=license_upload,
-                        data=LICENSE_BITSTREAM_PAYLOAD,
-                    )
+
+                    response = session.post(license_endpoint, files=license_upload, data=LICENSE_BITSTREAM_PAYLOAD)
+                    #response = session.safe_request(
+                    #    "POST",
+                    #    license_endpoint,
+                    #    files=license_upload,
+                    #    data=LICENSE_BITSTREAM_PAYLOAD,
+                    #)
 
                     if response:
                         license_uuid = response.json()["id"]
@@ -802,12 +736,16 @@ def upload_licenses(session, api_base, license_bundle_uuid, license_dir):
                         )
 
                         try:
-                            response = session.safe_request(
-                                "PUT",
-                                bitstream_endpoint,
-                                headers=headers,
-                                data=format_url,
-                            )
+
+                            response = session.put(bitstream_endpoint, headers=headers, data=format_url)
+                            response.raise_for_status()
+
+                            #response = session.safe_request(
+                             #   "PUT",
+                             #   bitstream_endpoint,
+                             #   headers=headers,
+                              #  data=format_url,
+                            #)
                             response.raise_for_status()
                         except requests.exceptions.RequestException as e:
                             print(
@@ -864,14 +802,14 @@ def upload_files(
                         a = m.read(16384)
 
                 try:
-
-                    response = session.safe_request(
-                        "POST",
-                        original_endpoint,
-                        data=gen(),
-                        headers={"Content-Type": m.content_type},
-                    )
+                    response = session.post(original_endpoint, data=gen(), headers={"Content-Type": m.content_type})
                     response.raise_for_status()
+                    #response = session.safe_request(
+                    #    "POST",
+                    #    original_endpoint,
+                    #    data=gen(),
+                    #    headers={"Content-Type": m.content_type},
+                    #)
                 except requests.exceptions.RequestException as e:
                     print(f"Error with multipart upload of {file_path}: {e}")
                     continue
@@ -879,13 +817,14 @@ def upload_files(
             else:
                 files = {"file": (file_name, file, mime_type)}
                 try:
-                    response = session.safe_request(
-                        "POST",
-                        original_endpoint,
-                        files=files,
-                        data=metadata_payload,
-                    )
+                    response = session.post(original_endpoint, files=files, data=metadata_payload)
                     response.raise_for_status()
+                    #response = session.safe_request(
+                    #    "POST",
+                    #    original_endpoint,
+                    #    files=files,
+                    #    data=metadata_payload,
+                    #)
                 except requests.exceptions.RequestException as e:
                     print(f"Error uploading {file_path}: {e}")
                     continue
@@ -893,6 +832,7 @@ def upload_files(
 
 
 def create_dspace_import(
+    session,
     api_base,
     packages,
     invalid_ok,
@@ -908,8 +848,6 @@ def create_dspace_import(
     dspace_base_url,
 ):
 
-    session = DSpaceSession(api_base)
-    session.authenticate(user_email, user_password)
 
     dspace_import_packages = []
     skipped_import_packages = []
@@ -996,6 +934,7 @@ def create_dspace_import(
             )
 
             provenance_delete(session, item_id)
+
             og_bundle_uuid, license_bundle_uuid = bundle_creations(
                 session, api_base, item_id
             )
@@ -1049,10 +988,10 @@ def create_dspace_import(
 
 def provenance_delete(session, item_id):
     
-    endpoint = session.api_base
+    endpoint = session._DSpaceSession__endpoint
     
-    item_url = f"{endpoint}/core/items/{item_id}"
-    response = session.safe_request("GET", item_url)
+    item_url = f"{endpoint}/api/core/items/{item_id}"
+    response = session.get(item_url)
     response.raise_for_status()
     results = response.json()
 
@@ -1076,15 +1015,9 @@ def provenance_delete(session, item_id):
         }
     ]
 
-    patch_data = json.dumps(patch_payload)
-    resp = session.safe_request(
-        "PATCH",
-        item_url,
-        data=patch_data,
-        headers={"Content-Type": "application/json"},
-    )
+    patch_response = session.patch(item_url, json=patch_payload)
+    patch_response.raise_for_status()
 
-    resp.raise_for_status()
     print(f"Successfully deleted provenance entry from item {item_id}.")
     
 def create_crossref_etree():
@@ -1154,7 +1087,7 @@ def create_marc_record(package_data, marc_path):
     if processed_author[-1] != "-":
         processed_author = processed_author + ","
 
-    today = datetime.date.today()
+    today = datetime.today()
 
     record = pymarc.Record(force_utf8=True, leader="     nam a22     4i 4500")
     record.add_field(
@@ -1383,7 +1316,9 @@ def resolve_handle_to_uuid(session, handle):
     handle_url = (
         f"{session.api_base.replace('/server/api', '')}/handle/{handle}"
     )
-    response = session.safe_request("GET", handle_url, allow_redirects=True)
+
+    response = session.get(handle_url, allow_redirects=True)
+    #response = session.safe_request("GET", handle_url, allow_redirects=True)
     response.raise_for_status()
     if response.status_code == 200:
         url = response.url
@@ -1416,7 +1351,6 @@ def build_uuid_map(mapfile_path, session):
 
 
 def post_import_processing(
-    session,
     user_email,
     user_password,
     dspace_import_packages,
@@ -1424,7 +1358,7 @@ def post_import_processing(
     marc_path,
 ):
 
-    session.authenticate(user_email, user_password)
+    
 
     # Package data for packages which have been successfully imported
     # into Dspace.
@@ -1539,7 +1473,7 @@ def create_csv_list(package_data, csv_file_path):
             creator = data.creator
             title = data.title
             contributors = data.contributors
-            date_processed = datetime.datetime.now().strftime(
+            date_processed = datetime.now().strftime(
                 "%Y-%m-%d %H:%M:%S"
             )
             degree = data.degree
@@ -1598,52 +1532,91 @@ def create_postback_files(
 ):
 
     click.echo("Writing postback files: ", nl=False)
-    for package in completed_packages:
-        try:
-            outbox_file = os.path.join(
-                outbox, package.student_id + "_postback.txt"
+
+    postback_path = os.path.abspath(postback_path)
+    os.makedirs(postback_path, exist_ok=True)
+    use_outbox = bool(outbox)
+
+    if use_outbox:
+        outbox = os.path.abspath(outbox)
+
+        if not os.access(outbox, os.W_OK):
+            click.echo(
+                f"\n Outbox path requires elevated permissions:\n{outbox}"
             )
-            with open(outbox_file, "w") as postback:
-                time_now = (
-                    datetime.datetime.now()
-                    .replace(second=0, microsecond=0)
-                    .isoformat()
+            click.echo("You may need to re-run this with sudo.\n")
+
+    for package in completed_packages:
+        time_now = (
+            datetime.now()
+            .replace(second=0, microsecond=0)
+            .isoformat()
+        )
+
+        payload = "{}||{}||1||{}".format(
+            package.student_id, time_now, package.url
+        )
+
+        wrote_successfully = False
+
+        if use_outbox:
+            try:
+                outbox_file = os.path.join(
+                    outbox, package.student_id + "_postback.txt"
                 )
-                postback.write(
-                    "{}||{}||1||{}".format(
-                        package.student_id, time_now, package.url
-                    )
+
+                with open(outbox_file, "w") as postback:
+                    postback.write(payload)
+
+                wrote_successfully = True
+
+            except Exception as e:
+                err_msg = (
+                    f"Warning: Could not write to outbox path ({outbox}): {e}"
                 )
-            continue
+                click.echo(err_msg)
+
+        try:
+            fallback_file = os.path.join(
+                postback_path, package.student_id + "_postback.txt"
+            )
+
+            with open(fallback_file, "w") as postback:
+                postback.write(payload)
+
+            wrote_successfully = True
+
         except Exception as e:
             err_msg = (
-                f"Warning: Could not write to outbox path ({outbox}): {e}"
+                f"Error: Failed to write postback file for "
+                f"{package.student_id} to postback path ({postback_path}). {e}"
             )
             click.echo(err_msg)
-
-        # Fallback to default postback path
-        try:
-            with open(
-                os.path.join(
-                    postback_path, package.student_id + "_postback.txt"
-                ),
-                "w",
-            ) as postback:
-                time_now = (
-                    datetime.datetime.now()
-                    .replace(second=0, microsecond=0)
-                    .isoformat()
-                )
-                postback.write(
-                    "{}||{}||1||{}".format(
-                        package.student_id, time_now, package.url
-                    )
-                )
-        except Exception as e:
-            err_msg = f"Error: Failed to write postback file for {package.student_id} to both locations. {e}"
-            click.echo(err_msg)
             post_import_failure_log.append(err_msg)
+
+        if not wrote_successfully:
+            click.echo(
+                f"Postback failed completely for {package.student_id}"
+            )
+
+    try:
+        postback_dir = Path(postback_path)
+        zip_path = postback_dir / "postbacks.zip"
+
+        with ZipFile(zip_path, "w") as zipf:
+            for file in postback_dir.iterdir():
+                if (
+                    file.is_file()
+                    and file.name.endswith("_postback.txt")
+                    and file != zip_path
+                ):
+                    zipf.write(file, arcname=file.name)
+
+    except Exception as e:
+        click.echo(f"Warning: Failed to zip postback files: {e}")
+
     click.echo("Done")
+
 
 
 def send_email_report(
@@ -1674,7 +1647,7 @@ def send_email_report(
 
     contents = (
         "ETD Depository Report - Run on "
-        f"{datetime.date.today().isoformat()}.\n\n"
+        f"{datetime.today().strftime('%Y-%m-%d')}.\n\n"
     )
     contents += f"{len(completed_packages)} completed packages.\n"
     for package_data in completed_packages:
@@ -1723,6 +1696,12 @@ def send_email_report(
     server.send_message(msg)
     server.quit()
 
+def clean_up(processing_directory, done_dir):
+    ready_path = Path(processing_directory) / READY_SUBDIR
+
+    for file in ready_path.iterdir():
+        if file.is_file():
+            shutil.move(str(file), done_dir / file.name)
 
 @click.command()
 @click.argument("base_directory")
@@ -1736,7 +1715,7 @@ def send_email_report(
     default="etddepositor/skipped_mappings.yaml",
     help="Path to the skipped mappings YAML file.",
 )
-@click.option("--outbox", default="", help="Path to the out report directory.")
+@click.option("--outbox", default="/mnt/cifs/cunas/etd/PROD/POSTBACK_ARCHIVE", help="Path to the out report directory.")
 @click.option(
     "--mapping-file", default="", help="Path to the mappings YAML file."
 )
@@ -1807,11 +1786,11 @@ def process(
 
     processing_directory = base_directory
 
-    API_BASE = api_base
-
     # Load mappings
     mappings = load_mappings(mapping_file)
     skipped_mappings = load_mappings(skipped_mappings)
+
+    session = dspace_requests_wrapper.DSpaceSession("https://carleton-dev.scholaris.ca/server", user_email, user_password)
 
     if not mappings:
         return
@@ -1849,6 +1828,7 @@ def process(
         pre_import_skipped_log,
         skipped_import_packages,
     ) = create_dspace_import(
+        session,
         api_base,
         packages,
         invalid_ok,
@@ -1868,14 +1848,12 @@ def process(
 
     click.echo("Starting post import processing")
 
-    session = DSpaceSession(API_BASE)
 
     (
         completed_packages,
         crossref_et,
         post_import_failure_log,
     ) = post_import_processing(
-        session,
         user_email,
         user_password,
         dspace_import_packages,
@@ -1886,13 +1864,13 @@ def process(
     click.echo("Writing complete CSV file: ", nl=False)
     csv_file_path = os.path.join(
         csv_report_path,
-        f"{ datetime.date.today().isoformat()}-ingest_list.csv",
+        f"{ datetime.today().strftime('%Y-%m-%d')}-ingest_list.csv",
     )
     create_csv_list(completed_packages, csv_file_path)
 
     click.echo("Writing complete Crossref file: ", nl=False)
     crossref_file_path = os.path.join(
-        crossref_path, f"{ datetime.date.today().isoformat()}-crossref.xml"
+        crossref_path, f"{ datetime.today().strftime('%Y-%m-%d')}-crossref.xml"
     )
     crossref_et.write(
         crossref_file_path, encoding="utf-8", xml_declaration=True
@@ -1906,7 +1884,7 @@ def process(
     marc_archive_path = os.path.join(
         processing_directory,
         DONE_SUBDIR,
-        f"{ datetime.date.today().isoformat()}-marc-archive.zip",
+        f"{ datetime.today().strftime('%Y-%m-%d')}-marc-archive.zip",
     )
     # make_archive doesn't want the archive extension.
     shutil.make_archive(marc_archive_path[:-4], "zip", marc_src_path)
@@ -1918,9 +1896,7 @@ def process(
     )
 
     # Skipped import packages are those that were moved to the skipped directory
-    create_postback_files(
-        skipped_import_packages, outbox, postback_path, post_import_failure_log
-    )
+    #create_postback_files(skipped_import_packages, outbox, postback_path, post_import_failure_log)
 
     click.echo("Sending report email: ", nl=False)
 
@@ -1937,7 +1913,10 @@ def process(
         email_from,
         email_to,
     )
+
+    clean_up(processing_directory, done_path)
     click.echo("Done")
+
 
 
 if __name__ == "__main__":
