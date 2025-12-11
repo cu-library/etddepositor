@@ -603,12 +603,10 @@ def build_metadata_payload(package_data, agreements, thesis_file_path, supplemen
                     total_bytes += len(chunk)
             return total_bytes, hash_md5.hexdigest()
 
-        # Compute MD5s first
         result = {"thesis": calculate_md5(thesis_file_path)}
         if supplemental_path:
             result["supplemental"] = calculate_md5(supplemental_path)
 
-        # Build formatted bitstream info in order of package files
         bitstream_info = []
         for name in package_data.package_files:
             if name.endswith(".pdf"):
@@ -618,7 +616,6 @@ def build_metadata_payload(package_data, agreements, thesis_file_path, supplemen
             size, checksum = result[key]
             bitstream_info.append(f"{name}: {size} bytes, checksum: {checksum} (MD5)")
 
-        # Build final provenance string
         prov_field = (
             f"Made available in DSpace on {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')} (GMT). "
             f"No. of bitstreams: {len(package_data.package_files)} "
@@ -682,17 +679,10 @@ def bundle_creations(session, api_base, item_uuid):
         response = session.post(bundle_endpoint, json={"name": "ORIGINAL"})
         response.raise_for_status()
         og_bundle_id = response.json()["uuid"]
-       # response = session.safe_request(
-       #     "POST", bundle_endpoint, json={"name": "ORIGINAL"}
-       # )
 
         response = session.post(bundle_endpoint, json={"name": "LICENSE"})
         response.raise_for_status()
         license_bundle_id = response.json()["uuid"]
-
-        #response = session.safe_request(
-        #    "POST", bundle_endpoint, json={"name": "LICENSE"}
-        #)
 
         return og_bundle_id, license_bundle_id
     except requests.exceptions.RequestException as e:
@@ -722,12 +712,7 @@ def upload_licenses(session, api_base, license_bundle_uuid, license_dir):
                     license_upload = {"file": (filename, file, "text/plain")}
 
                     response = session.post(license_endpoint, files=license_upload, data=LICENSE_BITSTREAM_PAYLOAD)
-                    #response = session.safe_request(
-                    #    "POST",
-                    #    license_endpoint,
-                    #    files=license_upload,
-                    #    data=LICENSE_BITSTREAM_PAYLOAD,
-                    #)
+                   
 
                     if response:
                         license_uuid = response.json()["id"]
@@ -740,12 +725,7 @@ def upload_licenses(session, api_base, license_bundle_uuid, license_dir):
                             response = session.put(bitstream_endpoint, headers=headers, data=format_url)
                             response.raise_for_status()
 
-                            #response = session.safe_request(
-                             #   "PUT",
-                             #   bitstream_endpoint,
-                             #   headers=headers,
-                              #  data=format_url,
-                            #)
+                            
                             response.raise_for_status()
                         except requests.exceptions.RequestException as e:
                             print(
@@ -804,12 +784,7 @@ def upload_files(
                 try:
                     response = session.post(original_endpoint, data=gen(), headers={"Content-Type": m.content_type})
                     response.raise_for_status()
-                    #response = session.safe_request(
-                    #    "POST",
-                    #    original_endpoint,
-                    #    data=gen(),
-                    #    headers={"Content-Type": m.content_type},
-                    #)
+                    
                 except requests.exceptions.RequestException as e:
                     print(f"Error with multipart upload of {file_path}: {e}")
                     continue
@@ -819,12 +794,6 @@ def upload_files(
                 try:
                     response = session.post(original_endpoint, files=files, data=metadata_payload)
                     response.raise_for_status()
-                    #response = session.safe_request(
-                    #    "POST",
-                    #    original_endpoint,
-                    #    files=files,
-                    #    data=metadata_payload,
-                    #)
                 except requests.exceptions.RequestException as e:
                     print(f"Error uploading {file_path}: {e}")
                     continue
@@ -840,8 +809,6 @@ def create_dspace_import(
     mappings,
     files_path,
     parent_collection_id,
-    user_email,
-    user_password,
     license_path,
     skipped_path,
     skipped_ids,
@@ -1318,7 +1285,6 @@ def resolve_handle_to_uuid(session, handle):
     )
 
     response = session.get(handle_url, allow_redirects=True)
-    #response = session.safe_request("GET", handle_url, allow_redirects=True)
     response.raise_for_status()
     if response.status_code == 200:
         url = response.url
@@ -1351,10 +1317,7 @@ def build_uuid_map(mapfile_path, session):
 
 
 def post_import_processing(
-    user_email,
-    user_password,
     dspace_import_packages,
-    dspace_item_info,
     marc_path,
 ):
 
@@ -1698,10 +1661,16 @@ def send_email_report(
 
 def clean_up(processing_directory, done_dir):
     ready_path = Path(processing_directory) / READY_SUBDIR
+    done_dir = Path(done_dir)
 
-    for file in ready_path.iterdir():
-        if file.is_file():
-            shutil.move(str(file), done_dir / file.name)
+    done_dir.mkdir(parents=True, exist_ok=True)
+
+    for item in ready_path.iterdir():
+        target = done_dir / item.name
+        try:
+            shutil.move(str(item), str(target))
+        except Exception as e:
+            print(f"Warning: Could not move {item} to {done_dir}: {e}")
 
 @click.command()
 @click.argument("base_directory")
@@ -1836,8 +1805,6 @@ def process(
         mappings,
         file_path,
         parent_collection_id,
-        user_email,
-        user_password,
         license_path,
         skipped_path,
         skip_ids,
@@ -1854,10 +1821,7 @@ def process(
         crossref_et,
         post_import_failure_log,
     ) = post_import_processing(
-        user_email,
-        user_password,
         dspace_import_packages,
-        dspace_item_info,
         marc_path,
     )
 
@@ -1877,17 +1841,25 @@ def process(
     )
     click.echo("Done")
 
-    # TODO: Bug here marc zip attempts to zip itself up point it at another dir or fix it
 
     click.echo("Creating MARC archive: ", nl=False)
-    marc_src_path = os.path.join(processing_directory, MARC_SUBDIR)
-    marc_archive_path = os.path.join(
-        processing_directory,
-        DONE_SUBDIR,
-        f"{ datetime.today().strftime('%Y-%m-%d')}-marc-archive.zip",
+    marc_src_path = Path(processing_directory) / MARC_SUBDIR
+
+    marc_archive_path = (
+        Path(processing_directory)
+        / DONE_SUBDIR
+        / f"{datetime.today().strftime('%Y-%m-%d')}-marc-archive.zip"
     )
-    # make_archive doesn't want the archive extension.
-    shutil.make_archive(marc_archive_path[:-4], "zip", marc_src_path)
+
+    marc_archive_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with ZipFile(marc_archive_path, "w") as zipf:
+        for file in marc_src_path.iterdir():
+            if (
+                file.is_file()
+                and file != marc_archive_path  # extra safety
+            ):
+                zipf.write(file, arcname=file.name)
     click.echo("Done")
 
     click.echo("Writing postback files: ", nl=False)
@@ -1896,7 +1868,6 @@ def process(
     )
 
     # Skipped import packages are those that were moved to the skipped directory
-    #create_postback_files(skipped_import_packages, outbox, postback_path, post_import_failure_log)
 
     click.echo("Sending report email: ", nl=False)
 
