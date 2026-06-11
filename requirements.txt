@@ -23,9 +23,11 @@ pymarc==4.2.2
 pyparsing==3.0.9
 pytest==7.1.2
 pysolr==3.8.1
-PyYAML==6.0
+PyYAML==6.0.2
 regex==2022.6.2
-requests==2.28.0
+requests==2.32.4
+requests-toolbelt==1.0.0
+setuptools==80.9.0
 soupsieve==2.4.1
 toml==0.10.2
 tomli==2.0.1
