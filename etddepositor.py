@@ -99,6 +99,9 @@ DOI_PREFIX = "10.22215"
 # DOI_URL_PREFIX is the prefix to add to DOIs to make them resolvable.
 DOI_URL_PREFIX = "https://doi.org/"
 
+# HANDLE_URL_PREFIX is the resolver URL used for production DSpace handles.
+HANDLE_URL_PREFIX = "https://hdl.handle.net"
+
 # FLAG is a string which we assign to some attributes of the package
 # if our mapping for that attribute is incomplete or unknowable.
 FLAG = "FLAG"
@@ -116,6 +119,17 @@ class GetURLFailedError(Exception):
     """Raised when the Hyrax URL for an imported package can't be found."""
 
 
+def format_handle_url(item_handle, dspace_base_url):
+    """Return the public URL for a DSpace handle value."""
+    item_handle = item_handle.strip()
+
+    if item_handle.startswith(("http://", "https://")):
+        return item_handle
+
+    if "carleton-dev.scholaris.ca" in dspace_base_url:
+        return f"{dspace_base_url.rstrip('/')}/handle/{item_handle.lstrip('/')}"
+
+    return f"{HANDLE_URL_PREFIX}/{item_handle.lstrip('/')}"
 
 
 
@@ -935,12 +949,9 @@ def create_dspace_import(
             failure_log.append(err_msg)
         else:
             doi_ident += 1
-            if "carleton-dev.scholaris.ca" in dspace_base_url:
-                package_data.handle = f"{dspace_base_url}/handle/{item_handle}"
-            else:
-                package_data.handle = (
-                    f"https://hdl.handle.net/20.500.14718/{item_handle}"
-                )
+            package_data.handle = format_handle_url(
+                item_handle, dspace_base_url
+            )
 
             package_data.url = f"{dspace_base_url}/items/{item_id}"
             dspace_import_packages.append(package_data)
