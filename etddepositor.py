@@ -24,7 +24,12 @@ from requests_toolbelt.multipart import encoder
 import json
 import hashlib
 import dspace_requests_wrapper
+import logging
+from logging.handlers import RotatingFileHandler
 
+
+logger = logging.getLogger("etddepositor")
+REPORT_TIMESTAMP_FORMAT = "%Y-%m-%d-%H:%M"
 
 
 # API_BASE & Base URL supplied as an argument through click to speicfy if were on Dev or Live
@@ -131,7 +136,61 @@ def format_handle_url(item_handle, dspace_base_url):
 
     return f"{HANDLE_URL_PREFIX}/{item_handle.lstrip('/')}"
 
+def configure_logging(
+    processing_directory, log_level="INFO", log_file=None, run_timestamp=None
+):
+    """Configure console and rotating-file logging for an ETD processing run."""
+    level = getattr(logging, log_level.upper(), logging.INFO)
+    if log_file is None:
+        log_directory = Path(processing_directory) / "logs"
+        log_directory.mkdir(parents=True, exist_ok=True)
+        if run_timestamp is None:
+            run_timestamp = datetime.now().strftime(REPORT_TIMESTAMP_FORMAT)
+        log_file = log_directory / f"etddepositor-{run_timestamp}.log"
+    else:
+        log_file = Path(log_file).expanduser().resolve()
+        log_file.parent.mkdir(parents=True, exist_ok=True)
 
+    formatter = logging.Formatter(
+        "%(asctime)s %(levelname)-8s %(name)s: %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
+    )
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(level)
+    console_handler.setFormatter(formatter)
+
+    file_handler = RotatingFileHandler(
+        log_file,
+        maxBytes=10 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8",
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
+
+    logger.handlers.clear()
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
+    logger.propagate = False
+    logger.info("Logging initialized; detailed log file: %s", log_file)
+    return log_file
+
+
+def log_request_exception(message, error, **context):
+    """Log an HTTP failure with request/response details and a traceback."""
+    response = getattr(error, "response", None)
+    request = getattr(error, "request", None)
+    details = {
+        "method": getattr(request, "method", None),
+        "url": getattr(request, "url", None),
+        "status": getattr(response, "status_code", None),
+        **context,
+    }
+    response_body = getattr(response, "text", None)
+    if response_body:
+        details["response_body"] = response_body[:2000]
+    logger.error("%s | context=%s", message, details, exc_info=True)
 
 # load_mappings is a helper method that will load all the yaml files we use
 def load_mappings(mapping_file):
@@ -141,10 +200,15 @@ def load_mappings(mapping_file):
             mappings = yaml.load(mappings_file, Loader=yaml.FullLoader)
         return mappings
     except FileNotFoundError:
-        click.echo(f"Error: Mappings file not found at {mapping_file}")
+        logger.error("Mappings file not found | path=%s", mapping_file)
         return None
     except yaml.YAMLError as e:
-        click.echo(f"Error parsing mappings file: {e}")
+        logger.error(
+            "Could not parse mappings YAML | path=%s error=%s",
+            mapping_file,
+            e,
+            exc_info=True,
+        )
         return None
 
 
@@ -154,8 +218,11 @@ def validate_subject_mappings(mappings):
         for code, subject in mappings["lc_subject"].items():
             for subject_tags in subject:
                 if len(subject_tags) not in [2, 4]:
-                    click.echo(
-                        f"Warning: The subject {code} in the mappings file is not formatted correctly."
+                    logger.warning(
+                        "Subject mapping is malformed | code=%s tags=%r "
+                        "expected_tag_count=2_or_4",
+                        code,
+                        subject_tags,
                     )
 
 
@@ -559,7 +626,9 @@ def process_agreements(content_lines, mappings):
                 agreements.append(agreement["identifier"])
                 continue
             else:
-                print(f"LAC agreement not signed")
+                logger.warning(
+                    "Optional LAC agreement was not signed | line=%r", line
+                )
                 continue
         raise MetadataError(
             f"{line} was not expected in the permissions document"
@@ -582,8 +651,11 @@ def create_agreements(package_data, item_output_dir, license_path):
     ]
 
     if missing:
-        print(
-            f"Skipping item: missing required agreement(s): {', '.join(missing)}"
+        logger.warning(
+            "Skipping item because required agreements are missing | "
+            "student_id=%s missing_agreements=%s",
+            package_data.student_id,
+            ", ".join(missing),
         )
         return False
 
@@ -635,6 +707,13 @@ def build_metadata_payload(package_data, agreements, thesis_file_path, supplemen
             f"No. of bitstreams: {len(package_data.package_files)} "
             + " ".join(bitstream_info)
         )
+        logger.info(
+            "Created provenance metadata | student_id=%s bitstream_count=%d "
+            "bitstreams=%s",
+            package_data.student_id,
+            len(package_data.package_files),
+            bitstream_info,
+        )
 
         return prov_field
     
@@ -677,10 +756,22 @@ def build_metadata_payload(package_data, agreements, thesis_file_path, supplemen
 
 def item_creation(session, api_base, collection_id, metadata_payload):
 
-    response = session.post(f"{api_base}/core/items?owningCollection={collection_id}", json=metadata_payload)
+    endpoint = f"{api_base}/core/items?owningCollection={collection_id}"
+    logger.info(
+        "Creating DSpace item | collection_id=%s title=%r",
+        collection_id,
+        metadata_payload.get("name"),
+    )
+    response = session.post(endpoint, json=metadata_payload)
     response.raise_for_status()
     item_uuid = response.json()["uuid"]
     item_handle = response.json()["handle"]
+    logger.info(
+        "Created DSpace item | item_id=%s handle=%s collection_id=%s",
+        item_uuid,
+        item_handle,
+        collection_id,
+    )
     return item_uuid, item_handle
 
 
@@ -698,9 +789,18 @@ def bundle_creations(session, api_base, item_uuid):
         response.raise_for_status()
         license_bundle_id = response.json()["uuid"]
 
+        logger.info(
+            "Created DSpace bundles | item_id=%s original_bundle_id=%s "
+            "license_bundle_id=%s",
+            item_uuid,
+            og_bundle_id,
+            license_bundle_id,
+        )
         return og_bundle_id, license_bundle_id
     except requests.exceptions.RequestException as e:
-        print(f"Error creating bundles: {e}")
+        log_request_exception(
+            "Failed to create DSpace bundles", e, item_id=item_uuid
+        )
         return None, None
 
 
@@ -742,13 +842,37 @@ def upload_licenses(session, api_base, license_bundle_uuid, license_dir):
                             
                             response.raise_for_status()
                         except requests.exceptions.RequestException as e:
-                            print(
-                                f"[{description}] Failed to update MIME type: {e}"
+                            log_request_exception(
+                                "Failed to update license MIME type",
+                                e,
+                                description=description,
+                                filename=filename,
+                                bitstream_id=license_uuid,
                             )
                 except Exception as e:
-                    print(f"[{description}] Failed to upload license: {e}")
+                    logger.error(
+                        "Failed to upload license | description=%s file=%s "
+                        "bundle_id=%s error=%s",
+                        description,
+                        full_path,
+                        license_bundle_uuid,
+                        e,
+                        exc_info=True,
+                    )
+                else:
+                    logger.info(
+                        "Uploaded license | description=%s file=%s bundle_id=%s",
+                        description,
+                        full_path,
+                        license_bundle_uuid,
+                    )
         else:
-            print(f"[{description}] File not found: {full_path}")
+            logger.error(
+                "License file not found | description=%s file=%s bundle_id=%s",
+                description,
+                full_path,
+                license_bundle_uuid,
+            )
 
 
 def upload_files(
@@ -766,7 +890,11 @@ def upload_files(
         full_path = os.path.join(file_path, file_name)
 
         if not os.path.isfile(full_path):
-            print(f"File not found: {full_path}, skipping")
+            logger.error(
+                "Bitstream file not found; upload skipped | file=%s bundle_id=%s",
+                full_path,
+                og_bundle_uuid,
+            )
             continue
 
         mime_type = mimetypes.guess_type(file_name)[0]
@@ -786,7 +914,12 @@ def upload_files(
 
                 e = encoder.MultipartEncoder(multipart_data)
                 m = encoder.MultipartEncoderMonitor(
-                    e, lambda a: print(a.bytes_read, end="\r")
+                    e,
+                    lambda monitor: logger.debug(
+                        "Multipart upload progress | file=%s bytes_read=%d",
+                        full_path,
+                        monitor.bytes_read,
+                    ),
                 )
 
                 def gen():
@@ -800,7 +933,12 @@ def upload_files(
                     response.raise_for_status()
                     
                 except requests.exceptions.RequestException as e:
-                    print(f"Error with multipart upload of {file_path}: {e}")
+                    log_request_exception(
+                        "Multipart bitstream upload failed",
+                        e,
+                        file=full_path,
+                        bundle_id=og_bundle_uuid,
+                    )
                     continue
 
             else:
@@ -809,9 +947,19 @@ def upload_files(
                     response = session.post(original_endpoint, files=files, data=metadata_payload)
                     response.raise_for_status()
                 except requests.exceptions.RequestException as e:
-                    print(f"Error uploading {file_path}: {e}")
+                    log_request_exception(
+                        "Bitstream upload failed",
+                        e,
+                        file=full_path,
+                        bundle_id=og_bundle_uuid,
+                    )
                     continue
-            print(f"Successfully uploaded: {file_path}")
+            logger.info(
+                "Uploaded bitstream | file=%s bundle_id=%s mime_type=%s",
+                full_path,
+                og_bundle_uuid,
+                mime_type,
+            )
 
 
 def create_dspace_import(
@@ -841,14 +989,14 @@ def create_dspace_import(
     # Start the doi_ident counter at the provided doi_start number.
     doi_ident = doi_start
 
-    click.echo(f"Processing {len(packages)} packages to create Dspace import.")
+    logger.info("Processing %d packages for DSpace import", len(packages))
     for index, package_path in enumerate(packages):
         student_id = os.path.basename(package_path)
 
         # Is the BagIt container valid? This will catch bit-rot errors early.
         if not bagit.Bag(package_path).is_valid() and not invalid_ok:
             err_msg = "Invalid BagIt."
-            click.echo(err_msg)
+            logger.warning("%s | package=%s", err_msg, package_path)
             failure_log.append(f"{student_id}: {err_msg}")
             continue
         try:
@@ -895,7 +1043,12 @@ def create_dspace_import(
                 skipped_log.append(
                     f"{student_id}: Skipped (manual processing)"
                 )
-                click.echo(f"{student_id}: Skipped (manual processing)")
+                logger.info(
+                    "Skipping package marked for manual processing | "
+                    "student_id=%s package=%s",
+                    student_id,
+                    package_path,
+                )
 
                 dest_path = os.path.join(skipped_path, student_id)
 
@@ -903,12 +1056,21 @@ def create_dspace_import(
                     skipped_import_packages.append(package_data)
                     shutil.move(package_path, dest_path)
                 except shutil.Error as e:
-                    click.echo(
-                        f"Error moving package {package_path} to skipped directory: {e}"
+                    logger.error(
+                        "Could not move manually skipped package | package=%s "
+                        "destination=%s error=%s",
+                        package_path,
+                        dest_path,
+                        e,
+                        exc_info=True,
                     )
 
                 continue
-            click.echo(f"{student_id}: ", nl=False)
+            logger.info(
+                "Importing package | student_id=%s package=%s",
+                student_id,
+                package_path,
+            )
 
             item_id, item_handle = item_creation(
                 session, api_base, parent_collection_id, built_item_payload
@@ -933,20 +1095,45 @@ def create_dspace_import(
 
         except ElementTree.ParseError as e:
             err_msg = f"Error parsing XML, {e}."
-            click.echo(err_msg)
+            logger.error(
+                "%s | package=%s", err_msg, package_path, exc_info=True
+            )
             failure_log.append(err_msg)
         except MissingFileError as e:
             err_msg = f"Required file is missing, {e}."
-            click.echo(err_msg)
+            logger.error(
+                "%s | package=%s", err_msg, package_path, exc_info=True
+            )
             failure_log.append(err_msg)
         except MetadataError as e:
             err_msg = f"Metadata error, {e}."
-            click.echo(err_msg)
+            logger.error(
+                "%s | package=%s", err_msg, package_path, exc_info=True
+            )
             failure_log.append(err_msg)
         except FileNotFoundError as e:
             err_msg = f"File Not Found, {e}."
-            click.echo(err_msg)
+            logger.error(
+                "%s | package=%s", err_msg, package_path, exc_info=True
+            )
             failure_log.append(err_msg)
+        except requests.exceptions.RequestException as e:
+            err_msg = f"DSpace API request failed, {e}."
+            log_request_exception(
+                "DSpace API request failed while importing package",
+                e,
+                package=package_path,
+                student_id=locals().get("student_id"),
+            )
+            failure_log.append(err_msg)
+        except Exception:
+            logger.critical(
+                "Unexpected package import failure | package=%s student_id=%s",
+                package_path,
+                locals().get("student_id"),
+                exc_info=True,
+            )
+            raise
         else:
             doi_ident += 1
             package_data.handle = format_handle_url(
@@ -974,7 +1161,11 @@ def provenance_delete(session, item_id):
     results = response.json()
 
     provenance_list = results["metadata"].get("dc.description.provenance", [])
-    print(f"Found {len(provenance_list)} provenance entries.")
+    logger.info(
+        "Read provenance metadata | item_id=%s entry_count=%d",
+        item_id,
+        len(provenance_list),
+    )
 
     updated_list = [
         entry for entry in provenance_list
@@ -982,7 +1173,10 @@ def provenance_delete(session, item_id):
     ]
 
     if len(updated_list) == len(provenance_list):
-        print("No matching provenance entry found.")
+        logger.warning(
+            "No empty-bitstream provenance entry found to delete | item_id=%s",
+            item_id,
+        )
         return
 
     patch_payload = [
@@ -996,7 +1190,12 @@ def provenance_delete(session, item_id):
     patch_response = session.patch(item_url, json=patch_payload)
     patch_response.raise_for_status()
 
-    print(f"Successfully deleted provenance entry from item {item_id}.")
+    logger.info(
+        "Deleted empty-bitstream provenance entry | item_id=%s "
+        "deleted_count=%d",
+        item_id,
+        len(provenance_list) - len(updated_list),
+    )
     
 def create_crossref_etree():
     doi_batch = ElementTree.Element(
@@ -1238,7 +1437,12 @@ def create_marc_record(package_data, marc_path):
                 )
             )
         else:
-            print(f"Invalid subject_tags: {subject_tags}")
+            logger.warning(
+                "Invalid MARC subject tags; subject omitted | "
+                "student_id=%s subject_tags=%r",
+                package_data.student_id,
+                subject_tags,
+            )
     record.add_field(
         pymarc.Field(
             tag="710",
@@ -1323,7 +1527,14 @@ def build_uuid_map(mapfile_path, session):
                     uuid = resolve_handle_to_uuid(session, handle)
                     uuid_map[item_name] = uuid
                 except Exception as e:
-                    print(f"Failed to resolve {handle}: {e}")
+                    logger.error(
+                        "Failed to resolve DSpace handle | item_name=%s "
+                        "handle=%s error=%s",
+                        item_name,
+                        handle,
+                        e,
+                        exc_info=True,
+                    )
     return uuid_map
 
 
@@ -1345,26 +1556,46 @@ def post_import_processing(
     # A list of packages which failed during processing.
     failure_log: List[str] = []
 
-    click.echo(
-        f"Post-import processing for {len(dspace_import_packages)} packages."
+    logger.info(
+        "Starting post-import processing | package_count=%d",
+        len(dspace_import_packages),
     )
 
     for package_data in dspace_import_packages:
-        click.echo(f"{package_data.title}: ")
+        logger.info(
+            "Post-processing package | student_id=%s title=%r",
+            package_data.student_id,
+            package_data.title,
+        )
         try:
             create_marc_record(package_data, marc_path)
             body_element.append(create_dissertation_element(package_data))
         except GetURLFailedError:
             err_msg = "Link not found in Dspace."
-            click.echo(err_msg)
+            logger.error(
+                "%s | student_id=%s title=%r",
+                err_msg,
+                package_data.student_id,
+                package_data.title,
+                exc_info=True,
+            )
             failure_log.append(f"{package_data.student_id}: {err_msg}")
         except pymarc.exceptions.PymarcException as e:
             err_msg = f"MARC error {e}"
-            click.echo(err_msg)
+            logger.error(
+                "%s | student_id=%s title=%r",
+                err_msg,
+                package_data.student_id,
+                package_data.title,
+                exc_info=True,
+            )
             failure_log.append(f"{package_data.student_id}: {err_msg}")
         else:
             completed_packages.append(package_data)
-            click.echo("Done")
+            logger.info(
+                "Post-processing complete | student_id=%s",
+                package_data.student_id,
+            )
 
     return completed_packages, crossref_et, failure_log
 
@@ -1498,14 +1729,18 @@ def create_csv_list(package_data, csv_file_path):
                 ]
             )
 
-    click.echo("Ingest list created successfully.")
+    logger.info("Created ingest CSV | path=%s rows=%d", csv_file_path, len(package_data))
 
 
 def create_postback_files(
     completed_packages, outbox, postback_path, post_import_failure_log
 ):
 
-    click.echo("Writing postback files: ", nl=False)
+    logger.info(
+        "Writing postback files | package_count=%d path=%s",
+        len(completed_packages),
+        postback_path,
+    )
 
     postback_path = os.path.abspath(postback_path)
     os.makedirs(postback_path, exist_ok=True)
@@ -1515,10 +1750,11 @@ def create_postback_files(
         outbox = os.path.abspath(outbox)
 
         if not os.access(outbox, os.W_OK):
-            click.echo(
-                f"\n Outbox path requires elevated permissions:\n{outbox}"
+            logger.warning(
+                "Outbox is not writable; local postback fallback will be used | "
+                "outbox=%s",
+                outbox,
             )
-            click.echo("You may need to re-run this with sudo.\n")
 
     for package in completed_packages:
         time_now = (
@@ -1548,7 +1784,12 @@ def create_postback_files(
                 err_msg = (
                     f"Warning: Could not write to outbox path ({outbox}): {e}"
                 )
-                click.echo(err_msg)
+                logger.warning(
+                    "%s | student_id=%s",
+                    err_msg,
+                    package.student_id,
+                    exc_info=True,
+                )
 
         try:
             fallback_file = os.path.join(
@@ -1565,12 +1806,21 @@ def create_postback_files(
                 f"Error: Failed to write postback file for "
                 f"{package.student_id} to postback path ({postback_path}). {e}"
             )
-            click.echo(err_msg)
+            logger.error(
+                "%s | student_id=%s",
+                err_msg,
+                package.student_id,
+                exc_info=True,
+            )
             post_import_failure_log.append(err_msg)
 
         if not wrote_successfully:
-            click.echo(
-                f"Postback failed completely for {package.student_id}"
+            logger.error(
+                "Postback failed in both outbox and fallback locations | "
+                "student_id=%s outbox=%s fallback=%s",
+                package.student_id,
+                outbox,
+                postback_path,
             )
 
     try:
@@ -1587,9 +1837,14 @@ def create_postback_files(
                     zipf.write(file, arcname=file.name)
 
     except Exception as e:
-        click.echo(f"Warning: Failed to zip postback files: {e}")
+        logger.error(
+            "Failed to create postback archive | path=%s error=%s",
+            postback_path,
+            e,
+            exc_info=True,
+        )
 
-    click.echo("Done")
+    logger.info("Finished writing postback files | path=%s", postback_path)
 
 
 
@@ -1669,6 +1924,12 @@ def send_email_report(
     server = smtplib.SMTP(smtp_host, smtp_port)
     server.send_message(msg)
     server.quit()
+    logger.info(
+        "Sent processing report email | recipient=%s completed=%d failed=%d",
+        email_to,
+        len(completed_packages),
+        len(failure_log),
+    )
 
 def clean_up(processing_directory, done_dir):
     ready_path = Path(processing_directory) / READY_SUBDIR
@@ -1681,7 +1942,14 @@ def clean_up(processing_directory, done_dir):
         try:
             shutil.move(str(item), str(target))
         except Exception as e:
-            print(f"Warning: Could not move {item} to {done_dir}: {e}")
+            logger.error(
+                "Could not move processed package to done directory | "
+                "source=%s destination=%s error=%s",
+                item,
+                done_dir,
+                e,
+                exc_info=True,
+            )
 
 @click.command()
 @click.argument("base_directory")
@@ -1744,6 +2012,21 @@ def clean_up(processing_directory, done_dir):
     required=True,
     help="The source ID for the parent collection in Dspace.",
 )
+@click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARNING", "ERROR"], case_sensitive=False
+    ),
+    default="INFO",
+    show_default=True,
+    help="Minimum severity shown in the console. The log file always includes DEBUG.",
+)
+@click.option(
+    "--log-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Log file path. Defaults to BASE_DIRECTORY/logs/etddepositor-TIMESTAMP.log.",
+)
 def process(
     base_directory,
     api_base,
@@ -1760,22 +2043,48 @@ def process(
     smtp_port,
     parent_collection_id,
     dspace_base_url,
+    log_level,
+    log_file,
 ):
 
-    click.echo("Starting ETD processing...")
-
     processing_directory = base_directory
+    run_timestamp = datetime.now().strftime(REPORT_TIMESTAMP_FORMAT)
+    run_log_file = configure_logging(
+        processing_directory,
+        log_level=log_level,
+        log_file=log_file,
+        run_timestamp=run_timestamp,
+    )
+    logger.info(
+        "Starting ETD processing | base_directory=%s api_base=%s "
+        "dspace_base_url=%s log_file=%s",
+        processing_directory,
+        api_base,
+        dspace_base_url,
+        run_log_file,
+    )
 
     # Load mappings
+    skipped_mappings_path = skipped_mappings
     mappings = load_mappings(mapping_file)
-    skipped_mappings = load_mappings(skipped_mappings)
+    skipped_mappings = load_mappings(skipped_mappings_path)
 
     session = dspace_requests_wrapper.DSpaceSession("https://carleton-dev.scholaris.ca/server", user_email, user_password)
 
     if not mappings:
+        logger.error(
+            "ETD processing stopped because mappings could not be loaded | "
+            "mapping_file=%s",
+            mapping_file,
+        )
         return
 
     if not skipped_mappings:
+        logger.error(
+            "ETD processing stopped because skipped mappings could not be "
+            "loaded | skipped_mappings=%s",
+            skipped_mappings_path,
+        )
         return
     skip_ids = skipped_mappings.get("skip_ids", [])
 
@@ -1795,10 +2104,13 @@ def process(
 
     # Find packages in the ready directory
     packages = find_etd_packages(processing_directory)
-    click.echo(f"Found {len(packages)} packages to process.")
+    logger.info("Discovered packages | package_count=%d", len(packages))
 
     if not packages:
-        click.echo("No packages found. Exiting.")
+        logger.warning(
+            "No packages found; processing stopped | ready_directory=%s",
+            os.path.join(processing_directory, READY_SUBDIR),
+        )
         return
 
     (
@@ -1822,9 +2134,14 @@ def process(
         dspace_base_url,
     )
 
-    click.echo("ETD processing complete.")
+    logger.info(
+        "ETD import phase complete | imported=%d failed=%d skipped=%d",
+        len(dspace_import_packages),
+        len(pre_import_failure_log),
+        len(pre_import_skipped_log),
+    )
 
-    click.echo("Starting post import processing")
+    logger.info("Starting post-import processing")
 
 
     (
@@ -1836,30 +2153,30 @@ def process(
         marc_path,
     )
 
-    click.echo("Writing complete CSV file: ", nl=False)
+    logger.info("Writing complete CSV report")
     csv_file_path = os.path.join(
         csv_report_path,
-        f"{ datetime.today().strftime('%Y-%m-%d')}-ingest_list.csv",
+        f"{run_timestamp}-ingest_list.csv",
     )
     create_csv_list(completed_packages, csv_file_path)
 
-    click.echo("Writing complete Crossref file: ", nl=False)
+    logger.info("Writing complete Crossref XML")
     crossref_file_path = os.path.join(
-        crossref_path, f"{ datetime.today().strftime('%Y-%m-%d')}-crossref.xml"
+        crossref_path, f"{run_timestamp}-crossref.xml"
     )
     crossref_et.write(
         crossref_file_path, encoding="utf-8", xml_declaration=True
     )
-    click.echo("Done")
+    logger.info("Created Crossref XML | path=%s", crossref_file_path)
 
 
-    click.echo("Creating MARC archive: ", nl=False)
+    logger.info("Creating MARC archive")
     marc_src_path = Path(processing_directory) / MARC_SUBDIR
 
     marc_archive_path = (
         Path(processing_directory)
         / DONE_SUBDIR
-        / f"{datetime.today().strftime('%Y-%m-%d')}-marc-archive.zip"
+        / f"{run_timestamp}-marc-archive.zip"
     )
 
     marc_archive_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1871,16 +2188,15 @@ def process(
                 and file != marc_archive_path  # extra safety
             ):
                 zipf.write(file, arcname=file.name)
-    click.echo("Done")
+    logger.info("Created MARC archive | path=%s", marc_archive_path)
 
-    click.echo("Writing postback files: ", nl=False)
     create_postback_files(
         completed_packages, outbox, postback_path, post_import_failure_log
     )
 
     # Skipped import packages are those that were moved to the skipped directory
 
-    click.echo("Sending report email: ", nl=False)
+    logger.info("Sending report email | recipient=%s", email_to)
 
     send_email_report(
         completed_packages,
@@ -1897,9 +2213,18 @@ def process(
     )
 
     clean_up(processing_directory, done_path)
-    click.echo("Done")
+    logger.info(
+        "ETD processing complete | completed=%d failures=%d log_file=%s",
+        len(completed_packages),
+        len(pre_import_failure_log) + len(post_import_failure_log),
+        run_log_file,
+    )
 
 
 
 if __name__ == "__main__":
-    process()
+    try:
+        process()
+    except Exception:
+        logger.critical("ETD processing terminated unexpectedly", exc_info=True)
+        raise
